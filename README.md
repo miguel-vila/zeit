@@ -17,3 +17,4 @@ Logs what you are doing in your computer and summarizes it using local models:
 - add last half an hour summary in the menubar app
 - show when not collecting data due outside work hours
 - collect only necessary data
+- select which monitor to capture from according to user focus? or just take it from all monitors?
