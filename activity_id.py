@@ -124,7 +124,7 @@ The description of the screenshot is as follows:
         try:
             logger.debug("Calling classification model to identify activity")
             response = self.client.generate(
-                model="qwen3:8b",
+                model=self.llm,
                 prompt=prompt,
                 format=ActivitiesResponse.model_json_schema(),
                 options={'temperature': 0, 'timeout': 30},
