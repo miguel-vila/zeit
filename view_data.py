@@ -25,7 +25,8 @@ def view_day(db: DatabaseManager, date_str: str):
         timestamp = datetime.fromisoformat(activity.timestamp)
         time_str = timestamp.strftime("%H:%M:%S")
         print(f"{i}. [{time_str}] {activity.activity.value}")
-        print(f"   Reasoning: {activity.reasoning}")
+        if activity.reasoning:
+            print(f"   Reasoning: {activity.reasoning}")
         print()
         
     summary = compute_summary(day_record.activities)

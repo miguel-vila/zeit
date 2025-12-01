@@ -5,23 +5,32 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 from pydantic import BaseModel, Field
-from activity_id import ActivitiesResponseWithTimestamp, Activity
+from activity_id import ActivitiesResponseWithTimestamp, ExtendedActivity
 
 logger = logging.getLogger(__name__)
 
 class ActivityEntry(BaseModel):
     """Represents a single activity at a specific time."""
     timestamp: str = Field(description="ISO format timestamp when the activity was detected")
-    activity: Activity = Field(description="The detected activity type")
-    reasoning: str = Field(description="Reasoning for why this activity was identified")
+    activity: ExtendedActivity = Field(description="The detected activity type")
+    reasoning: Optional[str] = Field(default=None, description="Reasoning for why this activity was identified")
 
     @classmethod
     def from_response(cls, activities_response: ActivitiesResponseWithTimestamp):
         """Create an ActivityEntry from an ActivitiesResponse."""
         return cls(
             timestamp=activities_response.timestamp.isoformat(),
-            activity=activities_response.main_activity,
+            activity=ExtendedActivity(activities_response.main_activity.value),
             reasoning=activities_response.reasoning
+        )
+
+    @classmethod
+    def idle(cls, timestamp: datetime):
+        """Create an ActivityEntry for idle state."""
+        return cls(
+            timestamp=timestamp.isoformat(),
+            activity=ExtendedActivity.IDLE,
+            reasoning=None
         )
 
 class DayRecord(BaseModel):

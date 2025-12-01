@@ -1,17 +1,17 @@
 from typing import List
 from pydantic import BaseModel, Field
 
-from activity_id import Activity
+from activity_id import ExtendedActivity
 from db import ActivityEntry
 
 class ActivityWithPercentage(BaseModel):
     """Represents an activity along with its occurrence count."""
-    activity: Activity = Field(description="The activity type")
+    activity: ExtendedActivity = Field(description="The activity type")
     percentage: float = Field(description="Percentage of total activities")
-        
+
 def compute_summary(entries: List[ActivityEntry]) -> List[ActivityWithPercentage]:
     """Compute a summary of activities from a list of ActivityEntry."""
-    summary: dict[Activity, int] = {}
+    summary: dict[ExtendedActivity, int] = {}
     for entry in entries:
         activity_name = entry.activity
         summary[activity_name] = summary.get(activity_name, 0) + 1
