@@ -2,10 +2,13 @@ from ollama import Client
 from time import sleep
 import sys
 import logging
+import os
 from pathlib import Path
+from datetime import datetime
 from activity_id import ActivityIdentifier
 from db import DatabaseManager, ActivityEntry
 from dotenv import load_dotenv
+from idle_detection import is_system_idle, DEFAULT_IDLE_THRESHOLD
 
 def setup_logging():
     """Configure logging to file and console."""
@@ -57,6 +60,30 @@ def main():
             logger.info(f"Waiting for {delay} seconds before taking screenshot...")
             sleep(delay)
 
+        # Get idle threshold from environment variable or use default
+        idle_threshold = int(os.getenv('IDLE_THRESHOLD_SECONDS', DEFAULT_IDLE_THRESHOLD))
+        logger.debug(f"Using idle threshold: {idle_threshold} seconds")
+
+        # Check if system is idle
+        if is_system_idle(idle_threshold):
+            logger.info("System is idle, recording idle state instead of taking screenshot")
+
+            # Create idle entry
+            idle_entry = ActivityEntry.idle(datetime.now())
+
+            # Save to database
+            with DatabaseManager() as db:
+                success = db.insert_activity(idle_entry)
+
+                if not success:
+                    logger.error("Failed to save idle state to database")
+                    return 1
+
+                logger.info("Idle state successfully saved to database")
+
+            return 0
+
+        # System is active - proceed with screenshot and identification
         # Initialize Ollama client and activity identifier
         logger.debug("Initializing Ollama client")
         client = Client()
