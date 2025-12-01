@@ -10,3 +10,8 @@ Logs what you are doing in your computer and summarizes it using local models:
 - Work hours and days
 - Screenshot interval
 - Activities enumeration
+
+## TODOs
+
+- add last half an hour summary in the menubar app
+- detect idle time and pause tracking

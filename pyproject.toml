@@ -10,4 +10,5 @@ dependencies = [
     "ollama>=0.6.1",
     "opik>=1.9.33",
     "pydantic>=2.12.5",
+    "rumps>=0.4.0",
 ]
