@@ -31,6 +31,16 @@ class Activity(str, Enum):
     WORK_CODING = "work_coding"
     WORK_BROWSING = "work_browsing"
     WORK_CALENDAR = "work_calendar"
+    
+    def is_work_activity(self) -> bool:
+        return self in {
+            Activity.SLACK,
+            Activity.WORK_EMAIL,
+            Activity.ZOOM_MEETING,
+            Activity.WORK_CODING,
+            Activity.WORK_BROWSING,
+            Activity.WORK_CALENDAR,
+        }
 
 class ExtendedActivity(str, Enum):
     """Extended activity enum that includes system states like IDLE."""
@@ -53,6 +63,16 @@ class ExtendedActivity(str, Enum):
     WORK_CALENDAR = "work_calendar"
     # System states
     IDLE = "idle"
+    
+    def is_work_activity(self) -> bool:
+        return self in {
+            ExtendedActivity.SLACK,
+            ExtendedActivity.WORK_EMAIL,
+            ExtendedActivity.ZOOM_MEETING,
+            ExtendedActivity.WORK_CODING,
+            ExtendedActivity.WORK_BROWSING,
+            ExtendedActivity.WORK_CALENDAR,
+        }
 
 class ActivitiesResponse(BaseModel):
     main_activity: Activity = Field(description="Main detected activity from the screenshot. This is the main activity that the user is engaged in. Select the most prominent activity, no matter if there are indications of other activities. For example, in a browser there might be tabs with associated to ther activities, but the main one should be the one currently visible.")

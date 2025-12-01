@@ -90,7 +90,7 @@ class ZeitMenuBar(rumps.App):
         work_percentage = sum(
             entry.percentage
             for entry in summary
-            if entry.activity.value.startswith('work_')
+            if entry.activity.is_work_activity()
         )
         self.title = f"📊 {work_percentage:.0f}%"
 
