@@ -10,6 +10,7 @@ wheels/
 .venv
 
 screenshots/
+logs/
+data/
 *.log
 *.db
-./data

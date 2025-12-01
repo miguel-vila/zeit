@@ -72,7 +72,7 @@ Based on this description, identify the main activity the user is engaged in.
 The user might be during their day job, taking a break, or doing personal tasks.
 We want to differentiate between work-related and personal activities.
 The personal categories are:
-- personal_browsing : User is browsing the web for personal purposes:
+- personal_browsing : User is browsing the web for personal purposes
 - social_media : User is browsing or interacting on social media platforms.
 - youtube_entertainment : User is watching videos on YouTube for entertainment.
 - personal_email : User is reading or composing personal emails.
