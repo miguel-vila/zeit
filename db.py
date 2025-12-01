@@ -27,7 +27,7 @@ class ActivityEntry(BaseModel):
 class DayRecord(BaseModel):
     """Represents all activities for a single day."""
     date: str = Field(description="Date in YYYY-MM-DD format")
-    activities: List[ActivityEntry] = Field(default_factory=list, description="List of activities detected during the day")
+    activities: List[ActivityEntry] = Field(description="List of activities detected during the day")
 
     def add_activity(self, entry: ActivityEntry):
         """Add an activity entry to this day."""
@@ -131,7 +131,7 @@ class DatabaseManager:
                 logger.debug(f"Updated existing day record for {date_str}")
             else:
                 # Day doesn't exist - create new record
-                day_record = DayRecord(date=date_str)
+                day_record = DayRecord(date=date_str, activities=[])
                 day_record.add_activity(activity_entry)
 
                 cursor.execute(

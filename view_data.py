@@ -3,8 +3,8 @@
 
 import sys
 from datetime import datetime, timedelta
+from activity_summarization import compute_summary
 from db import DatabaseManager
-from pathlib import Path
 
 def view_day(db: DatabaseManager, date_str: str):
     """View activities for a specific day."""
@@ -25,6 +25,16 @@ def view_day(db: DatabaseManager, date_str: str):
         print(f"{i}. [{time_str}] {activity.activity.value}")
         print(f"   Reasoning: {activity.reasoning}")
         print()
+        
+    summary = compute_summary(day_record.activities)
+    
+    print(f"{'='*70}")
+    print("Daily Summary:")
+    print(f"{'-'*70}")
+    for summary_entry in summary:
+        print(f"- {summary_entry.activity.value}: {summary_entry.percentage:.2f}%")
+    print(f"{'='*70}\n")
+    
 
 def view_all_days(db: DatabaseManager):
     """View summary of all days in the database."""
