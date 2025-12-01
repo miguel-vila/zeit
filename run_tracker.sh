@@ -12,15 +12,15 @@ CURRENT_HOUR=$(date +%H)
 CURRENT_DAY=$(date +%u)  # 1=Monday, 7=Sunday
 
 Exit early if outside work hours
-if [ "$CURRENT_DAY" -gt 5 ]; then
-    # Weekend (Saturday=6, Sunday=7)
-    exit 0
-fi
+# if [ "$CURRENT_DAY" -gt 5 ]; then
+#     # Weekend (Saturday=6, Sunday=7)
+#     exit 0
+# fi
 
-if [ "$CURRENT_HOUR" -lt "$WORK_START_HOUR" ] || [ "$CURRENT_HOUR" -ge "$WORK_END_HOUR" ]; then
-    # Outside work hours
-    exit 0
-fi
+# if [ "$CURRENT_HOUR" -lt "$WORK_START_HOUR" ] || [ "$CURRENT_HOUR" -ge "$WORK_END_HOUR" ]; then
+#     # Outside work hours
+#     exit 0
+# fi
 
 # Change to project directory
 cd "/Users/miguelvilagonzalez/repos/zeit" || exit 1
