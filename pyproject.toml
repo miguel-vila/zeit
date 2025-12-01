@@ -5,7 +5,9 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "dotenv>=0.9.9",
     "mss>=10.1.0",
     "ollama>=0.6.1",
+    "opik>=1.9.33",
     "pydantic>=2.12.5",
 ]

@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 from activity_id import ActivityIdentifier
 from db import DatabaseManager, ActivityEntry
+from dotenv import load_dotenv
 
 def setup_logging():
     """Configure logging to file and console."""
@@ -37,6 +38,7 @@ def setup_logging():
     return logging.getLogger(__name__)
 
 def main():
+    load_dotenv()  # Load environment variables from .env file if present
     logger = setup_logging()
     logger.info("=" * 60)
     logger.info("Starting zeit activity tracker")

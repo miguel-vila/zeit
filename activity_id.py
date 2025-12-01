@@ -10,6 +10,7 @@ from ollama import Client
 from datetime import datetime
 import logging
 from typing import Optional
+from opik import track, opik_context
 
 class Activity(str, Enum):
     # Personal activities:
@@ -45,7 +46,10 @@ logger = logging.getLogger(__name__)
 class ActivityIdentifier:
     def __init__(self, ollama_client: Client):
         self.client = ollama_client
+        self.vlm = "qwen3-vl:4b"
+        self.llm = "qwen3:8b"
         
+    @track(tags=['ollama', 'python-library'])
     def _describe_image(self, image_path: Path) -> Optional[str]:
         """Uses the Ollama client to generate a description of the image."""
         try:
@@ -53,10 +57,26 @@ class ActivityIdentifier:
             prompt = "A brief description of the user's activities based on the screenshot. Describe enough things to understand what is the main activity the user is engaged in."
             logger.debug("Calling vision model to describe image")
             response = self.client.generate(
-                model="qwen3-vl:4b",
+                model=self.vlm,
                 prompt=prompt,
                 images=[encoded_image],
                 options={'temperature': 0, 'timeout': 30}
+            )
+            opik_context.update_current_span(
+                metadata={
+                    'model': response['model'],
+                    'eval_duration': response['eval_duration'],
+                    'load_duration': response['load_duration'],
+                    'prompt_eval_duration': response['prompt_eval_duration'],
+                    'prompt_eval_count': response['prompt_eval_count'],
+                    'done': response['done'],
+                    'done_reason': response['done_reason'],
+                },
+                usage={
+                    'completion_tokens': response['eval_count'],
+                    'prompt_tokens': response['prompt_eval_count'],
+                    'total_tokens': response['eval_count'] + response['prompt_eval_count']
+                }
             )
             logger.debug("Vision model response received")
             return response.response
@@ -64,6 +84,7 @@ class ActivityIdentifier:
             logger.error(f"Failed to describe image: {e}", exc_info=True)
             return None
 
+    @track(tags=['ollama', 'python-library'])
     def _describe_activities(self, image_description: str) -> Optional[ActivitiesResponse]:
         prompt = f"""You are given a description of a screenshot taken from a user's computer.
 It describes various elements visible on the screen.
@@ -108,6 +129,22 @@ The description of the screenshot is as follows:
                 format=ActivitiesResponse.model_json_schema(),
                 options={'temperature': 0, 'timeout': 30},
                 think=True
+            )
+            opik_context.update_current_span(
+                metadata={
+                    'model': response['model'],
+                    'eval_duration': response['eval_duration'],
+                    'load_duration': response['load_duration'],
+                    'prompt_eval_duration': response['prompt_eval_duration'],
+                    'prompt_eval_count': response['prompt_eval_count'],
+                    'done': response['done'],
+                    'done_reason': response['done_reason'],
+                },
+                usage={
+                    'completion_tokens': response['eval_count'],
+                    'prompt_tokens': response['prompt_eval_count'],
+                    'total_tokens': response['eval_count'] + response['prompt_eval_count']
+                }
             )
             activities_response = ActivitiesResponse.model_validate_json(response.response)
             if response.thinking:
@@ -160,9 +197,7 @@ The description of the screenshot is as follows:
 
             logger.info(f"Time taken for activity classification: {end_time - start_time:.2f} seconds")
             return ActivitiesResponseWithTimestamp(
-                main_activity=activities_response.main_activity,
-                reasoning=activities_response.reasoning,
-                timestamp=datetime.fromisoformat(now)
+                main_activity=activities_response.main_activity,                reasoning=activities_response.reasoning,                timestamp=datetime.fromisoformat(now)
             )
 
         except Exception as e:

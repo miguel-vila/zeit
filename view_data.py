@@ -3,6 +3,8 @@
 
 import sys
 from datetime import datetime, timedelta
+
+from dotenv import load_dotenv
 from activity_summarization import compute_summary
 from db import DatabaseManager
 
@@ -77,6 +79,7 @@ def view_yesterday(db: DatabaseManager):
     view_day(db, yesterday)
 
 def main():
+    load_dotenv()  # Load environment variables from .env file if present
     if len(sys.argv) > 1:
         command = sys.argv[1]
 
