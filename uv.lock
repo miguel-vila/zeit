@@ -2091,6 +2091,7 @@ dependencies = [
     { name = "ollama" },
     { name = "opik" },
     { name = "pydantic" },
+    { name = "pyyaml" },
     { name = "rumps" },
 ]
 
@@ -2101,6 +2102,7 @@ requires-dist = [
     { name = "ollama", specifier = ">=0.6.1" },
     { name = "opik", specifier = ">=1.9.33" },
     { name = "pydantic", specifier = ">=2.12.5" },
+    { name = "pyyaml", specifier = ">=6.0.0" },
     { name = "rumps", specifier = ">=0.4.0" },
 ]
 
