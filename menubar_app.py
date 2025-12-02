@@ -3,6 +3,7 @@
 
 import rumps
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 from db import DatabaseManager
@@ -25,6 +26,8 @@ logger = logging.getLogger(__name__)
 class ZeitMenuBar(rumps.App):
     """Menu bar application for Zeit activity tracker."""
 
+    STOP_FLAG = Path.home() / ".zeit_stop"
+
     def __init__(self):
         super().__init__("📊", quit_button=None)
         logger.info("Starting Zeit Menu Bar App")
@@ -41,6 +44,42 @@ class ZeitMenuBar(rumps.App):
 
         # Initial update
         self.update_menu()
+
+    def is_tracking_active(self):
+        """Check if tracking is currently active (flag file doesn't exist)."""
+        return not self.STOP_FLAG.exists()
+
+    def toggle_tracking(self, _):
+        """Toggle tracking on/off by creating/removing the flag file."""
+        try:
+            if self.is_tracking_active():
+                # Stop tracking
+                self.STOP_FLAG.touch()
+                logger.info("Tracking stopped via menu bar toggle")
+                rumps.notification(
+                    title="Zeit Tracking",
+                    subtitle="Stopped",
+                    message="Tracking has been paused"
+                )
+            else:
+                # Resume tracking
+                self.STOP_FLAG.unlink()
+                logger.info("Tracking resumed via menu bar toggle")
+                rumps.notification(
+                    title="Zeit Tracking",
+                    subtitle="Resumed",
+                    message="Tracking has been resumed"
+                )
+
+            # Update menu to reflect new status
+            self.update_menu()
+        except Exception as e:
+            logger.error(f"Error toggling tracking: {e}", exc_info=True)
+            rumps.notification(
+                title="Zeit Error",
+                subtitle="Toggle Failed",
+                message=str(e)
+            )
 
     @rumps.timer(60)  # Update every 60 seconds
     def update_menu(self, _=None):
@@ -59,9 +98,15 @@ class ZeitMenuBar(rumps.App):
 
         except Exception as e:
             logger.error(f"Error updating menu: {e}", exc_info=True)
+            tracking_active = self.is_tracking_active()
+            self.title = "📊" if tracking_active else "⏸️"
+            toggle_text = "⏸️ Stop Tracking" if tracking_active else "▶️ Resume Tracking"
+
             self.menu.clear()
             self.menu = [
                 rumps.MenuItem(f"Error: {str(e)}", callback=None),
+                rumps.separator,
+                rumps.MenuItem(toggle_text, callback=self.toggle_tracking),
                 rumps.separator,
                 rumps.MenuItem("Refresh", callback=self.refresh),
                 rumps.MenuItem("Quit", callback=self.quit_app)
@@ -69,11 +114,17 @@ class ZeitMenuBar(rumps.App):
 
     def _update_menu_no_data(self, today):
         """Update menu when there's no data for today."""
-        self.title = "📊"
+        tracking_active = self.is_tracking_active()
+        self.title = "📊" if tracking_active else "⏸️"
+
+        toggle_text = "⏸️ Stop Tracking" if tracking_active else "▶️ Resume Tracking"
+
         self.menu.clear()
         self.menu = [
             rumps.MenuItem(f"{today}", callback=None),
             rumps.MenuItem("No activities tracked yet", callback=None),
+            rumps.separator,
+            rumps.MenuItem(toggle_text, callback=self.toggle_tracking),
             rumps.separator,
             rumps.MenuItem("Refresh", callback=self.refresh),
             rumps.MenuItem("View Details", callback=self.view_details),
@@ -85,6 +136,7 @@ class ZeitMenuBar(rumps.App):
         """Update menu with activity summary data."""
         summary = compute_summary(day_record.activities)
         total_count = len(day_record.activities)
+        tracking_active = self.is_tracking_active()
 
         # Update title with work percentage if work activities exist
         work_percentage = sum(
@@ -92,7 +144,13 @@ class ZeitMenuBar(rumps.App):
             for entry in summary
             if entry.activity.is_work_activity()
         )
-        self.title = f"📊 {work_percentage:.0f}%"
+
+        if tracking_active:
+            self.title = f"📊 {work_percentage:.0f}%"
+        else:
+            self.title = f"⏸️ {work_percentage:.0f}%"
+
+        toggle_text = "⏸️ Stop Tracking" if tracking_active else "▶️ Resume Tracking"
 
         # Build menu items
         menu_items = [
@@ -110,6 +168,8 @@ class ZeitMenuBar(rumps.App):
 
         # Add controls
         menu_items.extend([
+            rumps.separator,
+            rumps.MenuItem(toggle_text, callback=self.toggle_tracking),
             rumps.separator,
             rumps.MenuItem("Refresh", callback=self.refresh),
             rumps.MenuItem("View Details", callback=self.view_details),

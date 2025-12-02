@@ -22,6 +22,13 @@ if [ "$CURRENT_HOUR" -lt "$WORK_START_HOUR" ] || [ "$CURRENT_HOUR" -ge "$WORK_EN
     exit 0
 fi
 
+# Check if manual stop flag is set
+STOP_FLAG="$HOME/.zeit_stop"
+if [ -f "$STOP_FLAG" ]; then
+    # User has manually stopped tracking
+    exit 0
+fi
+
 # Change to project directory
 cd "/Users/miguelvilagonzalez/repos/zeit" || exit 1
 
