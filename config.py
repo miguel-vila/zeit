@@ -2,7 +2,7 @@
 
 from datetime import time, datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 import yaml
 from pydantic import BaseModel, Field, field_validator
 import logging
@@ -18,7 +18,7 @@ class WorkHoursConfig(BaseModel):
 
     @field_validator('work_start_hour', 'work_end_hour', mode='before')
     @classmethod
-    def parse_time_string(cls, v):
+    def parse_time_string(cls, v: Any) -> time:
         """Parse time string in HH:MM format to time object."""
         if isinstance(v, str):
             try:
@@ -111,15 +111,6 @@ def load_config(config_path: Optional[Path] = None) -> ZeitConfig:
 
     with open(config_path, 'r') as f:
         config_data = yaml.safe_load(f)
-
-    # Transform flat structure to nested if needed
-    if 'work-start-hour' in config_data:
-        config_data = {
-            'work_hours': {
-                'work_start_hour': config_data['work-start-hour'],
-                'work_end_hour': config_data['work-end-hour']
-            }
-        }
 
     return ZeitConfig(**config_data)
 

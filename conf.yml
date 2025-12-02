@@ -1,3 +1,4 @@
-work-start-hour: 09:00
-work-end-hour: 17:30
+work_hours:
+  work_start_hour: '09:00'
+  work_end_hour: '17:30'
 
