@@ -5,10 +5,10 @@ import logging
 import os
 from pathlib import Path
 from datetime import datetime
-from activity_id import ActivityIdentifier
-from db import DatabaseManager, ActivityEntry
+from src.zeit.core.activity_id import ActivityIdentifier
+from src.zeit.data.db import DatabaseManager, ActivityEntry
 from dotenv import load_dotenv
-from idle_detection import is_system_idle, DEFAULT_IDLE_THRESHOLD
+from src.zeit.core.idle_detection import is_system_idle, DEFAULT_IDLE_THRESHOLD
 
 def setup_logging():
     """Configure logging to file and console."""

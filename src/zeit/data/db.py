@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 from pydantic import BaseModel, Field
-from activity_id import ActivitiesResponseWithTimestamp, ExtendedActivity
+from src.zeit.core.activity_id import ActivitiesResponseWithTimestamp, ExtendedActivity
 
 logger = logging.getLogger(__name__)
 
@@ -184,6 +184,56 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logger.error(f"Failed to retrieve day record for {date_str}: {e}", exc_info=True)
             return None
+
+    def delete_day_record(self, date_str: str) -> bool:
+        """
+        Delete all activities for a specific day.
+
+        Args:
+            date_str: Date in YYYY-MM-DD format
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("DELETE FROM daily_activities WHERE date = ?", (date_str,))
+            self.conn.commit()
+            rows_deleted = cursor.rowcount
+
+            if rows_deleted > 0:
+                logger.info(f"Deleted day record for {date_str}")
+                return True
+            else:
+                logger.warning(f"No record found for {date_str} to delete")
+                return False
+        except sqlite3.Error as e:
+            logger.error(f"Failed to delete day record for {date_str}: {e}", exc_info=True)
+            self.conn.rollback()
+            return False
+
+    def get_all_days(self) -> List[tuple[str, int]]:
+        """
+        Get a list of all days with activities and their activity counts.
+
+        Returns:
+            List of tuples (date_str, activity_count)
+        """
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT date, activities FROM daily_activities ORDER BY date DESC")
+            rows = cursor.fetchall()
+
+            result = []
+            for row in rows:
+                activities_data = json.loads(row["activities"])
+                activity_count = len(activities_data)
+                result.append((row["date"], activity_count))
+
+            return result
+        except sqlite3.Error as e:
+            logger.error(f"Failed to retrieve all days: {e}", exc_info=True)
+            return []
 
     def close(self):
         """Close the database connection."""

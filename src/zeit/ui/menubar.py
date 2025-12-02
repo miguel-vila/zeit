@@ -5,9 +5,9 @@ import rumps  # type: ignore[import-untyped]
 import logging
 from datetime import datetime
 from pathlib import Path
-from db import DatabaseManager, DayRecord
-from activity_summarization import compute_summary
-from config import get_config, is_within_work_hours
+from src.zeit.data.db import DatabaseManager, DayRecord
+from src.zeit.processing.activity_summarization import compute_summary
+from src.zeit.core.config import get_config, is_within_work_hours
 
 # Configure logging
 log_dir = Path("logs")

@@ -1,8 +1,8 @@
 from typing import List
 from pydantic import BaseModel, Field
 
-from activity_id import ExtendedActivity
-from db import ActivityEntry
+from src.zeit.core.activity_id import ExtendedActivity
+from src.zeit.data.db import ActivityEntry
 
 class ActivityWithPercentage(BaseModel):
     """Represents an activity along with its occurrence count."""

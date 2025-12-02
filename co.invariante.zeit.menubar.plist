@@ -10,7 +10,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>/Users/miguelvilagonzalez/repos/zeit/.venv/bin/python</string>
-        <string>/Users/miguelvilagonzalez/repos/zeit/menubar_app.py</string>
+        <string>/Users/miguelvilagonzalez/repos/zeit/run_menubar_app.py</string>
     </array>
 
     <!-- Working directory -->
