@@ -12,6 +12,7 @@ import logging
 from typing import Optional
 from opik import track, opik_context
 
+
 class Activity(str, Enum):
     # Personal activities:
     PERSONAL_BROWSING = "personal_browsing"
@@ -31,7 +32,7 @@ class Activity(str, Enum):
     WORK_CODING = "work_coding"
     WORK_BROWSING = "work_browsing"
     WORK_CALENDAR = "work_calendar"
-    
+
     def is_work_activity(self) -> bool:
         return self in {
             Activity.SLACK,
@@ -42,8 +43,10 @@ class Activity(str, Enum):
             Activity.WORK_CALENDAR,
         }
 
+
 class ExtendedActivity(str, Enum):
     """Extended activity enum that includes system states like IDLE."""
+
     # All regular activities from Activity enum
     PERSONAL_BROWSING = "personal_browsing"
     SOCIAL_MEDIA = "social_media"
@@ -63,7 +66,7 @@ class ExtendedActivity(str, Enum):
     WORK_CALENDAR = "work_calendar"
     # System states
     IDLE = "idle"
-    
+
     def is_work_activity(self) -> bool:
         return self in {
             ExtendedActivity.SLACK,
@@ -74,24 +77,32 @@ class ExtendedActivity(str, Enum):
             ExtendedActivity.WORK_CALENDAR,
         }
 
+
 class ActivitiesResponse(BaseModel):
-    main_activity: Activity = Field(description="Main detected activity from the screenshot. This is the main activity that the user is engaged in. Select the most prominent activity, no matter if there are indications of other activities. For example, in a browser there might be tabs with associated to ther activities, but the main one should be the one currently visible.")
-    reasoning: str = Field(description="The reasoning behind the selection of the main activity. Explain why this activity was selected based on the description of the screenshot.")
+    main_activity: Activity = Field(
+        description="Main detected activity from the screenshot. This is the main activity that the user is engaged in. Select the most prominent activity, no matter if there are indications of other activities. For example, in a browser there might be tabs with associated to ther activities, but the main one should be the one currently visible."
+    )
+    reasoning: str = Field(
+        description="The reasoning behind the selection of the main activity. Explain why this activity was selected based on the description of the screenshot."
+    )
+
 
 class ActivitiesResponseWithTimestamp(ActivitiesResponse):
     main_activity: Activity
     reasoning: str
     timestamp: datetime
 
+
 logger = logging.getLogger(__name__)
+
 
 class ActivityIdentifier:
     def __init__(self, ollama_client: Client):
         self.client = ollama_client
         self.vlm = "qwen3-vl:4b"
         self.llm = "qwen3:8b"
-        
-    @track(tags=['ollama', 'python-library'])
+
+    @track(tags=["ollama", "python-library"])
     def _describe_image(self, image_path: Path) -> Optional[str]:
         """Uses the Ollama client to generate a description of the image."""
         try:
@@ -102,23 +113,24 @@ class ActivityIdentifier:
                 model=self.vlm,
                 prompt=prompt,
                 images=[encoded_image],
-                options={'temperature': 0, 'timeout': 30}
+                options={"temperature": 0, "timeout": 30},
             )
             opik_context.update_current_span(
                 metadata={
-                    'model': response['model'],
-                    'eval_duration': response['eval_duration'],
-                    'load_duration': response['load_duration'],
-                    'prompt_eval_duration': response['prompt_eval_duration'],
-                    'prompt_eval_count': response['prompt_eval_count'],
-                    'done': response['done'],
-                    'done_reason': response['done_reason'],
+                    "model": response["model"],
+                    "eval_duration": response["eval_duration"],
+                    "load_duration": response["load_duration"],
+                    "prompt_eval_duration": response["prompt_eval_duration"],
+                    "prompt_eval_count": response["prompt_eval_count"],
+                    "done": response["done"],
+                    "done_reason": response["done_reason"],
                 },
                 usage={
-                    'completion_tokens': response['eval_count'],
-                    'prompt_tokens': response['prompt_eval_count'],
-                    'total_tokens': response['eval_count'] + response['prompt_eval_count']
-                }
+                    "completion_tokens": response["eval_count"],
+                    "prompt_tokens": response["prompt_eval_count"],
+                    "total_tokens": response["eval_count"]
+                    + response["prompt_eval_count"],
+                },
             )
             logger.debug("Vision model response received")
             return response.response
@@ -126,8 +138,10 @@ class ActivityIdentifier:
             logger.error(f"Failed to describe image: {e}", exc_info=True)
             return None
 
-    @track(tags=['ollama', 'python-library'])
-    def _describe_activities(self, image_description: str) -> Optional[ActivitiesResponse]:
+    @track(tags=["ollama", "python-library"])
+    def _describe_activities(
+        self, image_description: str
+    ) -> Optional[ActivitiesResponse]:
         prompt = f"""You are given a description of a screenshot taken from a user's computer.
 It describes various elements visible on the screen.
 Based on this description, identify the main activity the user is engaged in.
@@ -169,35 +183,40 @@ The description of the screenshot is as follows:
                 model=self.llm,
                 prompt=prompt,
                 format=ActivitiesResponse.model_json_schema(),
-                options={'temperature': 0, 'timeout': 30},
-                think=True
+                options={"temperature": 0, "timeout": 30},
+                think=True,
             )
             opik_context.update_current_span(
                 metadata={
-                    'model': response['model'],
-                    'eval_duration': response['eval_duration'],
-                    'load_duration': response['load_duration'],
-                    'prompt_eval_duration': response['prompt_eval_duration'],
-                    'prompt_eval_count': response['prompt_eval_count'],
-                    'done': response['done'],
-                    'done_reason': response['done_reason'],
+                    "model": response["model"],
+                    "eval_duration": response["eval_duration"],
+                    "load_duration": response["load_duration"],
+                    "prompt_eval_duration": response["prompt_eval_duration"],
+                    "prompt_eval_count": response["prompt_eval_count"],
+                    "done": response["done"],
+                    "done_reason": response["done_reason"],
                 },
                 usage={
-                    'completion_tokens': response['eval_count'],
-                    'prompt_tokens': response['prompt_eval_count'],
-                    'total_tokens': response['eval_count'] + response['prompt_eval_count']
-                }
+                    "completion_tokens": response["eval_count"],
+                    "prompt_tokens": response["prompt_eval_count"],
+                    "total_tokens": response["eval_count"]
+                    + response["prompt_eval_count"],
+                },
             )
-            activities_response = ActivitiesResponse.model_validate_json(response.response)
+            activities_response = ActivitiesResponse.model_validate_json(
+                response.response
+            )
             if response.thinking:
-                logger.debug(f'Model thinking: {response.thinking}')
+                logger.debug(f"Model thinking: {response.thinking}")
             logger.debug(f"Activity identified: {activities_response.main_activity}")
             return activities_response
         except Exception as e:
             logger.error(f"Failed to classify activity: {e}", exc_info=True)
             return None
 
-    def take_screenshot_and_describe(self, monitor_id: int) -> Optional[ActivitiesResponseWithTimestamp]:
+    def take_screenshot_and_describe(
+        self, monitor_id: int
+    ) -> Optional[ActivitiesResponseWithTimestamp]:
         now = datetime.now().isoformat()
         screenshot_path = None
 
@@ -206,7 +225,9 @@ The description of the screenshot is as follows:
             logger.info(f"Taking screenshot from monitor {monitor_id}")
             with mss.mss() as sct:
                 if monitor_id >= len(sct.monitors):
-                    logger.error(f"Invalid monitor ID {monitor_id}. Available monitors: {len(sct.monitors) - 1}")
+                    logger.error(
+                        f"Invalid monitor ID {monitor_id}. Available monitors: {len(sct.monitors) - 1}"
+                    )
                     return None
                 screenshot = sct.grab(sct.monitors[monitor_id])
 
@@ -225,8 +246,10 @@ The description of the screenshot is as follows:
                 logger.error("Failed to get image description")
                 return None
 
-            logger.info(f'Image description: {description}')
-            logger.info(f"Time taken for image description: {end_time - start_time:.2f} seconds")
+            logger.info(f"Image description: {description}")
+            logger.info(
+                f"Time taken for image description: {end_time - start_time:.2f} seconds"
+            )
 
             # Classify activity
             start_time = time()
@@ -237,13 +260,19 @@ The description of the screenshot is as follows:
                 logger.error("Failed to classify activity")
                 return None
 
-            logger.info(f"Time taken for activity classification: {end_time - start_time:.2f} seconds")
+            logger.info(
+                f"Time taken for activity classification: {end_time - start_time:.2f} seconds"
+            )
             return ActivitiesResponseWithTimestamp(
-                main_activity=activities_response.main_activity,                reasoning=activities_response.reasoning,                timestamp=datetime.fromisoformat(now)
+                main_activity=activities_response.main_activity,
+                reasoning=activities_response.reasoning,
+                timestamp=datetime.fromisoformat(now),
             )
 
         except Exception as e:
-            logger.error(f"Unexpected error in take_screenshot_and_describe: {e}", exc_info=True)
+            logger.error(
+                f"Unexpected error in take_screenshot_and_describe: {e}", exc_info=True
+            )
             return None
         finally:
             # Clean up screenshot file
@@ -252,10 +281,12 @@ The description of the screenshot is as follows:
                     os.remove(screenshot_path)
                     logger.debug(f"Removed screenshot file: {screenshot_path}")
                 except Exception as e:
-                    logger.warning(f"Failed to remove screenshot file {screenshot_path}: {e}")
+                    logger.warning(
+                        f"Failed to remove screenshot file {screenshot_path}: {e}"
+                    )
 
 
 def encode_image_to_base64(image_path: Path) -> str:
-        """Encodes an image file to a base64 string."""
-        with open(image_path, "rb") as image_file:
-            return base64.b64encode(image_file.read()).decode('utf-8')
+    """Encodes an image file to a base64 string."""
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode("utf-8")
