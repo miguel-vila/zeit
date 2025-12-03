@@ -1,8 +1,5 @@
 from enum import Enum
 from pathlib import Path
-import mss
-import mss.tools
-import os
 from time import time
 import base64
 from pydantic import BaseModel, Field
@@ -11,6 +8,8 @@ from datetime import datetime
 import logging
 from typing import Optional
 from opik import track, opik_context
+
+from src.zeit.core.screen import EphemeralScreenshot
 
 
 class Activity(str, Enum):
@@ -217,74 +216,42 @@ The description of the screenshot is as follows:
     def take_screenshot_and_describe(
         self, monitor_id: int
     ) -> Optional[ActivitiesResponseWithTimestamp]:
-        now = datetime.now().isoformat()
-        screenshot_path = None
+        now = datetime.now()
 
-        try:
+        with EphemeralScreenshot(monitor_id, now) as screenshot_path:
             # Take screenshot
             logger.info(f"Taking screenshot from monitor {monitor_id}")
-            with mss.mss() as sct:
-                if monitor_id >= len(sct.monitors):
-                    logger.error(
-                        f"Invalid monitor ID {monitor_id}. Available monitors: {len(sct.monitors) - 1}"
-                    )
-                    return None
-                screenshot = sct.grab(sct.monitors[monitor_id])
-
-            file_name = f"screenshots/screenshot_{monitor_id}_{now}.png"
-            os.makedirs("screenshots", exist_ok=True)
-            mss.tools.to_png(screenshot.rgb, screenshot.size, output=file_name)
-            screenshot_path = os.path.abspath(file_name)
-            logger.debug(f"Screenshot saved to {screenshot_path}")
-
             # Describe image
             start_time = time()
-            description = self._describe_image(Path(screenshot_path))
+            description = self._describe_image(screenshot_path)
             end_time = time()
 
-            if description is None:
-                logger.error("Failed to get image description")
-                return None
-
-            logger.info(f"Image description: {description}")
-            logger.info(
-                f"Time taken for image description: {end_time - start_time:.2f} seconds"
-            )
-
-            # Classify activity
-            start_time = time()
-            activities_response = self._describe_activities(description)
-            end_time = time()
-
-            if activities_response is None:
-                logger.error("Failed to classify activity")
-                return None
-
-            logger.info(
-                f"Time taken for activity classification: {end_time - start_time:.2f} seconds"
-            )
-            return ActivitiesResponseWithTimestamp(
-                main_activity=activities_response.main_activity,
-                reasoning=activities_response.reasoning,
-                timestamp=datetime.fromisoformat(now),
-            )
-
-        except Exception as e:
-            logger.error(
-                f"Unexpected error in take_screenshot_and_describe: {e}", exc_info=True
-            )
+        if description is None:
+            logger.error("Failed to get image description")
             return None
-        finally:
-            # Clean up screenshot file
-            if screenshot_path and os.path.exists(screenshot_path):
-                try:
-                    os.remove(screenshot_path)
-                    logger.debug(f"Removed screenshot file: {screenshot_path}")
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to remove screenshot file {screenshot_path}: {e}"
-                    )
 
+        logger.info(f"Image description: {description}")
+        logger.info(
+            f"Time taken for image description: {end_time - start_time:.2f} seconds"
+        )
+
+        # Classify activity
+        start_time = time()
+        activities_response = self._describe_activities(description)
+        end_time = time()
+
+        if activities_response is None:
+            logger.error("Failed to classify activity")
+            return None
+
+        logger.info(
+            f"Time taken for activity classification: {end_time - start_time:.2f} seconds"
+        )
+        return ActivitiesResponseWithTimestamp(
+            main_activity=activities_response.main_activity,
+            reasoning=activities_response.reasoning,
+            timestamp=now,
+        )
 
 def encode_image_to_base64(image_path: Path) -> str:
     """Encodes an image file to a base64 string."""
