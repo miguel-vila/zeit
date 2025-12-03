@@ -20,3 +20,4 @@ Logs what you are doing in your computer and summarizes it using local models:
 - select which monitor to capture from according to user focus? or just take it from all monitors?
 - user gives a general description of what their main objective is during the day, with specifics (e.g., working on project X, writing report Y)
   and the model uses that to better classify activities and to generate an objective-aligned summary at the end of the day
+- use playing audio as a signal of activity (e.g., when watching videos and multitasking)
