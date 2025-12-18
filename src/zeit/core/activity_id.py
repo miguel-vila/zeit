@@ -10,6 +10,7 @@ from typing import Dict, List, Optional
 from opik import track, opik_context
 
 from src.zeit.core.screen import MultiScreenCapture
+from src.zeit.core.active_window import get_active_screen_number
 
 
 class Activity(str, Enum):
@@ -114,9 +115,11 @@ class ActivitiesResponseWithTimestamp(ActivitiesResponse):
 logger = logging.getLogger(__name__)
 
 
-MULTI_SCREEN_DESCRIPTION_PROMPT = """You are viewing screenshots from the user's multiple monitors. The images are provided in order: Screen 1, Screen 2, etc.
+MULTI_SCREEN_DESCRIPTION_PROMPT_BASE = """You are viewing screenshots from the user's multiple monitors. The images are provided in order: Screen 1, Screen 2, etc.
 
-Identify which screen is the PRIMARY/ACTIVE screen by looking for:
+{active_screen_hint}
+
+Verify the PRIMARY screen by also looking for visual cues:
 - Mouse cursor position
 - Active/focused window indicators (highlighted title bar, focus rings)
 - Text input carets or selection highlights
@@ -126,6 +129,8 @@ Provide:
 1. The screen number (1, 2, etc.) of the PRIMARY screen
 2. A description of the main activity on the PRIMARY screen
 3. Brief context about what's on secondary screens (if notable)"""
+
+ACTIVE_SCREEN_HINT_TEMPLATE = """IMPORTANT: Based on system information, Screen {screen_number} currently contains the focused/active window. Use this as a strong hint for identifying the PRIMARY screen."""
 
 SINGLE_SCREEN_DESCRIPTION_PROMPT = """A brief description of the user's activities based on the screenshot. Describe enough things to understand what is the main activity the user is engaged in."""
 
@@ -137,8 +142,15 @@ class ActivityIdentifier:
         self.llm = "qwen3:8b"
 
     @track(tags=["ollama", "python-library"])
-    def _describe_images(self, screenshot_paths: Dict[int, Path]) -> Optional[MultiScreenDescription]:
-        """Uses the Ollama client to generate a structured description of screen images."""
+    def _describe_images(
+        self, screenshot_paths: Dict[int, Path], active_screen_hint: Optional[int] = None
+    ) -> Optional[MultiScreenDescription]:
+        """Uses the Ollama client to generate a structured description of screen images.
+        
+        Args:
+            screenshot_paths: Dict mapping screen number to screenshot path
+            active_screen_hint: Optional screen number (1-based) from native detection
+        """
         try:
             # Encode all images in order
             encoded_images: List[str] = []
@@ -146,7 +158,16 @@ class ActivityIdentifier:
                 encoded_images.append(encode_image_to_base64(screenshot_paths[monitor_id]))
 
             is_multi_screen = len(encoded_images) > 1
-            prompt = MULTI_SCREEN_DESCRIPTION_PROMPT if is_multi_screen else SINGLE_SCREEN_DESCRIPTION_PROMPT
+            
+            if is_multi_screen:
+                # Build prompt with active screen hint
+                if active_screen_hint is not None:
+                    hint = ACTIVE_SCREEN_HINT_TEMPLATE.format(screen_number=active_screen_hint)
+                else:
+                    hint = "Identify which screen is the PRIMARY/ACTIVE screen."
+                prompt = MULTI_SCREEN_DESCRIPTION_PROMPT_BASE.format(active_screen_hint=hint)
+            else:
+                prompt = SINGLE_SCREEN_DESCRIPTION_PROMPT
 
             logger.debug(f"Calling vision model to describe {len(encoded_images)} image(s)")
             
@@ -288,8 +309,14 @@ The description of the PRIMARY screen activity is as follows:
         with MultiScreenCapture(now) as screenshot_paths:
             logger.info(f"Captured {len(screenshot_paths)} screen(s)")
             
+            # Detect active screen using native macOS APIs
+            active_screen_hint: Optional[int] = None
+            if len(screenshot_paths) > 1:
+                active_screen_hint = get_active_screen_number()
+                logger.info(f"Native detection: active screen is {active_screen_hint}")
+            
             start_time = time()
-            screen_description = self._describe_images(screenshot_paths)
+            screen_description = self._describe_images(screenshot_paths, active_screen_hint)
             end_time = time()
 
         if screen_description is None:

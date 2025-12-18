@@ -29,7 +29,7 @@ def setup_logging():
 
     # Console handler (INFO level)
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.DEBUG)
+    console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(formatter)
 
     # Configure root logger
