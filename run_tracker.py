@@ -29,7 +29,7 @@ def setup_logging():
 
     # Console handler (INFO level)
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(logging.DEBUG)
     console_handler.setFormatter(formatter)
 
     # Configure root logger
@@ -89,8 +89,8 @@ def main():
         client = Client()
         identifier = ActivityIdentifier(ollama_client=client)
 
-        # Take screenshot and identify activity
-        activities_response = identifier.take_screenshot_and_describe(1)
+        # Take screenshot of all screens and identify activity
+        activities_response = identifier.take_screenshot_and_describe()
 
         if activities_response is None:
             logger.error("Failed to identify activity")

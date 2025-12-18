@@ -6,10 +6,10 @@ from pydantic import BaseModel, Field
 from ollama import Client
 from datetime import datetime
 import logging
-from typing import Optional
+from typing import Dict, List, Optional
 from opik import track, opik_context
 
-from src.zeit.core.screen import EphemeralScreenshot
+from src.zeit.core.screen import MultiScreenCapture
 
 
 class Activity(str, Enum):
@@ -77,6 +77,20 @@ class ExtendedActivity(str, Enum):
         }
 
 
+class MultiScreenDescription(BaseModel):
+    """Structured output from vision model for multi-screen screenshots."""
+    primary_screen: int = Field(
+        description="The screen number (1, 2, 3, etc.) that is the PRIMARY/ACTIVE screen where the user is currently focused."
+    )
+    main_activity_description: str = Field(
+        description="A brief description of the user's main activity based on the PRIMARY screen. Describe enough to understand what the main activity the user is engaged in."
+    )
+    secondary_context: Optional[str] = Field(
+        default=None,
+        description="Brief description of what's visible on secondary screens for context. Set to null if there's nothing notable or only one screen."
+    )
+
+
 class ActivitiesResponse(BaseModel):
     main_activity: Activity = Field(
         description="Main detected activity from the screenshot. This is the main activity that the user is engaged in. Select the most prominent activity, no matter if there are indications of other activities. For example, in a browser there might be tabs with associated to ther activities, but the main one should be the one currently visible."
@@ -84,15 +98,36 @@ class ActivitiesResponse(BaseModel):
     reasoning: str = Field(
         description="The reasoning behind the selection of the main activity. Explain why this activity was selected based on the description of the screenshot."
     )
+    secondary_context: Optional[str] = Field(
+        default=None,
+        description="Brief description of activities visible on secondary screens, if any. This provides context about what else the user might be doing."
+    )
 
 
 class ActivitiesResponseWithTimestamp(ActivitiesResponse):
     main_activity: Activity
     reasoning: str
+    secondary_context: Optional[str] = None
     timestamp: datetime
 
 
 logger = logging.getLogger(__name__)
+
+
+MULTI_SCREEN_DESCRIPTION_PROMPT = """You are viewing screenshots from the user's multiple monitors. The images are provided in order: Screen 1, Screen 2, etc.
+
+Identify which screen is the PRIMARY/ACTIVE screen by looking for:
+- Mouse cursor position
+- Active/focused window indicators (highlighted title bar, focus rings)
+- Text input carets or selection highlights
+- The most prominent application window
+
+Provide:
+1. The screen number (1, 2, etc.) of the PRIMARY screen
+2. A description of the main activity on the PRIMARY screen
+3. Brief context about what's on secondary screens (if notable)"""
+
+SINGLE_SCREEN_DESCRIPTION_PROMPT = """A brief description of the user's activities based on the screenshot. Describe enough things to understand what is the main activity the user is engaged in."""
 
 
 class ActivityIdentifier:
@@ -102,18 +137,36 @@ class ActivityIdentifier:
         self.llm = "qwen3:8b"
 
     @track(tags=["ollama", "python-library"])
-    def _describe_image(self, image_path: Path) -> Optional[str]:
-        """Uses the Ollama client to generate a description of the image."""
+    def _describe_images(self, screenshot_paths: Dict[int, Path]) -> Optional[MultiScreenDescription]:
+        """Uses the Ollama client to generate a structured description of screen images."""
         try:
-            encoded_image = encode_image_to_base64(image_path)
-            prompt = "A brief description of the user's activities based on the screenshot. Describe enough things to understand what is the main activity the user is engaged in."
-            logger.debug("Calling vision model to describe image")
-            response = self.client.generate(
-                model=self.vlm,
-                prompt=prompt,
-                images=[encoded_image],
-                options={"temperature": 0, "timeout": 30},
-            )
+            # Encode all images in order
+            encoded_images: List[str] = []
+            for monitor_id in sorted(screenshot_paths.keys()):
+                encoded_images.append(encode_image_to_base64(screenshot_paths[monitor_id]))
+
+            is_multi_screen = len(encoded_images) > 1
+            prompt = MULTI_SCREEN_DESCRIPTION_PROMPT if is_multi_screen else SINGLE_SCREEN_DESCRIPTION_PROMPT
+
+            logger.debug(f"Calling vision model to describe {len(encoded_images)} image(s)")
+            
+            # Use structured output for multi-screen, plain text for single screen
+            if is_multi_screen:
+                response = self.client.generate(
+                    model=self.vlm,
+                    prompt=prompt,
+                    images=encoded_images,
+                    format=MultiScreenDescription.model_json_schema(),
+                    options={"temperature": 0, "timeout": 30},
+                )
+            else:
+                response = self.client.generate(
+                    model=self.vlm,
+                    prompt=prompt,
+                    images=encoded_images,
+                    options={"temperature": 0, "timeout": 30},
+                )
+            
             opik_context.update_current_span(
                 metadata={
                     "model": response["model"],
@@ -132,15 +185,31 @@ class ActivityIdentifier:
                 },
             )
             logger.debug("Vision model response received")
-            return response.response
+            
+            # Parse response based on mode
+            if is_multi_screen:
+                return MultiScreenDescription.model_validate_json(response.thinking)
+            else:
+                # Wrap single-screen plain text in structured format
+                return MultiScreenDescription(
+                    primary_screen=1,
+                    main_activity_description=response.response,
+                    secondary_context=None
+                )
         except Exception as e:
-            logger.error(f"Failed to describe image: {e}", exc_info=True)
+            logger.error(f"Failed to describe images: {e}", exc_info=True)
             return None
 
     @track(tags=["ollama", "python-library"])
     def _describe_activities(
-        self, image_description: str
+        self, image_description: str, secondary_context: Optional[str] = None
     ) -> Optional[ActivitiesResponse]:
+        secondary_context_section = ""
+        if secondary_context:
+            secondary_context_section = f"""\n\nAdditionally, the following was visible on secondary screens (for context only, focus on the main activity):
+{secondary_context}
+"""
+
         prompt = f"""You are given a description of a screenshot taken from a user's computer.
 It describes various elements visible on the screen.
 Based on this description, identify the main activity the user is engaged in.
@@ -173,9 +242,8 @@ The user is a software engineer, working at the moment for a audio streaming com
 This means he might be looking at technical content NOT related to his job (e.g. learning new skills). In
 those cases, select professional_development as the main activity.
 
-The description of the screenshot is as follows:
-{image_description}
-"""
+The description of the PRIMARY screen activity is as follows:
+{image_description}{secondary_context_section}"""
         try:
             logger.debug("Calling classification model to identify activity")
             response = self.client.generate(
@@ -213,31 +281,35 @@ The description of the screenshot is as follows:
             logger.error(f"Failed to classify activity: {e}", exc_info=True)
             return None
 
-    def take_screenshot_and_describe(
-        self, monitor_id: int
-    ) -> Optional[ActivitiesResponseWithTimestamp]:
+    def take_screenshot_and_describe(self) -> Optional[ActivitiesResponseWithTimestamp]:
+        """Capture all screens and identify the main activity."""
         now = datetime.now()
 
-        with EphemeralScreenshot(monitor_id, now) as screenshot_path:
-            # Take screenshot
-            logger.info(f"Taking screenshot from monitor {monitor_id}")
-            # Describe image
+        with MultiScreenCapture(now) as screenshot_paths:
+            logger.info(f"Captured {len(screenshot_paths)} screen(s)")
+            
             start_time = time()
-            description = self._describe_image(screenshot_path)
+            screen_description = self._describe_images(screenshot_paths)
             end_time = time()
 
-        if description is None:
+        if screen_description is None:
             logger.error("Failed to get image description")
             return None
 
-        logger.info(f"Image description: {description}")
+        logger.info(f"Primary screen: {screen_description.primary_screen}")
+        logger.info(f"Main activity description: {screen_description.main_activity_description}")
+        if screen_description.secondary_context:
+            logger.info(f"Secondary context: {screen_description.secondary_context}")
         logger.info(
             f"Time taken for image description: {end_time - start_time:.2f} seconds"
         )
 
         # Classify activity
         start_time = time()
-        activities_response = self._describe_activities(description)
+        activities_response = self._describe_activities(
+            screen_description.main_activity_description,
+            screen_description.secondary_context
+        )
         end_time = time()
 
         if activities_response is None:
@@ -250,6 +322,7 @@ The description of the screenshot is as follows:
         return ActivitiesResponseWithTimestamp(
             main_activity=activities_response.main_activity,
             reasoning=activities_response.reasoning,
+            secondary_context=screen_description.secondary_context,
             timestamp=now,
         )
 
