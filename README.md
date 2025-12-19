@@ -15,8 +15,11 @@ Logs what you are doing in your computer and summarizes it using local models:
 ## TODOs
 
 - TODO: fix active window detection
+- build this as an executable (py2app?)
+- handle permissions better (maybe building this as an app helps?)
 - add last half an hour summary in the menubar app
 - collect only necessary data
+- day summary report at the end of the day
 - select which monitor to capture from according to user focus? or just take it from all monitors?
 - user gives a general description of what their main objective is during the day, with specifics (e.g., working on project X, writing report Y)
   and the model uses that to better classify activities and to generate an objective-aligned summary at the end of the day
