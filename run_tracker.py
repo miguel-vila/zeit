@@ -9,6 +9,7 @@ from src.zeit.core.activity_id import ActivityIdentifier
 from src.zeit.data.db import DatabaseManager, ActivityEntry
 from dotenv import load_dotenv
 from src.zeit.core.idle_detection import is_system_idle, DEFAULT_IDLE_THRESHOLD
+import opik
 
 def setup_logging():
     """Configure logging to file and console."""
@@ -42,6 +43,7 @@ def setup_logging():
 
 def main():
     load_dotenv()  # Load environment variables from .env file if present
+    opik.configure(url=os.getenv("OPIK_URL"), use_local=True)
     logger = setup_logging()
     logger.info("=" * 60)
     logger.info("Starting zeit activity tracker")
