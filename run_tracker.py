@@ -43,8 +43,10 @@ def setup_logging():
 
 def main():
     load_dotenv()  # Load environment variables from .env file if present
-    opik.configure(url=os.getenv("OPIK_URL"), use_local=True)
     logger = setup_logging()
+    if os.getenv("OPIK_URL"):
+        logger.info(f"Running with local Opik instance at {os.getenv('OPIK_URL')}")
+        opik.configure(url=os.getenv("OPIK_URL"), use_local=True)
     logger.info("=" * 60)
     logger.info("Starting zeit activity tracker")
 
