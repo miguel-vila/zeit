@@ -170,7 +170,7 @@ class ActivityIdentifier:
                 prompt = SINGLE_SCREEN_DESCRIPTION_PROMPT
 
             logger.debug(f"Calling vision model to describe {len(encoded_images)} image(s)")
-            
+
             # Use structured output for multi-screen, plain text for single screen
             if is_multi_screen:
                 response = self.client.generate(
@@ -187,7 +187,7 @@ class ActivityIdentifier:
                     images=encoded_images,
                     options={"temperature": 0, "timeout": 30},
                 )
-            
+
             opik_context.update_current_span(
                 metadata={
                     "model": response["model"],
@@ -197,6 +197,8 @@ class ActivityIdentifier:
                     "prompt_eval_count": response["prompt_eval_count"],
                     "done": response["done"],
                     "done_reason": response["done_reason"],
+                    "screen_count": len(screenshot_paths),
+                    "active_screen_detected": active_screen_hint,
                 },
                 usage={
                     "completion_tokens": response["eval_count"],
