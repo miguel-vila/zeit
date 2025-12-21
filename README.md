@@ -14,8 +14,7 @@ Logs what you are doing in your computer and summarizes it using local models:
 
 ## TODOs
 
-- TODO: fix active window detection
-- build this as an executable (py2app?)
+- ~~build this as an executable (py2app?)~~ (see Build section below)
 - handle permissions better (maybe building this as an app helps?)
 - add last half an hour summary in the menubar app
 - collect only necessary data
@@ -27,3 +26,44 @@ Logs what you are doing in your computer and summarizes it using local models:
 - idle should not be counted
 - preconfigure ollama models to download
 - do main screen identification using macos APIs ()
+
+## Building as a macOS App
+
+You can build Zeit as a standalone macOS `.app` bundle using py2app:
+
+```bash
+# Build the app (creates dist/Zeit.app)
+python setup.py py2app
+
+# For development/testing (faster, uses symlinks)
+python setup.py py2app -A
+```
+
+### Code Signing
+
+For proper permission handling, sign the app after building:
+
+```bash
+# Self-sign for local use
+codesign --force --deep --sign - dist/Zeit.app
+
+# Or with Apple Developer ID for distribution
+codesign --force --deep --sign "Developer ID Application: Your Name" \
+    --entitlements entitlements.plist dist/Zeit.app
+```
+
+### Running the App
+
+```bash
+# Run directly
+open dist/Zeit.app
+
+# Or from terminal to see logs
+./dist/Zeit.app/Contents/MacOS/Zeit
+```
+
+### Clean Build
+
+```bash
+rm -rf build dist .eggs
+```
