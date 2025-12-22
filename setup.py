@@ -24,7 +24,7 @@ OPTIONS = {
     'argv_emulation': False,  # Not needed for menubar apps
     'packages': [
         'zeit',
-        'rumps',
+        'PySide6',
         'ollama',
         'mss',
         'pydantic',
@@ -33,6 +33,7 @@ OPTIONS = {
         'typer',
         'dotenv',
         'httpx',  # Required by ollama
+        'shiboken6',  # Required by PySide6
     ],
     'includes': [
         'zeit.core',
@@ -46,6 +47,16 @@ OPTIONS = {
         'matplotlib',
         'scipy',
         'numpy',  # Add back if needed
+        # Exclude Qt developer tools (not needed for system tray)
+        'PySide6.QtDesigner',
+        'PySide6.QtHelp',
+        'PySide6.QtQmlModels',
+        'PySide6.QtQuick',
+        'PySide6.QtQuickWidgets',
+        'PySide6.QtUiTools',
+    ],
+    'qt_plugins': [
+        'platforms',  # Need platform plugins for GUI
     ],
     'plist': {
         'CFBundleName': 'Zeit',
@@ -67,6 +78,7 @@ setup(
     app=APP,
     data_files=DATA_FILES,
     options={'py2app': OPTIONS},
+    install_requires=[],  # Prevent setuptools from reading pyproject.toml dependencies
 )
 
 

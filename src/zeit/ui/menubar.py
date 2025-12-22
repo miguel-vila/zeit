@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-"""Zeit Menu Bar App - Shows today's activity summary in macOS menu bar."""
+"""Zeit Menu Bar App - PySide6 implementation for macOS menu bar."""
 
-import rumps  # type: ignore[import-untyped]
+import sys
 import logging
 from datetime import datetime
 from pathlib import Path
+from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
+from PySide6.QtCore import QTimer, Slot
+from PySide6.QtGui import QAction
+
 from src.zeit.data.db import DatabaseManager, DayRecord
 from src.zeit.processing.activity_summarization import compute_summary
 from src.zeit.core.config import get_config, is_within_work_hours
+from src.zeit.ui.qt_helpers import emoji_to_qicon, show_macos_notification
 
 # Configure logging
 log_dir = Path("logs")
@@ -22,49 +27,61 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 class TrackingState:
+    """Represents the current tracking state."""
+
     icon: str
     status_message: str
     can_toggle: bool
+
     def __init__(self, icon: str, status_message: str, can_toggle: bool):
         self.icon = icon
         self.status_message = status_message
         self.can_toggle = can_toggle
+
     @classmethod
     def not_within_work_hours(cls, status_message: str):
         return cls(icon="🌙", status_message=status_message, can_toggle=False)
-    
+
     @classmethod
     def paused_manual(cls):
         return cls(icon="⏸️", status_message="Tracking paused (manual)", can_toggle=True)
-    
+
     @classmethod
     def active(cls):
         return cls(icon="📊", status_message="Tracking active", can_toggle=True)
 
-class ZeitMenuBar(rumps.App):
-    """Menu bar application for Zeit activity tracker."""
+
+class ZeitMenuBar:
+    """Menu bar application for Zeit activity tracker using PySide6."""
 
     STOP_FLAG = Path.home() / ".zeit_stop"
 
-    def __init__(self):
-        super().__init__("📊", quit_button=None)
-        logger.info("Starting Zeit Menu Bar App")
+    def __init__(self, app: QApplication):
+        logger.info("Starting Zeit Menu Bar App (PySide6)")
 
-        # Initialize menu structure
-        self.menu = [
-            rumps.MenuItem("Loading...", callback=None),
-            rumps.separator,
-            rumps.MenuItem("Refresh", callback=self.refresh),
-            rumps.MenuItem("View Details", callback=self.view_details),
-            rumps.separator,
-            rumps.MenuItem("Quit", callback=self.quit_app)
-        ]
+        self.app = app
+        self.tray_icon = QSystemTrayIcon()
 
-        # Initial update
+        # Set initial icon
+        icon = emoji_to_qicon("📊")
+        self.tray_icon.setIcon(icon)
+        self.tray_icon.setVisible(True)
+
+        # Create menu
+        self.menu = QMenu()
+        self.tray_icon.setContextMenu(self.menu)
+
+        # Set up timer for periodic updates (60 seconds)
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_menu)
+        self.timer.start(60000)  # 60000 ms = 60 seconds
+
+        # Initial menu update
         self.update_menu()
 
-    def is_tracking_active(self):
+    def is_tracking_active(self) -> bool:
         """Check if tracking is currently active (flag file doesn't exist)."""
         return not self.STOP_FLAG.exists()
 
@@ -73,10 +90,7 @@ class ZeitMenuBar(rumps.App):
         Determine current tracking state.
 
         Returns:
-            Tuple of (icon, status_message, can_toggle)
-            - icon: Emoji to display in menu bar
-            - status_message: Description of current state
-            - can_toggle: Whether toggle button should be enabled
+            TrackingState with icon, status_message, and can_toggle flag
         """
         within_work_hours = is_within_work_hours()
         manually_stopped = self.STOP_FLAG.exists()
@@ -94,15 +108,16 @@ class ZeitMenuBar(rumps.App):
         else:
             # Active tracking during work hours
             return TrackingState.active()
-    
-    def toggle_tracking(self, _):
+
+    @Slot()
+    def toggle_tracking(self):
         """Toggle tracking on/off by creating/removing the flag file."""
         # Check if we're in work hours first
         if not is_within_work_hours():
             config = get_config()
             status_msg = config.work_hours.get_status_message()
             logger.info("Cannot toggle tracking outside work hours")
-            rumps.notification(
+            show_macos_notification(
                 title="Zeit Tracking",
                 subtitle="Outside Work Hours",
                 message=status_msg
@@ -114,7 +129,7 @@ class ZeitMenuBar(rumps.App):
                 # Stop tracking
                 self.STOP_FLAG.touch()
                 logger.info("Tracking stopped via menu bar toggle")
-                rumps.notification(
+                show_macos_notification(
                     title="Zeit Tracking",
                     subtitle="Stopped",
                     message="Tracking has been paused"
@@ -123,7 +138,7 @@ class ZeitMenuBar(rumps.App):
                 # Resume tracking
                 self.STOP_FLAG.unlink()
                 logger.info("Tracking resumed via menu bar toggle")
-                rumps.notification(
+                show_macos_notification(
                     title="Zeit Tracking",
                     subtitle="Resumed",
                     message="Tracking has been resumed"
@@ -133,14 +148,14 @@ class ZeitMenuBar(rumps.App):
             self.update_menu()
         except Exception as e:
             logger.error(f"Error toggling tracking: {e}", exc_info=True)
-            rumps.notification(
+            show_macos_notification(
                 title="Zeit Error",
                 subtitle="Toggle Failed",
                 message=str(e)
             )
 
-    @rumps.timer(60)  # Update every 60 seconds
-    def update_menu(self, _=None):
+    @Slot()
+    def update_menu(self):
         """Update the menu with current activity data."""
         # Get tracking state first
         tracking_state = self.get_tracking_state()
@@ -158,32 +173,58 @@ class ZeitMenuBar(rumps.App):
 
     def _update_menu_no_data(self, today: str, tracking_state: TrackingState):
         """Update menu when there's no data for today."""
-        self.title = tracking_state.icon
+        # Update icon
+        icon = emoji_to_qicon(tracking_state.icon)
+        self.tray_icon.setIcon(icon)
 
-        # Determine toggle text and callback
+        # Clear menu and rebuild
+        self.menu.clear()
+
+        # Add static items
+        date_action = QAction(f"{today}", self.menu)
+        date_action.setEnabled(False)
+        self.menu.addAction(date_action)
+
+        no_data_action = QAction("No activities tracked yet", self.menu)
+        no_data_action.setEnabled(False)
+        self.menu.addAction(no_data_action)
+
+        status_action = QAction(tracking_state.status_message, self.menu)
+        status_action.setEnabled(False)
+        self.menu.addAction(status_action)
+
+        self.menu.addSeparator()
+
+        # Toggle action
         if tracking_state.can_toggle:
             is_active = self.is_tracking_active()
             toggle_text = "⏸️ Stop Tracking" if is_active else "▶️ Resume Tracking"
-            toggle_callback = self.toggle_tracking
+            toggle_action = QAction(toggle_text, self.menu)
+            toggle_action.triggered.connect(self.toggle_tracking)
+            self.menu.addAction(toggle_action)
         else:
-            toggle_text = "▶️ Resume Tracking (disabled)"
-            toggle_callback = None
+            toggle_action = QAction("▶️ Resume Tracking (disabled)", self.menu)
+            toggle_action.setEnabled(False)
+            self.menu.addAction(toggle_action)
 
-        toggle_item = rumps.MenuItem(toggle_text, callback=toggle_callback)
+        self.menu.addSeparator()
 
-        self.menu.clear()
-        self.menu = [
-            rumps.MenuItem(f"{today}", callback=None),
-            rumps.MenuItem("No activities tracked yet", callback=None),
-            rumps.MenuItem(tracking_state.status_message, callback=None),
-            rumps.separator,
-            toggle_item,
-            rumps.separator,
-            rumps.MenuItem("Refresh", callback=self.refresh),
-            rumps.MenuItem("View Details", callback=self.view_details),
-            rumps.separator,
-            rumps.MenuItem("Quit", callback=self.quit_app)
-        ]
+        # Refresh action
+        refresh_action = QAction("Refresh", self.menu)
+        refresh_action.triggered.connect(self.refresh)
+        self.menu.addAction(refresh_action)
+
+        # View details action
+        details_action = QAction("View Details", self.menu)
+        details_action.triggered.connect(self.view_details)
+        self.menu.addAction(details_action)
+
+        self.menu.addSeparator()
+
+        # Quit action
+        quit_action = QAction("Quit", self.menu)
+        quit_action.triggered.connect(self.quit_app)
+        self.menu.addAction(quit_action)
 
     def _update_menu_with_data(self, day_record: DayRecord, today: str, tracking_state: TrackingState):
         """Update menu with activity summary data."""
@@ -197,61 +238,80 @@ class ZeitMenuBar(rumps.App):
             if entry.activity.is_work_activity()
         )
 
-        # Update title with icon and percentage
-        self.title = f"{tracking_state.icon} {work_percentage:.0f}%"
+        # Update icon with percentage
+        # For now, use emoji. Could enhance to render text with emoji
+        icon = emoji_to_qicon(tracking_state.icon)
+        self.tray_icon.setIcon(icon)
+        self.tray_icon.setToolTip(f"{work_percentage:.0f}%")
 
-        # Determine toggle text and callback
-        if tracking_state.can_toggle:
-            is_active = self.is_tracking_active()
-            toggle_text = "⏸️ Stop Tracking" if is_active else "▶️ Resume Tracking"
-            toggle_callback = self.toggle_tracking
-        else:
-            toggle_text = "▶️ Resume Tracking (disabled)"
-            toggle_callback = None
+        # Clear menu and rebuild
+        self.menu.clear()
 
-        toggle_item = rumps.MenuItem(toggle_text, callback=toggle_callback)
+        # Add header
+        header_action = QAction(f"{today} ({total_count} activities)", self.menu)
+        header_action.setEnabled(False)
+        self.menu.addAction(header_action)
 
-        # Build menu items
-        menu_items = [
-            rumps.MenuItem(f"{today} ({total_count} activities)", callback=None),
-            rumps.MenuItem(tracking_state.status_message, callback=None),
-            rumps.separator,
-        ]
+        status_action = QAction(tracking_state.status_message, self.menu)
+        status_action.setEnabled(False)
+        self.menu.addAction(status_action)
+
+        self.menu.addSeparator()
 
         # Add activity breakdown
         for entry in summary:
             activity_name = entry.activity.value.replace('_', ' ').title()
             percentage = entry.percentage
-            menu_items.append(
-                rumps.MenuItem(f"{activity_name}: {percentage:.1f}%", callback=None)
-            )
+            activity_action = QAction(f"{activity_name}: {percentage:.1f}%", self.menu)
+            activity_action.setEnabled(False)
+            self.menu.addAction(activity_action)
 
-        # Add controls
-        menu_items.extend([
-            rumps.separator,
-            toggle_item,
-            rumps.separator,
-            rumps.MenuItem("Refresh", callback=self.refresh),
-            rumps.MenuItem("View Details", callback=self.view_details),
-            rumps.separator,
-            rumps.MenuItem("Quit", callback=self.quit_app)
-        ])
+        self.menu.addSeparator()
 
-        # Update menu
-        self.menu.clear()
-        self.menu = menu_items
+        # Toggle action
+        if tracking_state.can_toggle:
+            is_active = self.is_tracking_active()
+            toggle_text = "⏸️ Stop Tracking" if is_active else "▶️ Resume Tracking"
+            toggle_action = QAction(toggle_text, self.menu)
+            toggle_action.triggered.connect(self.toggle_tracking)
+            self.menu.addAction(toggle_action)
+        else:
+            toggle_action = QAction("▶️ Resume Tracking (disabled)", self.menu)
+            toggle_action.setEnabled(False)
+            self.menu.addAction(toggle_action)
 
-    def refresh(self, _):
+        self.menu.addSeparator()
+
+        # Refresh action
+        refresh_action = QAction("Refresh", self.menu)
+        refresh_action.triggered.connect(self.refresh)
+        self.menu.addAction(refresh_action)
+
+        # View details action
+        details_action = QAction("View Details", self.menu)
+        details_action.triggered.connect(self.view_details)
+        self.menu.addAction(details_action)
+
+        self.menu.addSeparator()
+
+        # Quit action
+        quit_action = QAction("Quit", self.menu)
+        quit_action.triggered.connect(self.quit_app)
+        self.menu.addAction(quit_action)
+
+    @Slot()
+    def refresh(self):
         """Manually refresh the menu data."""
         logger.info("Manual refresh triggered")
-        rumps.notification(
+        show_macos_notification(
             title="Zeit",
             subtitle="Refreshing...",
             message="Updating activity data"
         )
         self.update_menu()
 
-    def view_details(self, _):
+    @Slot()
+    def view_details(self):
         """Open a notification with more details or trigger external viewer."""
         try:
             today = datetime.now().strftime("%Y-%m-%d")
@@ -269,36 +329,42 @@ class ZeitMenuBar(rumps.App):
 
                     message = "\n".join(details)
 
-                    rumps.notification(
+                    show_macos_notification(
                         title="Zeit Activity Summary",
                         subtitle=f"{today} - {len(day_record.activities)} activities",
                         message=message
                     )
                 else:
-                    rumps.notification(
+                    show_macos_notification(
                         title="Zeit",
                         subtitle="No Data",
                         message=f"No activities tracked for {today}"
                     )
         except Exception as e:
             logger.error(f"Error viewing details: {e}", exc_info=True)
-            rumps.notification(
+            show_macos_notification(
                 title="Zeit Error",
                 subtitle="Failed to load details",
                 message=str(e)
             )
 
-    def quit_app(self, _):
+    @Slot()
+    def quit_app(self):
         """Quit the application."""
         logger.info("Quitting Zeit Menu Bar App")
-        rumps.quit_application()
+        self.tray_icon.hide()
+        self.app.quit()
 
 
 def main():
     """Main entry point."""
     try:
-        app = ZeitMenuBar()
-        app.run()
+        app = QApplication(sys.argv)
+        app.setQuitOnLastWindowClosed(False)  # Keep running even with no windows
+
+        menubar = ZeitMenuBar(app)
+
+        sys.exit(app.exec())
     except Exception as e:
         logger.error(f"Failed to start menu bar app: {e}", exc_info=True)
         raise
