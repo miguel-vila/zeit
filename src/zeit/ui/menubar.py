@@ -2,12 +2,16 @@
 """Zeit Menu Bar App - PySide6 implementation for macOS menu bar."""
 
 import sys
+import signal
 import logging
 from datetime import datetime
 from pathlib import Path
-from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
-from PySide6.QtCore import QTimer, Slot
-from PySide6.QtGui import QAction
+from PySide6.QtWidgets import (
+    QApplication, QSystemTrayIcon, QMenu, QWidget,
+    QVBoxLayout, QHBoxLayout, QLabel, QProgressBar, QPushButton
+)
+from PySide6.QtCore import QTimer, Slot, Qt
+from PySide6.QtGui import QAction, QFont
 
 from src.zeit.data.db import DatabaseManager, DayRecord
 from src.zeit.processing.activity_summarization import compute_summary
@@ -53,6 +57,132 @@ class TrackingState:
         return cls(icon="📊", status_message="Tracking active", can_toggle=True)
 
 
+class DetailsWindow(QWidget):
+    """Window displaying detailed activity information."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Zeit Activity Details")
+        self.setMinimumSize(400, 300)
+
+        # Set window flags to keep it on top but closable
+        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowStaysOnTopHint)
+
+        # Create main layout
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+
+        # Header
+        self.header_label = QLabel()
+        header_font = QFont()
+        header_font.setPointSize(16)
+        header_font.setBold(True)
+        self.header_label.setFont(header_font)
+        self.layout.addWidget(self.header_label)
+
+        # Date label
+        self.date_label = QLabel()
+        self.layout.addWidget(self.date_label)
+
+        # Activities container
+        self.activities_layout = QVBoxLayout()
+        self.layout.addLayout(self.activities_layout)
+
+        # Add stretch to push everything to top
+        self.layout.addStretch()
+
+        # Close button
+        close_button = QPushButton("Close")
+        close_button.clicked.connect(self.close)
+        self.layout.addWidget(close_button)
+
+    def update_data(self, day_record: DayRecord, date_str: str):
+        """Update the window with activity data."""
+        # Clear previous activity widgets
+        while self.activities_layout.count():
+            item = self.activities_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        # Update header
+        total_count = len(day_record.activities)
+        self.header_label.setText(f"Activity Summary")
+        self.date_label.setText(f"{date_str} • {total_count} activities tracked")
+
+        # Get summary
+        summary = compute_summary(day_record.activities)
+
+        # Add activity entries
+        for entry in summary:
+            activity_name = entry.activity.value.replace('_', ' ').title()
+            percentage = entry.percentage
+
+            # Create container for this activity
+            activity_widget = QWidget()
+            activity_layout = QVBoxLayout()
+            activity_widget.setLayout(activity_layout)
+
+            # Activity label
+            label_layout = QHBoxLayout()
+            name_label = QLabel(activity_name)
+            name_font = QFont()
+            name_font.setPointSize(12)
+            name_label.setFont(name_font)
+            label_layout.addWidget(name_label)
+
+            pct_label = QLabel(f"{percentage:.1f}%")
+            pct_font = QFont()
+            pct_font.setPointSize(12)
+            pct_font.setBold(True)
+            pct_label.setFont(pct_font)
+            label_layout.addWidget(pct_label)
+
+            activity_layout.addLayout(label_layout)
+
+            # Progress bar
+            progress_bar = QProgressBar()
+            progress_bar.setMaximum(100)
+            progress_bar.setValue(int(percentage))
+            progress_bar.setTextVisible(False)
+            progress_bar.setMaximumHeight(8)
+
+            # Color the progress bar based on activity type
+            if entry.activity.is_work_activity():
+                # Green for work activities
+                progress_bar.setStyleSheet("""
+                    QProgressBar {
+                        border: 1px solid #cccccc;
+                        border-radius: 4px;
+                        background-color: #f0f0f0;
+                    }
+                    QProgressBar::chunk {
+                        background-color: #4CAF50;
+                        border-radius: 3px;
+                    }
+                """)
+            else:
+                # Blue for other activities
+                progress_bar.setStyleSheet("""
+                    QProgressBar {
+                        border: 1px solid #cccccc;
+                        border-radius: 4px;
+                        background-color: #f0f0f0;
+                    }
+                    QProgressBar::chunk {
+                        background-color: #2196F3;
+                        border-radius: 3px;
+                    }
+                """)
+
+            activity_layout.addWidget(progress_bar)
+
+            # Add spacing
+            activity_layout.setSpacing(4)
+            activity_layout.setContentsMargins(0, 4, 0, 8)
+
+            self.activities_layout.addWidget(activity_widget)
+
+
 class ZeitMenuBar:
     """Menu bar application for Zeit activity tracker using PySide6."""
 
@@ -72,6 +202,9 @@ class ZeitMenuBar:
         # Create menu
         self.menu = QMenu()
         self.tray_icon.setContextMenu(self.menu)
+
+        # Create details window (hidden initially)
+        self.details_window = DetailsWindow()
 
         # Set up timer for periodic updates (60 seconds)
         self.timer = QTimer()
@@ -312,29 +445,20 @@ class ZeitMenuBar:
 
     @Slot()
     def view_details(self):
-        """Open a notification with more details or trigger external viewer."""
+        """Open a window with detailed activity information."""
         try:
             today = datetime.now().strftime("%Y-%m-%d")
             with DatabaseManager() as db:
                 day_record = db.get_day_record(today)
 
                 if day_record and len(day_record.activities) > 0:
-                    summary = compute_summary(day_record.activities)
-
-                    # Build detailed message
-                    details: list[str] = []
-                    for entry in summary:
-                        activity_name = entry.activity.value.replace('_', ' ').title()
-                        details.append(f"{activity_name}: {entry.percentage:.1f}%")
-
-                    message = "\n".join(details)
-
-                    show_macos_notification(
-                        title="Zeit Activity Summary",
-                        subtitle=f"{today} - {len(day_record.activities)} activities",
-                        message=message
-                    )
+                    # Update window with data and show it
+                    self.details_window.update_data(day_record, today)
+                    self.details_window.show()
+                    self.details_window.raise_()  # Bring to front
+                    self.details_window.activateWindow()  # Give it focus
                 else:
+                    # Still use notification for "no data" case
                     show_macos_notification(
                         title="Zeit",
                         subtitle="No Data",
@@ -363,6 +487,19 @@ def main():
         app.setQuitOnLastWindowClosed(False)  # Keep running even with no windows
 
         menubar = ZeitMenuBar(app)
+
+        # Set up signal handler for Ctrl+C
+        def signal_handler(sig, frame):
+            logger.info("Received interrupt signal, shutting down...")
+            menubar.quit_app()
+
+        signal.signal(signal.SIGINT, signal_handler)
+
+        # Use a timer to allow Python to process signals
+        # Qt's event loop blocks signal handling, so we need to wake it up periodically
+        timer = QTimer()
+        timer.timeout.connect(lambda: None)  # Do nothing, just wake up the event loop
+        timer.start(500)  # Wake up every 500ms
 
         sys.exit(app.exec())
     except Exception as e:
