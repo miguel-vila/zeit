@@ -112,6 +112,17 @@ sh ./build_app.sh            # Build .app bundle and sign
 - Context managers for resources (DatabaseManager, MultiScreenCapture)
 - Logging: file (DEBUG) + console (INFO) via `setup_logging()`
 
+## Design Decisions
+
+### Activity vs ExtendedActivity Enums
+
+Two separate enums exist intentionally:
+
+- **`Activity`**: Used in LLM prompts for activity classification. Does NOT include `IDLE` because idle state is detected via system APIs (IOKit), not via screenshot analysis.
+- **`ExtendedActivity`**: Used for storage and display. Includes all `Activity` values plus `IDLE`.
+
+This separation ensures the LLM only sees valid classifiable activities, while the system can still track idle periods detected through other means.
+
 ## Notes
 
 - **Multi-monitor**: Captures all screens, uses native macOS API to detect active screen, vision model verifies
