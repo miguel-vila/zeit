@@ -16,8 +16,8 @@ def main():
             elif command == "all":
                 view_all_days(db)
             elif command == "summarize-day":
-                from datetime import datetime
-                date_str = sys.argv[2] if len(sys.argv) > 2 else datetime.now().strftime("%Y-%m-%d")
+                from src.zeit.core.utils import today_str
+                date_str = sys.argv[2] if len(sys.argv) > 2 else today_str()
                 summarize_day(db, date_str)
             else:
                 view_day(db, command)

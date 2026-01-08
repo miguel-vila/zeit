@@ -277,9 +277,9 @@ else:
 - [x] 2.3 Move model names to config
 
 ### Phase 2: Deduplication (2-3 hours)
-- [ ] 1.2 Extract common menu methods
-- [ ] 2.1 Extract `update_data()` helpers
-- [ ] 3.2 Add date utility function
+- [x] 1.2 Extract common menu methods
+- [x] 2.1 Extract `update_data()` helpers
+- [x] 3.2 Add date utility function
 
 ### Phase 3: Structural (4-6 hours)
 - [ ] 1.1 Split `menubar.py` into 3 files

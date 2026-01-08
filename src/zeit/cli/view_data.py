@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 from ollama import Client
 from zeit.core.config import get_config
+from zeit.core.utils import today_str
 from zeit.processing.activity_summarization import compute_summary
 from zeit.processing.day_summarizer import DaySummarizer
 from zeit.data.db import DatabaseManager
@@ -70,9 +71,7 @@ def view_all_days(db: DatabaseManager):
             print()
 
 def view_today(db: DatabaseManager):
-    """View activities for today."""
-    today = datetime.now().strftime("%Y-%m-%d")
-    view_day(db, today)
+    view_day(db, today_str())
 
 def view_yesterday(db: DatabaseManager):
     """View activities for yesterday."""

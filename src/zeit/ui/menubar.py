@@ -14,8 +14,9 @@ from PySide6.QtCore import QTimer, Slot, Qt
 from PySide6.QtGui import QAction, QFont
 
 from zeit.data.db import DatabaseManager, DayRecord
-from zeit.processing.activity_summarization import compute_summary
+from zeit.processing.activity_summarization import compute_summary, ActivityWithPercentage
 from zeit.core.config import get_config, is_within_work_hours
+from zeit.core.utils import today_str
 from zeit.ui.qt_helpers import emoji_to_qicon, show_macos_notification
 
 # Configure logging
@@ -43,8 +44,8 @@ PROGRESS_BAR_STYLE = """
     }}
 """
 
-WORK_ACTIVITY_COLOR = "#4CAF50"
-PERSONAL_ACTIVITY_COLOR = "#2196F3"
+WORK_ACTIVITY_COLOR = "#4C74AF"
+PERSONAL_ACTIVITY_COLOR = "#21F383"
 
 
 class TrackingState:
@@ -111,66 +112,58 @@ class DetailsWindow(QWidget):
         close_button.clicked.connect(self.close)
         self.layout.addWidget(close_button)
 
+    def _create_progress_bar(self, percentage: float, is_work: bool) -> QProgressBar:
+        progress_bar = QProgressBar()
+        progress_bar.setMaximum(100)
+        progress_bar.setValue(int(percentage))
+        progress_bar.setTextVisible(False)
+        progress_bar.setMaximumHeight(8)
+        color = WORK_ACTIVITY_COLOR if is_work else PERSONAL_ACTIVITY_COLOR
+        progress_bar.setStyleSheet(PROGRESS_BAR_STYLE.format(color=color))
+        return progress_bar
+
+    def _create_activity_widget(self, entry: ActivityWithPercentage) -> QWidget:
+        activity_name = entry.activity.value.replace('_', ' ').title()
+        percentage = entry.percentage
+
+        activity_widget = QWidget()
+        activity_layout = QVBoxLayout()
+        activity_widget.setLayout(activity_layout)
+
+        label_layout = QHBoxLayout()
+        name_label = QLabel(activity_name)
+        name_font = QFont()
+        name_font.setPointSize(12)
+        name_label.setFont(name_font)
+        label_layout.addWidget(name_label)
+
+        pct_label = QLabel(f"{percentage:.1f}%")
+        pct_font = QFont()
+        pct_font.setPointSize(12)
+        pct_font.setBold(True)
+        pct_label.setFont(pct_font)
+        label_layout.addWidget(pct_label)
+
+        activity_layout.addLayout(label_layout)
+        activity_layout.addWidget(self._create_progress_bar(percentage, entry.activity.is_work_activity()))
+        activity_layout.setSpacing(4)
+        activity_layout.setContentsMargins(0, 4, 0, 8)
+
+        return activity_widget
+
     def update_data(self, day_record: DayRecord, date_str: str):
-        """Update the window with activity data."""
-        # Clear previous activity widgets
         while self.activities_layout.count():
             item = self.activities_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
-        # Update header
         total_count = len(day_record.activities)
-        self.header_label.setText(f"Activity Summary")
+        self.header_label.setText("Activity Summary")
         self.date_label.setText(f"{date_str} • {total_count} activities tracked")
 
-        # Get summary
         summary = compute_summary(day_record.activities)
-
-        # Add activity entries
         for entry in summary:
-            activity_name = entry.activity.value.replace('_', ' ').title()
-            percentage = entry.percentage
-
-            # Create container for this activity
-            activity_widget = QWidget()
-            activity_layout = QVBoxLayout()
-            activity_widget.setLayout(activity_layout)
-
-            # Activity label
-            label_layout = QHBoxLayout()
-            name_label = QLabel(activity_name)
-            name_font = QFont()
-            name_font.setPointSize(12)
-            name_label.setFont(name_font)
-            label_layout.addWidget(name_label)
-
-            pct_label = QLabel(f"{percentage:.1f}%")
-            pct_font = QFont()
-            pct_font.setPointSize(12)
-            pct_font.setBold(True)
-            pct_label.setFont(pct_font)
-            label_layout.addWidget(pct_label)
-
-            activity_layout.addLayout(label_layout)
-
-            # Progress bar
-            progress_bar = QProgressBar()
-            progress_bar.setMaximum(100)
-            progress_bar.setValue(int(percentage))
-            progress_bar.setTextVisible(False)
-            progress_bar.setMaximumHeight(8)
-
-            color = WORK_ACTIVITY_COLOR if entry.activity.is_work_activity() else PERSONAL_ACTIVITY_COLOR
-            progress_bar.setStyleSheet(PROGRESS_BAR_STYLE.format(color=color))
-
-            activity_layout.addWidget(progress_bar)
-
-            # Add spacing
-            activity_layout.setSpacing(4)
-            activity_layout.setContentsMargins(0, 4, 0, 8)
-
-            self.activities_layout.addWidget(activity_widget)
+            self.activities_layout.addWidget(self._create_activity_widget(entry))
 
 
 class ZeitMenuBar:
@@ -232,6 +225,33 @@ class ZeitMenuBar:
             # Active tracking during work hours
             return TrackingState.active()
 
+    def _add_toggle_action(self, tracking_state: TrackingState):
+        if tracking_state.can_toggle:
+            is_active = self.is_tracking_active()
+            toggle_text = "⏸️ Stop Tracking" if is_active else "▶️ Resume Tracking"
+            toggle_action = QAction(toggle_text, self.menu)
+            toggle_action.triggered.connect(self.toggle_tracking)
+            self.menu.addAction(toggle_action)
+        else:
+            toggle_action = QAction("▶️ Resume Tracking (disabled)", self.menu)
+            toggle_action.setEnabled(False)
+            self.menu.addAction(toggle_action)
+
+    def _add_standard_actions(self):
+        refresh_action = QAction("Refresh", self.menu)
+        refresh_action.triggered.connect(self.refresh)
+        self.menu.addAction(refresh_action)
+
+        details_action = QAction("View Details", self.menu)
+        details_action.triggered.connect(self.view_details)
+        self.menu.addAction(details_action)
+
+        self.menu.addSeparator()
+
+        quit_action = QAction("Quit", self.menu)
+        quit_action.triggered.connect(self.quit_app)
+        self.menu.addAction(quit_action)
+
     @Slot()
     def toggle_tracking(self):
         """Toggle tracking on/off by creating/removing the flag file."""
@@ -283,7 +303,7 @@ class ZeitMenuBar:
         # Get tracking state first
         tracking_state = self.get_tracking_state()
 
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = today_str()
         logger.debug(f"Updating menu for {today} - State: {tracking_state.status_message}")
 
         with DatabaseManager() as db:
@@ -317,37 +337,9 @@ class ZeitMenuBar:
         self.menu.addAction(status_action)
 
         self.menu.addSeparator()
-
-        # Toggle action
-        if tracking_state.can_toggle:
-            is_active = self.is_tracking_active()
-            toggle_text = "⏸️ Stop Tracking" if is_active else "▶️ Resume Tracking"
-            toggle_action = QAction(toggle_text, self.menu)
-            toggle_action.triggered.connect(self.toggle_tracking)
-            self.menu.addAction(toggle_action)
-        else:
-            toggle_action = QAction("▶️ Resume Tracking (disabled)", self.menu)
-            toggle_action.setEnabled(False)
-            self.menu.addAction(toggle_action)
-
+        self._add_toggle_action(tracking_state)
         self.menu.addSeparator()
-
-        # Refresh action
-        refresh_action = QAction("Refresh", self.menu)
-        refresh_action.triggered.connect(self.refresh)
-        self.menu.addAction(refresh_action)
-
-        # View details action
-        details_action = QAction("View Details", self.menu)
-        details_action.triggered.connect(self.view_details)
-        self.menu.addAction(details_action)
-
-        self.menu.addSeparator()
-
-        # Quit action
-        quit_action = QAction("Quit", self.menu)
-        quit_action.triggered.connect(self.quit_app)
-        self.menu.addAction(quit_action)
+        self._add_standard_actions()
 
     def _update_menu_with_data(self, day_record: DayRecord, today: str, tracking_state: TrackingState):
         """Update menu with activity summary data."""
@@ -390,37 +382,9 @@ class ZeitMenuBar:
             self.menu.addAction(activity_action)
 
         self.menu.addSeparator()
-
-        # Toggle action
-        if tracking_state.can_toggle:
-            is_active = self.is_tracking_active()
-            toggle_text = "⏸️ Stop Tracking" if is_active else "▶️ Resume Tracking"
-            toggle_action = QAction(toggle_text, self.menu)
-            toggle_action.triggered.connect(self.toggle_tracking)
-            self.menu.addAction(toggle_action)
-        else:
-            toggle_action = QAction("▶️ Resume Tracking (disabled)", self.menu)
-            toggle_action.setEnabled(False)
-            self.menu.addAction(toggle_action)
-
+        self._add_toggle_action(tracking_state)
         self.menu.addSeparator()
-
-        # Refresh action
-        refresh_action = QAction("Refresh", self.menu)
-        refresh_action.triggered.connect(self.refresh)
-        self.menu.addAction(refresh_action)
-
-        # View details action
-        details_action = QAction("View Details", self.menu)
-        details_action.triggered.connect(self.view_details)
-        self.menu.addAction(details_action)
-
-        self.menu.addSeparator()
-
-        # Quit action
-        quit_action = QAction("Quit", self.menu)
-        quit_action.triggered.connect(self.quit_app)
-        self.menu.addAction(quit_action)
+        self._add_standard_actions()
 
     @Slot()
     def refresh(self):
@@ -435,9 +399,8 @@ class ZeitMenuBar:
 
     @Slot()
     def view_details(self):
-        """Open a window with detailed activity information."""
         try:
-            today = datetime.now().strftime("%Y-%m-%d")
+            today = today_str()
             with DatabaseManager() as db:
                 day_record = db.get_day_record(today)
 

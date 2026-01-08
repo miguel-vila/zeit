@@ -9,6 +9,7 @@ from rich.prompt import Confirm
 from pathlib import Path
 
 from src.zeit.data.db import DatabaseManager
+from src.zeit.core.utils import today_str
 
 app = typer.Typer(
     name="manage_db",
@@ -32,7 +33,7 @@ def delete_today(
     This command removes all activities recorded for the current date
     from the database. Use with caution as this operation cannot be undone.
     """
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = today_str()
 
     with DatabaseManager() as db:
         # Get current day record to show what will be deleted
