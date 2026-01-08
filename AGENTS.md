@@ -13,6 +13,9 @@ macOS activity tracker: periodic screenshots → Ollama vision model → activit
 - Ollama: `qwen3-vl:4b` (vision), `qwen3:8b` (classification)
 - py2app (macOS .app bundle)
 - Opik (LLM observability, optional)
+- Ruff (linting + formatting)
+- mypy (type checking)
+- pre-commit (git hooks)
 
 ## Structure
 
@@ -111,16 +114,26 @@ uv sync                           # Install deps
 uv run python run_tracker.py      # Single capture
 uv run python run_menubar_app.py  # Menubar app
 
+# Linting & Formatting
+uv run ruff check .               # Lint
+uv run ruff check --fix .         # Lint + auto-fix
+uv run ruff format .              # Format
+uv run mypy src/                  # Type check
+uv run pre-commit run --all-files # Run all hooks
+
 # Build
 sh ./build_app.sh            # Build .app bundle and sign
 ```
 
 ## Code Conventions
 
-- Type hints everywhere
+- Type hints everywhere (enforced by ruff ANN rules)
+- Modern Python syntax: `list[X]` not `List[X]`, `X | None` not `Optional[X]`
 - Pydantic models for structured data (ActivityEntry, DayRecord, ActivitiesResponse)
 - Context managers for resources (DatabaseManager, MultiScreenCapture)
 - Logging: file (DEBUG) + console (INFO) via `setup_logging()`
+- Line length: 100 characters
+- Pre-commit hooks run automatically on `git commit`
 
 ## Design Decisions
 
