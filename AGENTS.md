@@ -25,6 +25,8 @@ src/zeit/
 │   ├── activity_id.py     # Activity enum + ActivityIdentifier (LLM logic)
 │   ├── config.py          # YAML config loader
 │   ├── idle_detection.py  # IOKit idle time check
+│   ├── logging_config.py  # Centralized logging setup
+│   ├── prompts.py         # LLM prompt templates
 │   └── screen.py          # Multi-screen capture (mss)
 ├── data/          # Persistence
 │   └── db.py              # SQLite: daily_activities table
@@ -32,7 +34,7 @@ src/zeit/
 │   ├── activity_summarization.py
 │   └── day_summarizer.py
 └── ui/            # UI components
-    ├── menubar.py         # Main menubar app (511 lines)
+    ├── menubar.py         # Main menubar app
     └── qt_helpers.py      # Qt utilities
 ```
 
@@ -50,12 +52,13 @@ src/zeit/
 | Task | Location |
 |------|----------|
 | Add new activity category | `src/zeit/core/activity_id.py` → `Activity` and `ExtendedActivity` enums |
-| Modify LLM prompts | `src/zeit/core/activity_id.py` → `MULTI_SCREEN_DESCRIPTION_PROMPT_BASE`, `_describe_activities()` |
+| Modify LLM prompts | `src/zeit/core/prompts.py` |
 | Change screenshot behavior | `src/zeit/core/screen.py` → `MultiScreenCapture` |
 | Modify idle detection | `src/zeit/core/idle_detection.py` |
 | Add menubar features | `src/zeit/ui/menubar.py` |
 | Change database schema | `src/zeit/data/db.py` → `_create_tables()` |
 | Modify work hours | `src/zeit/core/conf.yml` |
+| Configure logging | `src/zeit/core/logging_config.py` |
 
 ## Activity Categories
 

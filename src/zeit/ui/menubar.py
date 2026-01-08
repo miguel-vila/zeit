@@ -11,21 +11,13 @@ from PySide6.QtGui import QAction
 from zeit.data.db import DatabaseManager, DayRecord
 from zeit.processing.activity_summarization import compute_summary
 from zeit.core.config import get_config, is_within_work_hours
+from zeit.core.logging_config import setup_logging
 from zeit.core.utils import today_str
 from zeit.ui.qt_helpers import emoji_to_qicon, show_macos_notification
 from zeit.ui.tracking_state import TrackingState
 from zeit.ui.details_window import DetailsWindow
 
-log_dir = Path("logs")
-log_dir.mkdir(parents=True, exist_ok=True)
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(log_dir / "menubar.log"),
-        logging.StreamHandler()
-    ]
-)
+setup_logging(log_file="menubar.log")
 logger = logging.getLogger(__name__)
 
 

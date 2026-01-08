@@ -12,6 +12,13 @@ from opik import track, opik_context
 from zeit.core.screen import MultiScreenCapture
 from zeit.core.active_window import get_active_screen_number
 from zeit.core.config import ModelsConfig
+from zeit.core.prompts import (
+    MULTI_SCREEN_DESCRIPTION_PROMPT,
+    ACTIVE_SCREEN_HINT_TEMPLATE,
+    ACTIVE_SCREEN_HINT_FALLBACK,
+    SINGLE_SCREEN_DESCRIPTION_PROMPT,
+    ACTIVITY_CLASSIFICATION_PROMPT,
+)
 
 
 class Activity(str, Enum):
@@ -112,61 +119,6 @@ class ActivitiesResponseWithTimestamp(ActivitiesResponse):
 logger = logging.getLogger(__name__)
 
 
-MULTI_SCREEN_DESCRIPTION_PROMPT_BASE = """You are viewing screenshots from the user's multiple monitors. The images are provided in order: Screen 1, Screen 2, etc.
-
-{active_screen_hint}
-
-Verify the PRIMARY screen by also looking for visual cues:
-- Mouse cursor position
-- Active/focused window indicators (highlighted title bar, focus rings)
-- Text input carets or selection highlights
-- The most prominent application window
-
-Provide:
-1. The screen number (1, 2, etc.) of the PRIMARY screen
-2. A description of the main activity on the PRIMARY screen
-3. Brief context about what's on secondary screens (if notable)"""
-
-ACTIVE_SCREEN_HINT_TEMPLATE = """IMPORTANT: Based on system information, Screen {screen_number} currently contains the focused/active window. Use this as a strong hint for identifying the PRIMARY screen."""
-
-SINGLE_SCREEN_DESCRIPTION_PROMPT = """A brief description of the user's activities based on the screenshot. Describe enough things to understand what is the main activity the user is engaged in."""
-
-ACTIVITY_CLASSIFICATION_PROMPT = """You are given a description of a screenshot taken from a user's computer.
-It describes various elements visible on the screen.
-Based on this description, identify the main activity the user is engaged in.
-
-The user might be during their day job, taking a break, or doing personal tasks.
-We want to differentiate between work-related and personal activities.
-The personal categories are:
-- personal_browsing : User is browsing the web for personal purposes
-- social_media : User is browsing or interacting on social media platforms.
-- youtube_entertainment : User is watching videos on YouTube for entertainment.
-- personal_email : User is reading or composing personal emails.
-- personal_ai_use : User is interacting with AI tools (such as ChatGPT or Claude) for personal use.
-- personal_finances : User is managing personal finances or banking.
-- professional_development : User is engaged in activities related to their professional growth, such as learning new skills or attending webinars.
-- online_shopping : User is browsing or purchasing items online.
-- personal_calendar : User is checking or managing their personal calendar.
-- entertainment : User is engaged in leisure activities, such as watching movies, playing games, or listening to music.
-The work-related categories are:
-- slack : User is actively using Slack for communication.
-- work_email : User is reading or composing work-related emails.
-- zoom_meeting : User is in a Zoom meeting or call.
-- work_coding : User is writing or reviewing code, related to their job.
-- work_browsing : User is browsing the web for work-related purposes: research, jira, documentation, etc.
-- work_calendar : User is checking or managing their work calendar.
-
-If multiple activities are detected, select only the main one and the most specific.
-For example, if the user is looking at their calendar from a browser, select work_calendar or personal_calendar instead of work_browsing or personal_browsing.
-
-The user is a software engineer, working at the moment for a audio streaming company.
-This means he might be looking at technical content NOT related to his job (e.g. learning new skills). In
-those cases, select professional_development as the main activity.
-
-The description of the PRIMARY screen activity is as follows:
-{image_description}{secondary_context_section}"""
-
-
 class ActivityIdentifier:
     def __init__(self, ollama_client: Client, models_config: ModelsConfig):
         self.client = ollama_client
@@ -196,8 +148,8 @@ class ActivityIdentifier:
                 if active_screen_hint is not None:
                     hint = ACTIVE_SCREEN_HINT_TEMPLATE.format(screen_number=active_screen_hint)
                 else:
-                    hint = "Identify which screen is the PRIMARY/ACTIVE screen."
-                prompt = MULTI_SCREEN_DESCRIPTION_PROMPT_BASE.format(active_screen_hint=hint)
+                    hint = ACTIVE_SCREEN_HINT_FALLBACK
+                prompt = MULTI_SCREEN_DESCRIPTION_PROMPT.format(active_screen_hint=hint)
             else:
                 prompt = SINGLE_SCREEN_DESCRIPTION_PROMPT
 

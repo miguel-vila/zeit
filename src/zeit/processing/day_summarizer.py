@@ -1,10 +1,13 @@
 from datetime import datetime
 from typing import List, Optional
+import logging
 from pydantic import BaseModel
 from ollama import Client
 
 from zeit.core.activity_id import ExtendedActivity
 from zeit.data.db import ActivityEntry
+
+logger = logging.getLogger(__name__)
 
 
 class DaySummary(BaseModel):
@@ -43,15 +46,21 @@ Don't make value judgments (either positive or negative).
 Don't talk about balance unless there's numerical evidence that really justifies that description.
 Just summarize the activities in an objective manner."""
 
-        response = self.client.generate(
-            model=self.llm,
-            prompt=prompt,
-            options={"temperature": 0.7},
-        )
+        try:
+            logger.debug("Calling LLM to summarize day activities")
+            response = self.client.generate(
+                model=self.llm,
+                prompt=prompt,
+                options={"temperature": 0.7},
+            )
+        except Exception as e:
+            logger.error(f"Failed to summarize day activities: {e}", exc_info=True)
+            return None
 
         start_time = datetime.fromisoformat(non_idle[0].timestamp)
         end_time = datetime.fromisoformat(non_idle[-1].timestamp)
 
+        logger.debug(f"Day summary generated for {start_time.date()}")
         return DaySummary(
             summary=response.response,
             start_time=start_time,

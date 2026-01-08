@@ -3,48 +3,19 @@ from time import sleep
 import sys
 import logging
 import os
-from pathlib import Path
 from datetime import datetime
 from zeit.core.activity_id import ActivityIdentifier
 from zeit.core.config import get_config
+from zeit.core.logging_config import setup_logging
 from zeit.data.db import DatabaseManager, ActivityEntry
 from dotenv import load_dotenv
 from zeit.core.idle_detection import is_system_idle, DEFAULT_IDLE_THRESHOLD
 import opik
 
-def setup_logging():
-    """Configure logging to file and console."""
-    log_dir = "logs"
-    Path(log_dir).mkdir(parents=True, exist_ok=True)
-    log_file = Path(log_dir) / "zeit.log"
-
-    # Create formatter
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-
-    # File handler (DEBUG level)
-    file_handler = logging.FileHandler(log_file)
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
-
-    # Console handler (INFO level)
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(formatter)
-
-    # Configure root logger
-    root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)
-    root_logger.addHandler(file_handler)
-    root_logger.addHandler(console_handler)
-
-    return logging.getLogger(__name__)
-
 def main():
     load_dotenv()  # Load environment variables from .env file if present
-    logger = setup_logging()
+    setup_logging(log_file="zeit.log")
+    logger = logging.getLogger(__name__)
     if os.getenv("OPIK_URL"):
         logger.info(f"Running with local Opik instance at {os.getenv('OPIK_URL')}")
         opik.configure(url=os.getenv("OPIK_URL"), use_local=True)

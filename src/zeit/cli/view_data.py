@@ -12,6 +12,29 @@ from zeit.processing.activity_summarization import compute_summary
 from zeit.processing.day_summarizer import DaySummarizer
 from zeit.data.db import DatabaseManager
 
+# CLI formatting constants
+SEPARATOR_WIDTH = 70
+SEPARATOR_DOUBLE = "=" * SEPARATOR_WIDTH
+SEPARATOR_SINGLE = "-" * SEPARATOR_WIDTH
+
+
+def print_header(title: str):
+    """Print a header with double-line separators."""
+    print(f"\n{SEPARATOR_DOUBLE}")
+    print(title)
+    print(SEPARATOR_DOUBLE)
+
+
+def print_footer():
+    """Print a footer separator."""
+    print(f"{SEPARATOR_DOUBLE}\n")
+
+
+def print_section_divider():
+    """Print a single-line section divider."""
+    print(SEPARATOR_SINGLE)
+
+
 app = typer.Typer(
     name="view_data",
     help="View and summarize Zeit activity data",
@@ -27,9 +50,7 @@ def _print_day_activities(date_str: str):
             print(f"No data found for {date_str}")
             return
 
-        print(f"\n{'='*70}")
-        print(f"Activities for {date_str}")
-        print(f"{'='*70}")
+        print_header(f"Activities for {date_str}")
         print(f"Total activities: {len(day_record.activities)}\n")
 
         for i, activity in enumerate(day_record.activities, 1):
@@ -42,12 +63,12 @@ def _print_day_activities(date_str: str):
 
         summary = compute_summary(day_record.activities)
 
-        print(f"{'='*70}")
+        print(SEPARATOR_DOUBLE)
         print("Daily Summary:")
-        print(f"{'-'*70}")
+        print_section_divider()
         for summary_entry in summary:
             print(f"- {summary_entry.activity.value}: {summary_entry.percentage:.2f}%")
-        print(f"{'='*70}\n")
+        print_footer()
 
 
 def _print_all_days():
@@ -60,9 +81,8 @@ def _print_all_days():
             print("No data in database yet.")
             return
 
-        print(f"\n{'='*70}")
-        print("All Days Summary")
-        print(f"{'='*70}\n")
+        print_header("All Days Summary")
+        print()  # Extra line after header
 
         for row in rows:
             date = row["date"]
@@ -96,12 +116,11 @@ def _summarize_day_impl(date_str: str):
             print(f"No non-idle activities recorded for {date_str}")
             return
 
-        print(f"\n{'='*70}")
-        print(f"Day Summary for {date_str}")
+        print_header(f"Day Summary for {date_str}")
         print(f"({result.start_time.strftime('%H:%M')} - {result.end_time.strftime('%H:%M')})")
-        print(f"{'='*70}\n")
+        print()
         print(result.summary)
-        print(f"\n{'='*70}\n")
+        print_footer()
 
 
 @app.command("today")
@@ -130,28 +149,6 @@ def cmd_summarize(
     date: Optional[str] = typer.Argument(None, help="Date in YYYY-MM-DD format (defaults to today)")
 ):
     date_str = date if date else today_str()
-    _summarize_day_impl(date_str)
-
-
-# Legacy function exports for backwards compatibility
-def view_day(db: DatabaseManager, date_str: str):
-    _print_day_activities(date_str)
-
-
-def view_all_days(db: DatabaseManager):
-    _print_all_days()
-
-
-def view_today(db: DatabaseManager):
-    _print_day_activities(today_str())
-
-
-def view_yesterday(db: DatabaseManager):
-    yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-    _print_day_activities(yesterday)
-
-
-def summarize_day(db: DatabaseManager, date_str: str):
     _summarize_day_impl(date_str)
 
 
