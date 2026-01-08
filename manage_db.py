@@ -20,7 +20,7 @@ app = typer.Typer(
 @app.command("delete-today")
 def delete_today(
     force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation prompt"),
-):
+) -> None:
     """
     Delete all activity entries for today.
 
@@ -61,7 +61,7 @@ def delete_today(
 
 
 @app.command("info")
-def database_info():
+def database_info() -> None:
     """
     Display information about the database.
 

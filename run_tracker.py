@@ -15,7 +15,7 @@ from zeit.core.logging_config import setup_logging
 from zeit.data.db import ActivityEntry, DatabaseManager
 
 
-def main():
+def main() -> int | None:
     load_dotenv()  # Load environment variables from .env file if present
     setup_logging(log_file="zeit.log")
     logger = logging.getLogger(__name__)

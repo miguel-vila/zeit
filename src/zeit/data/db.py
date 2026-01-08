@@ -3,6 +3,8 @@ import logging
 import sqlite3
 from datetime import datetime
 from pathlib import Path
+from types import TracebackType
+from typing import Self
 
 from pydantic import BaseModel, Field
 
@@ -22,7 +24,7 @@ class ActivityEntry(BaseModel):
     )
 
     @classmethod
-    def from_response(cls, activities_response: ActivitiesResponseWithTimestamp):
+    def from_response(cls, activities_response: ActivitiesResponseWithTimestamp) -> Self:
         """Create an ActivityEntry from an ActivitiesResponse."""
         return cls(
             timestamp=activities_response.timestamp.isoformat(),
@@ -31,7 +33,7 @@ class ActivityEntry(BaseModel):
         )
 
     @classmethod
-    def idle(cls, timestamp: datetime):
+    def idle(cls, timestamp: datetime) -> Self:
         """Create an ActivityEntry for idle state."""
         return cls(timestamp=timestamp.isoformat(), activity=ExtendedActivity.IDLE, reasoning=None)
 
@@ -44,7 +46,7 @@ class DayRecord(BaseModel):
         description="List of activities detected during the day"
     )
 
-    def add_activity(self, entry: ActivityEntry):
+    def add_activity(self, entry: ActivityEntry) -> None:
         """Add an activity entry to this day."""
         self.activities.append(entry)
 
@@ -53,7 +55,7 @@ class DayRecord(BaseModel):
         return json.dumps([activity.model_dump() for activity in self.activities])
 
     @classmethod
-    def from_db_row(cls, date: str, activities_json: str):
+    def from_db_row(cls, date: str, activities_json: str) -> Self:
         """Create a DayRecord from database row."""
         activities_data = json.loads(activities_json)
         activities = [ActivityEntry(**activity) for activity in activities_data]
@@ -63,7 +65,7 @@ class DayRecord(BaseModel):
 class DatabaseManager:
     """Manages the SQLite database for activity tracking."""
 
-    def __init__(self, db_path: Path | None = None):
+    def __init__(self, db_path: Path | None = None) -> None:
         """
         Initialize the database manager.
 
@@ -81,7 +83,7 @@ class DatabaseManager:
         self._connect()
         self._create_tables()
 
-    def _connect(self):
+    def _connect(self) -> None:
         """Establish connection to the database."""
         try:
             self.conn = sqlite3.connect(str(self.db_path))
@@ -91,7 +93,7 @@ class DatabaseManager:
             logger.error(f"Failed to connect to database: {e}", exc_info=True)
             raise
 
-    def _create_tables(self):
+    def _create_tables(self) -> None:
         """Create the necessary tables if they don't exist."""
         try:
             cursor = self.conn.cursor()
@@ -248,16 +250,21 @@ class DatabaseManager:
             logger.error(f"Failed to retrieve all days: {e}", exc_info=True)
             return []
 
-    def close(self):
+    def close(self) -> None:
         """Close the database connection."""
         if self.conn:
             self.conn.close()
             logger.debug("Database connection closed")
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         """Context manager exit."""
         self.close()

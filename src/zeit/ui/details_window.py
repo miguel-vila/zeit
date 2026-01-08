@@ -22,7 +22,7 @@ PERSONAL_ACTIVITY_COLOR = "#2196F3"
 
 
 class DetailsWindow(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Zeit Activity Details")
         self.setMinimumSize(400, 300)
@@ -91,7 +91,7 @@ class DetailsWindow(QWidget):
 
         return activity_widget
 
-    def update_data(self, day_record: DayRecord, date_str: str):
+    def update_data(self, day_record: DayRecord, date_str: str) -> None:
         while self.activities_layout.count():
             item = self.activities_layout.takeAt(0)
             if item.widget():

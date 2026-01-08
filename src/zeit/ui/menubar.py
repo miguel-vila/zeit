@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class ZeitMenuBar:
-    def __init__(self, app: QApplication):
+    def __init__(self, app: QApplication) -> None:
         logger.info("Starting Zeit Menu Bar App (PySide6)")
 
         self._stop_flag_path = get_config().paths.stop_flag
@@ -76,7 +76,7 @@ class ZeitMenuBar:
         # Active tracking during work hours
         return TrackingState.active()
 
-    def _add_toggle_action(self, tracking_state: TrackingState):
+    def _add_toggle_action(self, tracking_state: TrackingState) -> None:
         if tracking_state.can_toggle:
             is_active = self.is_tracking_active()
             toggle_text = "⏸️ Stop Tracking" if is_active else "▶️ Resume Tracking"
@@ -88,7 +88,7 @@ class ZeitMenuBar:
             toggle_action.setEnabled(False)
             self.menu.addAction(toggle_action)
 
-    def _add_standard_actions(self):
+    def _add_standard_actions(self) -> None:
         refresh_action = QAction("Refresh", self.menu)
         refresh_action.triggered.connect(self.refresh)
         self.menu.addAction(refresh_action)
@@ -104,7 +104,7 @@ class ZeitMenuBar:
         self.menu.addAction(quit_action)
 
     @Slot()
-    def toggle_tracking(self):
+    def toggle_tracking(self) -> None:
         """Toggle tracking on/off by creating/removing the flag file."""
         # Check if we're in work hours first
         if not is_within_work_hours():
@@ -137,7 +137,7 @@ class ZeitMenuBar:
             show_macos_notification(title="Zeit Error", subtitle="Toggle Failed", message=str(e))
 
     @Slot()
-    def update_menu(self):
+    def update_menu(self) -> None:
         """Update the menu with current activity data."""
         # Get tracking state first
         tracking_state = self.get_tracking_state()
@@ -153,7 +153,7 @@ class ZeitMenuBar:
             else:
                 self._update_menu_with_data(day_record, today, tracking_state)
 
-    def _update_menu_no_data(self, today: str, tracking_state: TrackingState):
+    def _update_menu_no_data(self, today: str, tracking_state: TrackingState) -> None:
         """Update menu when there's no data for today."""
         # Update icon
         icon = emoji_to_qicon(tracking_state.icon)
@@ -182,7 +182,7 @@ class ZeitMenuBar:
 
     def _update_menu_with_data(
         self, day_record: DayRecord, today: str, tracking_state: TrackingState
-    ):
+    ) -> None:
         """Update menu with activity summary data."""
         summary = compute_summary(day_record.activities)
         total_count = len(day_record.activities)
@@ -226,7 +226,7 @@ class ZeitMenuBar:
         self._add_standard_actions()
 
     @Slot()
-    def refresh(self):
+    def refresh(self) -> None:
         """Manually refresh the menu data."""
         logger.info("Manual refresh triggered")
         show_macos_notification(
@@ -235,7 +235,7 @@ class ZeitMenuBar:
         self.update_menu()
 
     @Slot()
-    def view_details(self):
+    def view_details(self) -> None:
         try:
             today = today_str()
             with DatabaseManager() as db:
@@ -261,14 +261,14 @@ class ZeitMenuBar:
             )
 
     @Slot()
-    def quit_app(self):
+    def quit_app(self) -> None:
         """Quit the application."""
         logger.info("Quitting Zeit Menu Bar App")
         self.tray_icon.hide()
         self.app.quit()
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     try:
         app = QApplication(sys.argv)
@@ -277,7 +277,7 @@ def main():
         menubar = ZeitMenuBar(app)
 
         # Set up signal handler for Ctrl+C
-        def signal_handler(sig, frame):
+        def signal_handler(sig: int, frame: object) -> None:
             logger.info("Received interrupt signal, shutting down...")
             menubar.quit_app()
 

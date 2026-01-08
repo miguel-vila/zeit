@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 class ActivityIdentifier:
-    def __init__(self, ollama_client: Client, models_config: ModelsConfig):
+    def __init__(self, ollama_client: Client, models_config: ModelsConfig) -> None:
         self.client = ollama_client
         self.vlm = models_config.vision
         self.llm = models_config.text

@@ -2,6 +2,7 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
+from types import TracebackType
 
 import mss
 import mss.tools
@@ -16,7 +17,7 @@ class MultiScreenCapture:
     all real monitors. Cleans up all screenshots on exit.
     """
 
-    def __init__(self, now: datetime):
+    def __init__(self, now: datetime) -> None:
         self.now = now
         self.screenshot_paths: dict[int, Path] = {}
 
@@ -43,7 +44,12 @@ class MultiScreenCapture:
 
         return paths
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         for _, path in self.screenshot_paths.items():
             if path and os.path.exists(path):
                 os.remove(path)

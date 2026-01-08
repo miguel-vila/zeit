@@ -17,7 +17,7 @@ class DaySummary(BaseModel):
 
 
 class DaySummarizer:
-    def __init__(self, ollama_client: Client, llm: str):
+    def __init__(self, ollama_client: Client, llm: str) -> None:
         self.client = ollama_client
         self.llm = llm
 

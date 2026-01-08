@@ -17,19 +17,19 @@ SEPARATOR_DOUBLE = "=" * SEPARATOR_WIDTH
 SEPARATOR_SINGLE = "-" * SEPARATOR_WIDTH
 
 
-def print_header(title: str):
+def print_header(title: str) -> None:
     """Print a header with double-line separators."""
     print(f"\n{SEPARATOR_DOUBLE}")
     print(title)
     print(SEPARATOR_DOUBLE)
 
 
-def print_footer():
+def print_footer() -> None:
     """Print a footer separator."""
     print(f"{SEPARATOR_DOUBLE}\n")
 
 
-def print_section_divider():
+def print_section_divider() -> None:
     """Print a single-line section divider."""
     print(SEPARATOR_SINGLE)
 
@@ -41,7 +41,7 @@ app = typer.Typer(
 )
 
 
-def _print_day_activities(date_str: str):
+def _print_day_activities(date_str: str) -> None:
     with DatabaseManager() as db:
         day_record = db.get_day_record(date_str)
 
@@ -70,7 +70,7 @@ def _print_day_activities(date_str: str):
         print_footer()
 
 
-def _print_all_days():
+def _print_all_days() -> None:
     with DatabaseManager() as db:
         cursor = db.conn.cursor()
         cursor.execute(
@@ -101,7 +101,7 @@ def _print_all_days():
                 print()
 
 
-def _summarize_day_impl(date_str: str):
+def _summarize_day_impl(date_str: str) -> None:
     with DatabaseManager() as db:
         day_record = db.get_day_record(date_str)
 
@@ -125,29 +125,29 @@ def _summarize_day_impl(date_str: str):
 
 
 @app.command("today")
-def cmd_today():
+def cmd_today() -> None:
     _print_day_activities(today_str())
 
 
 @app.command("yesterday")
-def cmd_yesterday():
+def cmd_yesterday() -> None:
     _print_day_activities(yesterday_str())
 
 
 @app.command("all")
-def cmd_all():
+def cmd_all() -> None:
     _print_all_days()
 
 
 @app.command("day")
-def cmd_day(date: str = typer.Argument(..., help="Date in YYYY-MM-DD format")):
+def cmd_day(date: str = typer.Argument(..., help="Date in YYYY-MM-DD format")) -> None:
     _print_day_activities(date)
 
 
 @app.command("summarize")
 def cmd_summarize(
     date: str | None = typer.Argument(None, help="Date in YYYY-MM-DD format (defaults to today)"),
-):
+) -> None:
     date_str = date if date else today_str()
     _summarize_day_impl(date_str)
 
