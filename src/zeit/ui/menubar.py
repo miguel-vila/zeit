@@ -69,13 +69,12 @@ class ZeitMenuBar:
             status = config.work_hours.get_status_message()
             return TrackingState.not_within_work_hours(status)
 
-        elif manually_stopped:
+        if manually_stopped:
             # Manually paused during work hours
             return TrackingState.paused_manual()
 
-        else:
-            # Active tracking during work hours
-            return TrackingState.active()
+        # Active tracking during work hours
+        return TrackingState.active()
 
     def _add_toggle_action(self, tracking_state: TrackingState):
         if tracking_state.can_toggle:

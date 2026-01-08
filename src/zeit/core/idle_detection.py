@@ -2,7 +2,6 @@
 
 import logging
 import subprocess
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +9,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_IDLE_THRESHOLD = 300
 
 
-def get_idle_time_seconds() -> Optional[float]:
+def get_idle_time_seconds() -> float | None:
     """
     Get the system idle time in seconds using macOS ioreg.
 

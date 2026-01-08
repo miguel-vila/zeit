@@ -3,7 +3,6 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from time import time
-from typing import Dict, List, Optional
 
 from ollama import Client
 from opik import opik_context, track
@@ -35,8 +34,8 @@ class ActivityIdentifier:
 
     @track(tags=["ollama", "python-library"])
     def _describe_images(
-        self, screenshot_paths: Dict[int, Path], active_screen_hint: Optional[int] = None
-    ) -> Optional[MultiScreenDescription]:
+        self, screenshot_paths: dict[int, Path], active_screen_hint: int | None = None
+    ) -> MultiScreenDescription | None:
         """Uses the Ollama client to generate a structured description of screen images.
 
         Args:
@@ -45,7 +44,7 @@ class ActivityIdentifier:
         """
         try:
             # Encode all images in order
-            encoded_images: List[str] = []
+            encoded_images: list[str] = []
             for monitor_id in sorted(screenshot_paths.keys()):
                 encoded_images.append(encode_image_to_base64(screenshot_paths[monitor_id]))
 
@@ -107,21 +106,20 @@ class ActivityIdentifier:
                         "Expected thinking output from vision model for multi-screen analysis"
                     )
                 return MultiScreenDescription.model_validate_json(thinking)
-            else:
-                # Wrap single-screen plain text in structured format
-                return MultiScreenDescription(
-                    primary_screen=1,
-                    main_activity_description=response.response,
-                    secondary_context=None,
-                )
+            # Wrap single-screen plain text in structured format
+            return MultiScreenDescription(
+                primary_screen=1,
+                main_activity_description=response.response,
+                secondary_context=None,
+            )
         except Exception as e:
             logger.error(f"Failed to describe images: {e}", exc_info=True)
             return None
 
     @track(tags=["ollama", "python-library"])
     def _describe_activities(
-        self, image_description: str, secondary_context: Optional[str] = None
-    ) -> Optional[ActivitiesResponse]:
+        self, image_description: str, secondary_context: str | None = None
+    ) -> ActivitiesResponse | None:
         secondary_context_section = ""
         if secondary_context:
             secondary_context_section = (
@@ -166,7 +164,7 @@ class ActivityIdentifier:
             logger.error(f"Failed to classify activity: {e}", exc_info=True)
             return None
 
-    def take_screenshot_and_describe(self) -> Optional[ActivitiesResponseWithTimestamp]:
+    def take_screenshot_and_describe(self) -> ActivitiesResponseWithTimestamp | None:
         """Capture all screens and identify the main activity."""
         now = datetime.now()
 
@@ -174,7 +172,7 @@ class ActivityIdentifier:
             logger.info(f"Captured {len(screenshot_paths)} screen(s)")
 
             # Detect active screen using native macOS APIs
-            active_screen_hint: Optional[int] = None
+            active_screen_hint: int | None = None
             if len(screenshot_paths) > 1:
                 active_screen_hint = get_active_screen_number()
                 logger.info(f"Native detection: active screen is {active_screen_hint}")

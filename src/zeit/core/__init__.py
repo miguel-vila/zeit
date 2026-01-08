@@ -11,15 +11,15 @@ from zeit.core.models import (
 from zeit.core.utils import format_date, today_str, yesterday_str
 
 __all__ = [
-    "Activity",
-    "ExtendedActivity",
     "ActivitiesResponse",
     "ActivitiesResponseWithTimestamp",
-    "MultiScreenDescription",
+    "Activity",
     "ActivityIdentifier",
+    "ExtendedActivity",
+    "MultiScreenDescription",
+    "format_date",
     "get_config",
     "is_within_work_hours",
     "today_str",
     "yesterday_str",
-    "format_date",
 ]

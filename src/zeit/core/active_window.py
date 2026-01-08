@@ -4,7 +4,7 @@ Uses AppleScript and Quartz to detect which monitor contains the active window.
 """
 
 import logging
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 import mss
 
@@ -70,19 +70,19 @@ end tell
         return WindowBounds(x, y, w, h)
 
     except AppleScriptError as e:
-        raise RuntimeError(str(e))
+        raise RuntimeError(str(e)) from e
     except ValueError as e:
-        raise RuntimeError(f"Failed to parse window bounds: {e}")
+        raise RuntimeError(f"Failed to parse window bounds: {e}") from e
 
 
-def get_mss_monitors() -> List[DisplayBounds]:
+def get_mss_monitors() -> list[DisplayBounds]:
     """Get monitor bounds from mss (matching the order used in MultiScreenCapture).
 
     Returns:
         List of DisplayBounds for each monitor (excluding virtual combined screen)
     """
     with mss.mss() as sct:
-        monitors: List[DisplayBounds] = []
+        monitors: list[DisplayBounds] = []
         # Skip index 0 (virtual combined screen), same as MultiScreenCapture
         for monitor in sct.monitors[1:]:
             monitors.append(
@@ -103,7 +103,7 @@ def _point_in_display(x: int, y: int, display: DisplayBounds) -> bool:
     )
 
 
-def _find_display_for_window(window: WindowBounds, displays: List[DisplayBounds]) -> int:
+def _find_display_for_window(window: WindowBounds, displays: list[DisplayBounds]) -> int:
     """Find which display contains the window's top-left corner.
 
     Returns:

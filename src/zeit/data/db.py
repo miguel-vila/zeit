@@ -3,7 +3,6 @@ import logging
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -18,7 +17,7 @@ class ActivityEntry(BaseModel):
 
     timestamp: str = Field(description="ISO format timestamp when the activity was detected")
     activity: ExtendedActivity = Field(description="The detected activity type")
-    reasoning: Optional[str] = Field(
+    reasoning: str | None = Field(
         default=None, description="Reasoning for why this activity was identified"
     )
 
@@ -41,7 +40,7 @@ class DayRecord(BaseModel):
     """Represents all activities for a single day."""
 
     date: str = Field(description="Date in YYYY-MM-DD format")
-    activities: List[ActivityEntry] = Field(
+    activities: list[ActivityEntry] = Field(
         description="List of activities detected during the day"
     )
 
@@ -64,7 +63,7 @@ class DayRecord(BaseModel):
 class DatabaseManager:
     """Manages the SQLite database for activity tracking."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         """
         Initialize the database manager.
 
@@ -176,7 +175,7 @@ class DatabaseManager:
             self.conn.rollback()
             return False
 
-    def get_day_record(self, date_str: str) -> Optional[DayRecord]:
+    def get_day_record(self, date_str: str) -> DayRecord | None:
         """
         Retrieve all activities for a specific day.
 
@@ -219,15 +218,14 @@ class DatabaseManager:
             if rows_deleted > 0:
                 logger.info(f"Deleted day record for {date_str}")
                 return True
-            else:
-                logger.warning(f"No record found for {date_str} to delete")
-                return False
+            logger.warning(f"No record found for {date_str} to delete")
+            return False
         except sqlite3.Error as e:
             logger.error(f"Failed to delete day record for {date_str}: {e}", exc_info=True)
             self.conn.rollback()
             return False
 
-    def get_all_days(self) -> List[tuple[str, int]]:
+    def get_all_days(self) -> list[tuple[str, int]]:
         """
         Get a list of all days with activities and their activity counts.
 

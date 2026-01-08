@@ -2,7 +2,6 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Dict
 
 import mss
 import mss.tools
@@ -19,16 +18,16 @@ class MultiScreenCapture:
 
     def __init__(self, now: datetime):
         self.now = now
-        self.screenshot_paths: Dict[int, Path] = {}
+        self.screenshot_paths: dict[int, Path] = {}
 
-    def __enter__(self) -> Dict[int, Path]:
+    def __enter__(self) -> dict[int, Path]:
         self.screenshot_paths = self._capture_all_monitors()
         return self.screenshot_paths
 
-    def _capture_all_monitors(self) -> Dict[int, Path]:
+    def _capture_all_monitors(self) -> dict[int, Path]:
         now_str = self.now.isoformat()
         os.makedirs("screenshots", exist_ok=True)
-        paths: Dict[int, Path] = {}
+        paths: dict[int, Path] = {}
 
         with mss.mss() as sct:
             # Skip index 0 (virtual combined screen), capture all real monitors
@@ -45,7 +44,7 @@ class MultiScreenCapture:
         return paths
 
     def __exit__(self, exc_type, exc_value, traceback):
-        for monitor_id, path in self.screenshot_paths.items():
+        for _, path in self.screenshot_paths.items():
             if path and os.path.exists(path):
                 os.remove(path)
                 logger.debug(f"Deleted screenshot {path}")

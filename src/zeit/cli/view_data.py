@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 from datetime import datetime
-from typing import Optional
 
 import typer
 from ollama import Client
@@ -147,9 +146,7 @@ def cmd_day(date: str = typer.Argument(..., help="Date in YYYY-MM-DD format")):
 
 @app.command("summarize")
 def cmd_summarize(
-    date: Optional[str] = typer.Argument(
-        None, help="Date in YYYY-MM-DD format (defaults to today)"
-    ),
+    date: str | None = typer.Argument(None, help="Date in YYYY-MM-DD format (defaults to today)"),
 ):
     date_str = date if date else today_str()
     _summarize_day_impl(date_str)

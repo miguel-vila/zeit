@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime, time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 from pydantic import BaseModel, Field, field_validator
@@ -29,7 +29,7 @@ class WorkHoursConfig(BaseModel):
                 raise ValueError(f"Invalid time format: {v}. Expected HH:MM") from e
         raise ValueError(f"Invalid time type: {type(v)}")
 
-    def is_within_work_hours(self, check_time: Optional[datetime] = None) -> bool:
+    def is_within_work_hours(self, check_time: datetime | None = None) -> bool:
         """
         Check if given time (or now) is within work hours.
 
@@ -59,7 +59,7 @@ class WorkHoursConfig(BaseModel):
 
         return True
 
-    def get_status_message(self, check_time: Optional[datetime] = None) -> str:
+    def get_status_message(self, check_time: datetime | None = None) -> str:
         """
         Get human-readable status message about work hours.
 
@@ -76,7 +76,7 @@ class WorkHoursConfig(BaseModel):
         current_time = check_time.time()
         if current_time < self.work_start_hour:
             return f"Outside work hours (Before {self.work_start_hour.strftime('%H:%M')})"
-        elif current_time >= self.work_end_hour:
+        if current_time >= self.work_end_hour:
             return f"Outside work hours (After {self.work_end_hour.strftime('%H:%M')})"
 
         return "Within work hours"
@@ -113,7 +113,7 @@ class ZeitConfig(BaseModel):
     paths: PathsConfig = Field(default_factory=PathsConfig)
 
 
-def load_config(config_path: Optional[Path] = None) -> ZeitConfig:
+def load_config(config_path: Path | None = None) -> ZeitConfig:
     """
     Load configuration from conf.yml.
 
@@ -135,14 +135,14 @@ def load_config(config_path: Optional[Path] = None) -> ZeitConfig:
 
     logger.debug(f"Loading configuration from {config_path}")
 
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config_data = yaml.safe_load(f)
 
     return ZeitConfig(**config_data)
 
 
 # Singleton pattern for config
-_config_instance: Optional[ZeitConfig] = None
+_config_instance: ZeitConfig | None = None
 
 
 def get_config() -> ZeitConfig:
@@ -153,7 +153,7 @@ def get_config() -> ZeitConfig:
     return _config_instance
 
 
-def is_within_work_hours(check_time: Optional[datetime] = None) -> bool:
+def is_within_work_hours(check_time: datetime | None = None) -> bool:
     """
     Convenience function to check if currently in work hours.
 

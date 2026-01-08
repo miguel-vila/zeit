@@ -1,7 +1,6 @@
 """Pydantic models for LLM responses in Zeit."""
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -23,7 +22,7 @@ class MultiScreenDescription(BaseModel):
             "Describe enough to understand what the main activity the user is engaged in."
         )
     )
-    secondary_context: Optional[str] = Field(
+    secondary_context: str | None = Field(
         default=None,
         description=(
             "Brief description of what's visible on secondary screens for context. "
@@ -50,7 +49,7 @@ class ActivitiesResponse(BaseModel):
             "activity was selected based on the description of the screenshot."
         )
     )
-    secondary_context: Optional[str] = Field(
+    secondary_context: str | None = Field(
         default=None,
         description=(
             "Brief description of activities visible on secondary screens, if any. "
@@ -64,5 +63,5 @@ class ActivitiesResponseWithTimestamp(ActivitiesResponse):
 
     main_activity: Activity
     reasoning: str
-    secondary_context: Optional[str] = None
+    secondary_context: str | None = None
     timestamp: datetime

@@ -1,13 +1,10 @@
 """macOS-specific helpers for AppleScript execution."""
 
 import subprocess
-from typing import Optional
 
 
 class AppleScriptError(Exception):
     """Raised when AppleScript execution fails."""
-
-    pass
 
 
 def run_applescript(script: str, timeout: int = 5) -> str:
@@ -33,11 +30,11 @@ def run_applescript(script: str, timeout: int = 5) -> str:
 
         return result.stdout.strip()
 
-    except subprocess.TimeoutExpired:
-        raise AppleScriptError("AppleScript timed out")
+    except subprocess.TimeoutExpired as e:
+        raise AppleScriptError("AppleScript timed out") from e
 
 
-def run_applescript_safe(script: str, timeout: int = 5) -> Optional[str]:
+def run_applescript_safe(script: str, timeout: int = 5) -> str | None:
     """Execute AppleScript, returning None on failure instead of raising.
 
     Args:

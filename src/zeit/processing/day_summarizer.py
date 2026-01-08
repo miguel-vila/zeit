@@ -1,6 +1,5 @@
 import logging
 from datetime import datetime
-from typing import List, Optional
 
 from ollama import Client
 from pydantic import BaseModel
@@ -22,7 +21,7 @@ class DaySummarizer:
         self.client = ollama_client
         self.llm = llm
 
-    def summarize(self, activities: List[ActivityEntry]) -> Optional[DaySummary]:
+    def summarize(self, activities: list[ActivityEntry]) -> DaySummary | None:
         non_idle = [a for a in activities if a.activity != ExtendedActivity.IDLE]
 
         if not non_idle:

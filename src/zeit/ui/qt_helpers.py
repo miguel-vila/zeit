@@ -2,7 +2,6 @@
 """Qt helper utilities for PySide6 implementation."""
 
 import logging
-from typing import Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QIcon, QPainter, QPixmap
@@ -74,7 +73,7 @@ def show_macos_notification(title: str, subtitle: str = "", message: str = "") -
         return False
 
 
-def text_to_qicon(text: str, size: int = 22, font_size: Optional[int] = None) -> QIcon:
+def text_to_qicon(text: str, size: int = 22, font_size: int | None = None) -> QIcon:
     """
     Convert text (including percentage symbols) to a QIcon for system tray.
 

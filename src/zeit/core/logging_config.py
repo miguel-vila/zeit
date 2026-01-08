@@ -5,7 +5,6 @@ Provides consistent logging setup across all entry points (tracker, menubar, CLI
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 DEFAULT_LOG_DIR = "logs"
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -17,7 +16,7 @@ def setup_logging(
     log_dir: str = DEFAULT_LOG_DIR,
     file_level: int = logging.DEBUG,
     console_level: int = logging.INFO,
-    log_format: Optional[str] = None,
+    log_format: str | None = None,
 ) -> logging.Logger:
     """Configure logging to file and console.
 
