@@ -11,6 +11,7 @@ from opik import track, opik_context
 
 from zeit.core.screen import MultiScreenCapture
 from zeit.core.active_window import get_active_screen_number
+from zeit.core.config import ModelsConfig
 
 
 class Activity(str, Enum):
@@ -136,10 +137,10 @@ SINGLE_SCREEN_DESCRIPTION_PROMPT = """A brief description of the user's activiti
 
 
 class ActivityIdentifier:
-    def __init__(self, ollama_client: Client):
+    def __init__(self, ollama_client: Client, models_config: ModelsConfig):
         self.client = ollama_client
-        self.vlm = "qwen3-vl:4b"
-        self.llm = "qwen3:8b"
+        self.vlm = models_config.vision
+        self.llm = models_config.text
 
     @track(tags=["ollama", "python-library"])
     def _describe_images(
@@ -209,9 +210,11 @@ class ActivityIdentifier:
             )
             logger.debug("Vision model response received")
             
-            # Parse response based on mode
             if is_multi_screen:
-                return MultiScreenDescription.model_validate_json(response.thinking)
+                thinking = response.thinking
+                if not thinking:
+                    raise RuntimeError("Expected thinking output from vision model for multi-screen analysis")
+                return MultiScreenDescription.model_validate_json(thinking)
             else:
                 # Wrap single-screen plain text in structured format
                 return MultiScreenDescription(

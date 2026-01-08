@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta
 
 from ollama import Client
+from zeit.core.config import get_config
 from zeit.processing.activity_summarization import compute_summary
 from zeit.processing.day_summarizer import DaySummarizer
 from zeit.data.db import DatabaseManager
@@ -86,7 +87,8 @@ def summarize_day(db: DatabaseManager, date_str: str):
         print(f"No activities recorded for {date_str}")
         return
 
-    summarizer = DaySummarizer(Client())
+    config = get_config()
+    summarizer = DaySummarizer(Client(), llm=config.models.text)
     result = summarizer.summarize(day_record.activities)
 
     if result is None:

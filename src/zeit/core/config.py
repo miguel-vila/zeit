@@ -81,10 +81,14 @@ class WorkHoursConfig(BaseModel):
         return "Within work hours"
 
 
-class ZeitConfig(BaseModel):
-    """Main Zeit configuration."""
+class ModelsConfig(BaseModel):
+    vision: str = Field(default="qwen3-vl:4b", description="Vision model for image analysis")
+    text: str = Field(default="qwen3:8b", description="Text model for classification and summarization")
 
+
+class ZeitConfig(BaseModel):
     work_hours: WorkHoursConfig
+    models: ModelsConfig = Field(default_factory=ModelsConfig)
 
 
 def load_config(config_path: Optional[Path] = None) -> ZeitConfig:

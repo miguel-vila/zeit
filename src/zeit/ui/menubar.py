@@ -31,6 +31,21 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+PROGRESS_BAR_STYLE = """
+    QProgressBar {{
+        border: 1px solid #cccccc;
+        border-radius: 4px;
+        background-color: #f0f0f0;
+    }}
+    QProgressBar::chunk {{
+        background-color: {color};
+        border-radius: 3px;
+    }}
+"""
+
+WORK_ACTIVITY_COLOR = "#4CAF50"
+PERSONAL_ACTIVITY_COLOR = "#2196F3"
+
 
 class TrackingState:
     """Represents the current tracking state."""
@@ -146,33 +161,8 @@ class DetailsWindow(QWidget):
             progress_bar.setTextVisible(False)
             progress_bar.setMaximumHeight(8)
 
-            # Color the progress bar based on activity type
-            if entry.activity.is_work_activity():
-                # Green for work activities
-                progress_bar.setStyleSheet("""
-                    QProgressBar {
-                        border: 1px solid #cccccc;
-                        border-radius: 4px;
-                        background-color: #f0f0f0;
-                    }
-                    QProgressBar::chunk {
-                        background-color: #4CAF50;
-                        border-radius: 3px;
-                    }
-                """)
-            else:
-                # Blue for other activities
-                progress_bar.setStyleSheet("""
-                    QProgressBar {
-                        border: 1px solid #cccccc;
-                        border-radius: 4px;
-                        background-color: #f0f0f0;
-                    }
-                    QProgressBar::chunk {
-                        background-color: #2196F3;
-                        border-radius: 3px;
-                    }
-                """)
+            color = WORK_ACTIVITY_COLOR if entry.activity.is_work_activity() else PERSONAL_ACTIVITY_COLOR
+            progress_bar.setStyleSheet(PROGRESS_BAR_STYLE.format(color=color))
 
             activity_layout.addWidget(progress_bar)
 

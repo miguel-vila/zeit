@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from datetime import datetime
 from src.zeit.core.activity_id import ActivityIdentifier
+from src.zeit.core.config import get_config
 from src.zeit.data.db import DatabaseManager, ActivityEntry
 from dotenv import load_dotenv
 from src.zeit.core.idle_detection import is_system_idle, DEFAULT_IDLE_THRESHOLD
@@ -88,10 +89,10 @@ def main():
             return 0
 
         # System is active - proceed with screenshot and identification
-        # Initialize Ollama client and activity identifier
         logger.debug("Initializing Ollama client")
         client = Client()
-        identifier = ActivityIdentifier(ollama_client=client)
+        config = get_config()
+        identifier = ActivityIdentifier(ollama_client=client, models_config=config.models)
 
         # Take screenshot of all screens and identify activity
         activities_response = identifier.take_screenshot_and_describe()

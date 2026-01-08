@@ -272,9 +272,9 @@ else:
 ## Refactoring Execution Plan
 
 ### Phase 1: Quick Wins (1-2 hours)
-- [ ] 1.3 Extract CSS to constant
-- [ ] 3.4 Fix type error on line 214
-- [ ] 2.3 Move model names to config
+- [x] 1.3 Extract CSS to constant
+- [x] 3.4 Fix type error on line 214
+- [x] 2.3 Move model names to config
 
 ### Phase 2: Deduplication (2-3 hours)
 - [ ] 1.2 Extract common menu methods

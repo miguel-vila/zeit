@@ -14,9 +14,9 @@ class DaySummary(BaseModel):
 
 
 class DaySummarizer:
-    def __init__(self, ollama_client: Client):
+    def __init__(self, ollama_client: Client, llm: str):
         self.client = ollama_client
-        self.llm = "qwen3:8b"
+        self.llm = llm
 
     def summarize(self, activities: List[ActivityEntry]) -> Optional[DaySummary]:
         non_idle = [a for a in activities if a.activity != ExtendedActivity.IDLE]
