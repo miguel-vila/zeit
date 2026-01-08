@@ -3,11 +3,14 @@
 # Wrapper script for zeit activity tracker
 # This script is called by launchd to capture activity
 
+# Full path to uv (launchd has minimal PATH)
+UV="/Users/miguelvilagonzalez/.local/bin/uv"
+
 # Change to project directory first
 cd "/Users/miguelvilagonzalez/repos/zeit" || exit 1
 
 # Use Python to check work hours (reads from conf.yml)
-uv run python -c "
+$UV run python -c "
 from zeit.core.config import is_within_work_hours
 import sys
 sys.exit(0 if is_within_work_hours() else 1)
@@ -27,7 +30,7 @@ if [ -f "$STOP_FLAG" ]; then
 fi
 
 # Run the tracker
-uv run python run_tracker.py
+$UV run python run_tracker.py
 
 # Exit with the Python script's exit code
 exit $?
