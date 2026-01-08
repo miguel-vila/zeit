@@ -3,10 +3,11 @@
 Uses AppleScript and Quartz to detect which monitor contains the active window.
 """
 
-import subprocess
 import logging
 from typing import NamedTuple, List
 import mss
+
+from zeit.core.macos_helpers import run_applescript, AppleScriptError
 
 logger = logging.getLogger(__name__)
 
@@ -52,17 +53,8 @@ tell application "System Events"
 end tell
 '''
     try:
-        result = subprocess.run(
-            ['osascript', '-e', applescript],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
+        output = run_applescript(applescript)
         
-        if result.returncode != 0:
-            raise RuntimeError(f"AppleScript failed: {result.stderr.strip()}")
-        
-        output = result.stdout.strip()
         if not output:
             raise RuntimeError("AppleScript returned empty output")
         
@@ -74,8 +66,8 @@ end tell
         logger.debug(f"Frontmost window bounds: x={x}, y={y}, width={w}, height={h}")
         return WindowBounds(x, y, w, h)
         
-    except subprocess.TimeoutExpired:
-        raise RuntimeError("AppleScript timed out")
+    except AppleScriptError as e:
+        raise RuntimeError(str(e))
     except ValueError as e:
         raise RuntimeError(f"Failed to parse window bounds: {e}")
 

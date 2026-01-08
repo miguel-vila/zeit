@@ -23,12 +23,10 @@ logger = logging.getLogger(__name__)
 
 class ZeitMenuBar:
 
-    @property
-    def _stop_flag_path(self) -> Path:
-        return get_config().paths.stop_flag
-
     def __init__(self, app: QApplication):
         logger.info("Starting Zeit Menu Bar App (PySide6)")
+        
+        self._stop_flag_path = get_config().paths.stop_flag
 
         self.app = app
         self.tray_icon = QSystemTrayIcon()

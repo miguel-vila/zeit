@@ -5,7 +5,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 from pydantic import BaseModel, Field
-from zeit.core.activity_id import ActivitiesResponseWithTimestamp, ExtendedActivity
+from zeit.core.activity_types import ExtendedActivity
+from zeit.core.models import ActivitiesResponseWithTimestamp
 
 logger = logging.getLogger(__name__)
 

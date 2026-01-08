@@ -22,12 +22,16 @@ src/zeit/
 │   └── view_data.py       # View activity history
 ├── core/          # Core functionality
 │   ├── active_window.py   # macOS API: focused window detection
-│   ├── activity_id.py     # Activity enum + ActivityIdentifier (LLM logic)
+│   ├── activity_id.py     # ActivityIdentifier class (LLM logic)
+│   ├── activity_types.py  # Activity, ExtendedActivity enums
 │   ├── config.py          # YAML config loader
 │   ├── idle_detection.py  # IOKit idle time check
 │   ├── logging_config.py  # Centralized logging setup
+│   ├── macos_helpers.py   # AppleScript execution helpers
+│   ├── models.py          # Pydantic response models
 │   ├── prompts.py         # LLM prompt templates
-│   └── screen.py          # Multi-screen capture (mss)
+│   ├── screen.py          # Multi-screen capture (mss)
+│   └── utils.py           # Date utilities
 ├── data/          # Persistence
 │   └── db.py              # SQLite: daily_activities table
 ├── processing/    # Data processing
@@ -51,14 +55,17 @@ src/zeit/
 
 | Task | Location |
 |------|----------|
-| Add new activity category | `src/zeit/core/activity_id.py` → `Activity` and `ExtendedActivity` enums |
+| Add new activity category | `src/zeit/core/activity_types.py` → `Activity` and `ExtendedActivity` enums |
 | Modify LLM prompts | `src/zeit/core/prompts.py` |
+| Modify LLM response models | `src/zeit/core/models.py` |
 | Change screenshot behavior | `src/zeit/core/screen.py` → `MultiScreenCapture` |
 | Modify idle detection | `src/zeit/core/idle_detection.py` |
 | Add menubar features | `src/zeit/ui/menubar.py` |
 | Change database schema | `src/zeit/data/db.py` → `_create_tables()` |
 | Modify work hours | `src/zeit/core/conf.yml` |
 | Configure logging | `src/zeit/core/logging_config.py` |
+| Add date utilities | `src/zeit/core/utils.py` |
+| macOS AppleScript helpers | `src/zeit/core/macos_helpers.py` |
 
 ## Activity Categories
 

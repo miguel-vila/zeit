@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Qt helper utilities for PySide6 implementation."""
 
-import subprocess
 import logging
 from typing import Optional
 from PySide6.QtGui import QIcon, QPixmap, QPainter, QFont
 from PySide6.QtCore import Qt, QSize
+
+from zeit.core.macos_helpers import run_applescript, AppleScriptError
 
 logger = logging.getLogger(__name__)
 
@@ -54,28 +55,16 @@ def show_macos_notification(title: str, subtitle: str = "", message: str = "") -
         True if notification was sent successfully, False otherwise
     """
     try:
-        # Build AppleScript command
         if subtitle:
             script = f'''display notification "{message}" with title "{title}" subtitle "{subtitle}"'''
         else:
             script = f'''display notification "{message}" with title "{title}"'''
 
-        # Execute via osascript
-        result = subprocess.run(
-            ['osascript', '-e', script],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-
-        if result.returncode != 0:
-            logger.error(f"Notification failed: {result.stderr}")
-            return False
-
+        run_applescript(script)
         return True
 
-    except subprocess.TimeoutExpired:
-        logger.error("Notification timed out")
+    except AppleScriptError as e:
+        logger.error(f"Notification failed: {e}")
         return False
     except Exception as e:
         logger.error(f"Error showing notification: {e}", exc_info=True)

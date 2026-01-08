@@ -1,8 +1,6 @@
-from enum import Enum
 from pathlib import Path
 from time import time
 import base64
-from pydantic import BaseModel, Field
 from ollama import Client
 from datetime import datetime
 import logging
@@ -19,102 +17,12 @@ from zeit.core.prompts import (
     SINGLE_SCREEN_DESCRIPTION_PROMPT,
     ACTIVITY_CLASSIFICATION_PROMPT,
 )
-
-
-class Activity(str, Enum):
-    # Personal activities:
-    PERSONAL_BROWSING = "personal_browsing"
-    SOCIAL_MEDIA = "social_media"
-    YOUTUBE_ENTERTAINMENT = "youtube_entertainment"
-    PERSONAL_EMAIL = "personal_email"
-    PERSONAL_AI_USE = "personal_ai_use"
-    PERSONAL_FINANCES = "personal_finances"
-    PROFESSIONAL_DEVELOPMENT = "professional_development"
-    ONLINE_SHOPPING = "online_shopping"
-    PERSONAL_CALENDAR = "personal_calendar"
-    ENTERTAINMENT = "entertainment"
-    # Work-related activities:
-    SLACK = "slack"
-    WORK_EMAIL = "work_email"
-    ZOOM_MEETING = "zoom_meeting"
-    WORK_CODING = "work_coding"
-    WORK_BROWSING = "work_browsing"
-    WORK_CALENDAR = "work_calendar"
-
-    def is_work_activity(self) -> bool:
-        return self in {
-            Activity.SLACK,
-            Activity.WORK_EMAIL,
-            Activity.ZOOM_MEETING,
-            Activity.WORK_CODING,
-            Activity.WORK_BROWSING,
-            Activity.WORK_CALENDAR,
-        }
-
-
-class ExtendedActivity(str, Enum):
-    PERSONAL_BROWSING = "personal_browsing"
-    SOCIAL_MEDIA = "social_media"
-    YOUTUBE_ENTERTAINMENT = "youtube_entertainment"
-    PERSONAL_EMAIL = "personal_email"
-    PERSONAL_AI_USE = "personal_ai_use"
-    PERSONAL_FINANCES = "personal_finances"
-    PROFESSIONAL_DEVELOPMENT = "professional_development"
-    ONLINE_SHOPPING = "online_shopping"
-    PERSONAL_CALENDAR = "personal_calendar"
-    ENTERTAINMENT = "entertainment"
-    SLACK = "slack"
-    WORK_EMAIL = "work_email"
-    ZOOM_MEETING = "zoom_meeting"
-    WORK_CODING = "work_coding"
-    WORK_BROWSING = "work_browsing"
-    WORK_CALENDAR = "work_calendar"
-    IDLE = "idle"
-
-    def is_work_activity(self) -> bool:
-        return self in {
-            ExtendedActivity.SLACK,
-            ExtendedActivity.WORK_EMAIL,
-            ExtendedActivity.ZOOM_MEETING,
-            ExtendedActivity.WORK_CODING,
-            ExtendedActivity.WORK_BROWSING,
-            ExtendedActivity.WORK_CALENDAR,
-        }
-
-
-class MultiScreenDescription(BaseModel):
-    """Structured output from vision model for multi-screen screenshots."""
-    primary_screen: int = Field(
-        description="The screen number (1, 2, 3, etc.) that is the PRIMARY/ACTIVE screen where the user is currently focused."
-    )
-    main_activity_description: str = Field(
-        description="A brief description of the user's main activity based on the PRIMARY screen. Describe enough to understand what the main activity the user is engaged in."
-    )
-    secondary_context: Optional[str] = Field(
-        default=None,
-        description="Brief description of what's visible on secondary screens for context. Set to null if there's nothing notable or only one screen."
-    )
-
-
-class ActivitiesResponse(BaseModel):
-    main_activity: Activity = Field(
-        description="Main detected activity from the screenshot. This is the main activity that the user is engaged in. Select the most prominent activity, no matter if there are indications of other activities. For example, in a browser there might be tabs with associated to ther activities, but the main one should be the one currently visible."
-    )
-    reasoning: str = Field(
-        description="The reasoning behind the selection of the main activity. Explain why this activity was selected based on the description of the screenshot."
-    )
-    secondary_context: Optional[str] = Field(
-        default=None,
-        description="Brief description of activities visible on secondary screens, if any. This provides context about what else the user might be doing."
-    )
-
-
-class ActivitiesResponseWithTimestamp(ActivitiesResponse):
-    main_activity: Activity
-    reasoning: str
-    secondary_context: Optional[str] = None
-    timestamp: datetime
-
+from zeit.core.activity_types import Activity, ExtendedActivity
+from zeit.core.models import (
+    MultiScreenDescription,
+    ActivitiesResponse,
+    ActivitiesResponseWithTimestamp,
+)
 
 logger = logging.getLogger(__name__)
 

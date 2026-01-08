@@ -4,7 +4,7 @@
 
 ## Summary
 
-The codebase is well-structured with no severely long files (max: 316 lines) or functions (max: ~80 lines). Several refactoring opportunities have been identified and addressed.
+The codebase is well-structured with no severely long files (max: 224 lines) or functions (max: ~80 lines). All identified refactoring opportunities have been addressed.
 
 ---
 
@@ -66,100 +66,90 @@ The codebase is well-structured with no severely long files (max: 316 lines) or 
 
 ---
 
-## Remaining Opportunities
+### ✅ 6. Inconsistent Date Handling (DONE)
 
-### 6. Inconsistent Date Handling
+**Status:** Completed
 
-**Priority:** Low | **Locations:** Multiple files
-
-**Issue:** `today_str()` exists in utils but manual strftime calls are scattered:
-
-```python
-# In utils.py:
-def today_str() -> str:
-    return datetime.now().strftime("%Y-%m-%d")
-
-# But elsewhere:
-yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")  # view_data.py
-date_str = timestamp.strftime("%Y-%m-%d")  # db.py
-```
-
-**Suggested Fix:** Add more date utilities:
-
-```python
-# src/zeit/core/utils.py
-def yesterday_str() -> str:
-    return (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-
-def format_date(dt: datetime) -> str:
-    return dt.strftime("%Y-%m-%d")
-```
+**Changes:**
+- Added `DATE_FORMAT` constant to `utils.py`
+- Added `yesterday_str()` and `format_date()` functions to `utils.py`
+- Updated `view_data.py` to use `yesterday_str()` instead of manual strftime
 
 ---
 
-### 7. AppleScript Execution Duplication
+### ✅ 7. AppleScript Execution Duplication (DONE)
 
-**Priority:** Low | **Locations:** `active_window.py`, `qt_helpers.py`
+**Status:** Completed
 
-**Issue:** Similar subprocess + osascript patterns with timeout handling.
-
-**Suggested Fix:** Extract to shared helper:
-
-```python
-# src/zeit/core/macos_helpers.py
-def run_applescript(script: str, timeout: int = 5) -> str:
-    """Execute AppleScript and return output."""
-    ...
-```
+**Changes:**
+- Created `src/zeit/core/macos_helpers.py` with:
+  - `AppleScriptError` exception class
+  - `run_applescript()` function with timeout handling
+  - `run_applescript_safe()` function for non-throwing usage
+- Updated `active_window.py` to use shared helper
+- Updated `qt_helpers.py` to use shared helper
+- Removed ~20 lines of duplicated subprocess handling code
 
 ---
 
-### 8. Property Recalculation
+### ✅ 8. Property Recalculation (DONE)
 
-**Priority:** Very Low | **Location:** `menubar.py` lines 34-36
+**Status:** Completed
 
-**Issue:** Property reads config on every access (negligible performance impact).
-
----
-
-### 9. Generic Variable Names
-
-**Priority:** Very Low | **Locations:** Various
-
-**Issue:** `response` and `result` used for different types throughout codebase.
+**Changes:**
+- Changed `_stop_flag_path` from a property to an instance variable in `menubar.py`
+- Now cached once in `__init__` instead of reading config on every access
 
 ---
 
-## Structural Suggestions
+### ✅ 9. Generic Variable Names (SKIPPED)
 
-### 10. Consider Splitting `activity_id.py`
+**Status:** Skipped - Very low priority, subjective
 
-**Priority:** Low
+---
 
-**Current state:** 316 lines with enums, Pydantic models, and LLM logic.
+### ✅ 10. Split activity_id.py (DONE)
 
-**Suggested structure:**
+**Status:** Completed
+
+**Changes:**
+- Created `src/zeit/core/activity_types.py` with `Activity` and `ExtendedActivity` enums
+- Created `src/zeit/core/models.py` with Pydantic models:
+  - `MultiScreenDescription`
+  - `ActivitiesResponse`
+  - `ActivitiesResponseWithTimestamp`
+- Updated `activity_id.py` to import from new modules
+- Updated `db.py`, `activity_summarization.py`, `day_summarizer.py` imports
+- Reduced `activity_id.py` from 316 → 224 lines
+
+New structure:
 ```
 src/zeit/core/
-├── activity_id.py      # Just ActivityIdentifier class
-├── activity_types.py   # Activity, ExtendedActivity enums
-├── prompts.py          # All prompt templates ✅ (done)
-└── models.py           # Pydantic response models
+├── activity_id.py      # Just ActivityIdentifier class (224 lines)
+├── activity_types.py   # Activity, ExtendedActivity enums (65 lines)
+├── models.py           # Pydantic response models (47 lines)
+├── prompts.py          # All prompt templates ✅
+└── ...
 ```
 
 ---
 
-### 11. Add `__all__` Exports
+### ✅ 11. Add `__all__` Exports (DONE)
 
-**Priority:** Low
+**Status:** Completed
 
-**Issue:** No explicit exports in most `__init__.py` files (they're empty).
+**Changes:**
+- Added `__all__` exports to `src/zeit/__init__.py`
+- Added `__all__` exports to `src/zeit/core/__init__.py` with main public API
+- Added `__all__` exports to `src/zeit/cli/__init__.py`
+- Added `__all__` exports to `src/zeit/ui/__init__.py`
+- Added `__all__` exports to `src/zeit/processing/__init__.py`
 
 ---
 
 ## What's Already Good
 
-- **No excessively long files** (max 316 lines, threshold was 500)
+- **No excessively long files** (max 224 lines, threshold was 500)
 - **No excessively long functions** (max ~80 lines, threshold was 250)
 - **Consistent type hints** throughout
 - **Good use of Pydantic models** for data validation
@@ -168,6 +158,8 @@ src/zeit/core/
 - **Clean separation** between CLI, core, UI, and data layers
 - **Centralized logging configuration** ✅
 - **Extracted prompt templates** ✅
+- **Shared macOS helpers** ✅
+- **Explicit module exports** ✅
 
 ---
 
@@ -180,9 +172,9 @@ src/zeit/core/
 | Medium | Remove legacy wrapper functions | ✅ Done |
 | Medium | Extract CLI separator helpers | ✅ Done |
 | Medium | Centralize logging setup | ✅ Done |
-| Low | Inconsistent date handling | Pending |
-| Low | AppleScript execution duplication | Pending |
-| Low | Split activity_id.py further | Pending |
-| Low | Add `__all__` exports | Pending |
-| Very Low | Property recalculation | Pending |
-| Very Low | Generic variable names | Pending |
+| Low | Inconsistent date handling | ✅ Done |
+| Low | AppleScript execution duplication | ✅ Done |
+| Low | Split activity_id.py further | ✅ Done |
+| Low | Add `__all__` exports | ✅ Done |
+| Very Low | Property recalculation | ✅ Done |
+| Very Low | Generic variable names | ⏭️ Skipped |

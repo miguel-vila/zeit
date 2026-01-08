@@ -1,7 +1,7 @@
 from typing import List
 from pydantic import BaseModel, Field
 
-from zeit.core.activity_id import ExtendedActivity
+from zeit.core.activity_types import ExtendedActivity
 from zeit.data.db import ActivityEntry
 
 class ActivityWithPercentage(BaseModel):

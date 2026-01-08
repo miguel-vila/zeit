@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 
 import typer
 from ollama import Client
 
 from zeit.core.config import get_config
-from zeit.core.utils import today_str
+from zeit.core.utils import today_str, yesterday_str
 from zeit.processing.activity_summarization import compute_summary
 from zeit.processing.day_summarizer import DaySummarizer
 from zeit.data.db import DatabaseManager
@@ -130,8 +130,7 @@ def cmd_today():
 
 @app.command("yesterday")
 def cmd_yesterday():
-    yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-    _print_day_activities(yesterday)
+    _print_day_activities(yesterday_str())
 
 
 @app.command("all")

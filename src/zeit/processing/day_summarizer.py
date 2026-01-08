@@ -4,7 +4,7 @@ import logging
 from pydantic import BaseModel
 from ollama import Client
 
-from zeit.core.activity_id import ExtendedActivity
+from zeit.core.activity_types import ExtendedActivity
 from zeit.data.db import ActivityEntry
 
 logger = logging.getLogger(__name__)
