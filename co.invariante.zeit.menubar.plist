@@ -21,9 +21,12 @@
     <key>RunAtLoad</key>
     <true/>
 
-    <!-- Keep the app alive - restart if it crashes -->
+    <!-- Only restart on crash (non-zero exit), not on clean Quit -->
     <key>KeepAlive</key>
-    <true/>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
 
     <!-- Standard output log -->
     <key>StandardOutPath</key>
