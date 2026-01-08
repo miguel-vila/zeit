@@ -282,10 +282,9 @@ else:
 - [x] 3.2 Add date utility function
 
 ### Phase 3: Structural (4-6 hours)
-- [ ] 1.1 Split `menubar.py` into 3 files
-- [ ] 1.4 Consolidate Activity enums
-- [ ] 2.4 Remove unused `EphemeralScreenshot`
-- [ ] 2.2 Extract prompts to constants
+- [x] 1.1 Split `menubar.py` into 3 files
+- [x] 2.4 Remove unused `EphemeralScreenshot`
+- [x] 2.2 Extract prompts to constants
 
 ### Phase 4: Polish
 - [ ] 3.1 Move magic paths to config

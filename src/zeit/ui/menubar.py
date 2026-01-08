@@ -1,25 +1,21 @@
 #!/usr/bin/env python3
-"""Zeit Menu Bar App - PySide6 implementation for macOS menu bar."""
 
 import sys
 import signal
 import logging
-from datetime import datetime
 from pathlib import Path
-from PySide6.QtWidgets import (
-    QApplication, QSystemTrayIcon, QMenu, QWidget,
-    QVBoxLayout, QHBoxLayout, QLabel, QProgressBar, QPushButton
-)
-from PySide6.QtCore import QTimer, Slot, Qt
-from PySide6.QtGui import QAction, QFont
+from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
+from PySide6.QtCore import QTimer, Slot
+from PySide6.QtGui import QAction
 
 from zeit.data.db import DatabaseManager, DayRecord
-from zeit.processing.activity_summarization import compute_summary, ActivityWithPercentage
+from zeit.processing.activity_summarization import compute_summary
 from zeit.core.config import get_config, is_within_work_hours
 from zeit.core.utils import today_str
 from zeit.ui.qt_helpers import emoji_to_qicon, show_macos_notification
+from zeit.ui.tracking_state import TrackingState
+from zeit.ui.details_window import DetailsWindow
 
-# Configure logging
 log_dir = Path("logs")
 log_dir.mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
@@ -31,139 +27,6 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-
-PROGRESS_BAR_STYLE = """
-    QProgressBar {{
-        border: 1px solid #cccccc;
-        border-radius: 4px;
-        background-color: #f0f0f0;
-    }}
-    QProgressBar::chunk {{
-        background-color: {color};
-        border-radius: 3px;
-    }}
-"""
-
-WORK_ACTIVITY_COLOR = "#4C74AF"
-PERSONAL_ACTIVITY_COLOR = "#21F383"
-
-
-class TrackingState:
-    """Represents the current tracking state."""
-
-    icon: str
-    status_message: str
-    can_toggle: bool
-
-    def __init__(self, icon: str, status_message: str, can_toggle: bool):
-        self.icon = icon
-        self.status_message = status_message
-        self.can_toggle = can_toggle
-
-    @classmethod
-    def not_within_work_hours(cls, status_message: str):
-        return cls(icon="🌙", status_message=status_message, can_toggle=False)
-
-    @classmethod
-    def paused_manual(cls):
-        return cls(icon="⏸️", status_message="Tracking paused (manual)", can_toggle=True)
-
-    @classmethod
-    def active(cls):
-        return cls(icon="📊", status_message="Tracking active", can_toggle=True)
-
-
-class DetailsWindow(QWidget):
-    """Window displaying detailed activity information."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Zeit Activity Details")
-        self.setMinimumSize(400, 300)
-
-        # Set window flags to keep it on top but closable
-        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowStaysOnTopHint)
-
-        # Create main layout
-        self.layout = QVBoxLayout()
-        self.setLayout(self.layout)
-
-        # Header
-        self.header_label = QLabel()
-        header_font = QFont()
-        header_font.setPointSize(16)
-        header_font.setBold(True)
-        self.header_label.setFont(header_font)
-        self.layout.addWidget(self.header_label)
-
-        # Date label
-        self.date_label = QLabel()
-        self.layout.addWidget(self.date_label)
-
-        # Activities container
-        self.activities_layout = QVBoxLayout()
-        self.layout.addLayout(self.activities_layout)
-
-        # Add stretch to push everything to top
-        self.layout.addStretch()
-
-        # Close button
-        close_button = QPushButton("Close")
-        close_button.clicked.connect(self.close)
-        self.layout.addWidget(close_button)
-
-    def _create_progress_bar(self, percentage: float, is_work: bool) -> QProgressBar:
-        progress_bar = QProgressBar()
-        progress_bar.setMaximum(100)
-        progress_bar.setValue(int(percentage))
-        progress_bar.setTextVisible(False)
-        progress_bar.setMaximumHeight(8)
-        color = WORK_ACTIVITY_COLOR if is_work else PERSONAL_ACTIVITY_COLOR
-        progress_bar.setStyleSheet(PROGRESS_BAR_STYLE.format(color=color))
-        return progress_bar
-
-    def _create_activity_widget(self, entry: ActivityWithPercentage) -> QWidget:
-        activity_name = entry.activity.value.replace('_', ' ').title()
-        percentage = entry.percentage
-
-        activity_widget = QWidget()
-        activity_layout = QVBoxLayout()
-        activity_widget.setLayout(activity_layout)
-
-        label_layout = QHBoxLayout()
-        name_label = QLabel(activity_name)
-        name_font = QFont()
-        name_font.setPointSize(12)
-        name_label.setFont(name_font)
-        label_layout.addWidget(name_label)
-
-        pct_label = QLabel(f"{percentage:.1f}%")
-        pct_font = QFont()
-        pct_font.setPointSize(12)
-        pct_font.setBold(True)
-        pct_label.setFont(pct_font)
-        label_layout.addWidget(pct_label)
-
-        activity_layout.addLayout(label_layout)
-        activity_layout.addWidget(self._create_progress_bar(percentage, entry.activity.is_work_activity()))
-        activity_layout.setSpacing(4)
-        activity_layout.setContentsMargins(0, 4, 0, 8)
-
-        return activity_widget
-
-    def update_data(self, day_record: DayRecord, date_str: str):
-        while self.activities_layout.count():
-            item = self.activities_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-
-        total_count = len(day_record.activities)
-        self.header_label.setText("Activity Summary")
-        self.date_label.setText(f"{date_str} • {total_count} activities tracked")
-
-        summary = compute_summary(day_record.activities)
-        for entry in summary:
-            self.activities_layout.addWidget(self._create_activity_widget(entry))
 
 
 class ZeitMenuBar:

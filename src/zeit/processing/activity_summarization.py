@@ -21,4 +21,4 @@ def compute_summary(entries: List[ActivityEntry]) -> List[ActivityWithPercentage
     total_activities = sum(summary.values())
     if total_activities == 0:
         return []
-    return [ ActivityWithPercentage(activity=activity, percentage=(count / total_activities) * 100) for activity, count in sorted_summary ]
+    return [ActivityWithPercentage(activity=activity, percentage=(count / total_activities) * 100) for activity, count in sorted_summary]
