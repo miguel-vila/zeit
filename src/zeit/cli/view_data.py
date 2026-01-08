@@ -5,8 +5,8 @@ import sys
 from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
-from src.zeit.processing.activity_summarization import compute_summary
-from src.zeit.data.db import DatabaseManager
+from zeit.processing.activity_summarization import compute_summary
+from zeit.data.db import DatabaseManager
 
 def view_day(db: DatabaseManager, date_str: str):
     """View activities for a specific day."""

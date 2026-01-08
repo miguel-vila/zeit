@@ -22,6 +22,7 @@ DATA_FILES = [
 OPTIONS = {
     'compressed': False, # zlib doesn't work
     'argv_emulation': False,  # Not needed for menubar apps
+    'strip': False,  # Don't strip binaries (causes issues with signed libs)
     'packages': [
         'zeit',
         'PySide6',
@@ -34,6 +35,7 @@ OPTIONS = {
         'dotenv',
         'httpx',  # Required by ollama
         'shiboken6',  # Required by PySide6
+        'tiktoken',  # Token counting library
     ],
     'includes': [
         'zeit.core',
@@ -41,6 +43,7 @@ OPTIONS = {
         'zeit.ui',
         'zeit.processing',
         'zeit.data',
+        'tiktoken_ext.openai_public',  # Explicitly include tiktoken encodings
     ],
     'excludes': [
         'tkinter',

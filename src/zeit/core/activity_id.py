@@ -9,8 +9,8 @@ import logging
 from typing import Dict, List, Optional
 from opik import track, opik_context
 
-from src.zeit.core.screen import MultiScreenCapture
-from src.zeit.core.active_window import get_active_screen_number
+from zeit.core.screen import MultiScreenCapture
+from zeit.core.active_window import get_active_screen_number
 
 
 class Activity(str, Enum):

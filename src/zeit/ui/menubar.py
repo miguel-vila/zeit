@@ -13,10 +13,10 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QTimer, Slot, Qt
 from PySide6.QtGui import QAction, QFont
 
-from src.zeit.data.db import DatabaseManager, DayRecord
-from src.zeit.processing.activity_summarization import compute_summary
-from src.zeit.core.config import get_config, is_within_work_hours
-from src.zeit.ui.qt_helpers import emoji_to_qicon, show_macos_notification
+from zeit.data.db import DatabaseManager, DayRecord
+from zeit.processing.activity_summarization import compute_summary
+from zeit.core.config import get_config, is_within_work_hours
+from zeit.ui.qt_helpers import emoji_to_qicon, show_macos_notification
 
 # Configure logging
 log_dir = Path("logs")
