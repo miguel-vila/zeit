@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Simple script to view activity data from the database."""
 
-import sys
 from datetime import datetime, timedelta
 
-from dotenv import load_dotenv
+from ollama import Client
 from zeit.processing.activity_summarization import compute_summary
+from zeit.processing.day_summarizer import DaySummarizer
 from zeit.data.db import DatabaseManager
 
 def view_day(db: DatabaseManager, date_str: str):
@@ -79,3 +78,24 @@ def view_yesterday(db: DatabaseManager):
     yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
     view_day(db, yesterday)
 
+
+def summarize_day(db: DatabaseManager, date_str: str):
+    day_record = db.get_day_record(date_str)
+
+    if day_record is None:
+        print(f"No activities recorded for {date_str}")
+        return
+
+    summarizer = DaySummarizer(Client())
+    result = summarizer.summarize(day_record.activities)
+
+    if result is None:
+        print(f"No non-idle activities recorded for {date_str}")
+        return
+
+    print(f"\n{'='*70}")
+    print(f"Day Summary for {date_str}")
+    print(f"({result.start_time.strftime('%H:%M')} - {result.end_time.strftime('%H:%M')})")
+    print(f"{'='*70}\n")
+    print(result.summary)
+    print(f"\n{'='*70}\n")
