@@ -102,7 +102,7 @@ uv run python run_tracker.py      # Single capture
 uv run python run_menubar_app.py  # Menubar app
 
 # Build
-python setup.py py2app            # Build .app bundle
+sh ./build_app.sh            # Build .app bundle
 codesign --force --deep --sign - dist/Zeit.app  # Self-sign
 ```
 
