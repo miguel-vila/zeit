@@ -6,11 +6,8 @@
 # Change to project directory first
 cd "/Users/miguelvilagonzalez/repos/zeit" || exit 1
 
-# Activate virtual environment
-source .venv/bin/activate || exit 1
-
 # Use Python to check work hours (reads from conf.yml)
-python -c "
+uv run python -c "
 from zeit.core.config import is_within_work_hours
 import sys
 sys.exit(0 if is_within_work_hours() else 1)
@@ -30,7 +27,7 @@ if [ -f "$STOP_FLAG" ]; then
 fi
 
 # Run the tracker
-python run_tracker.py
+uv run python run_tracker.py
 
 # Exit with the Python script's exit code
 exit $?
