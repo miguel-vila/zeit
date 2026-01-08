@@ -287,6 +287,6 @@ else:
 - [x] 2.2 Extract prompts to constants
 
 ### Phase 4: Polish
-- [ ] 3.1 Move magic paths to config
-- [ ] 3.3 Fix import paths
-- [ ] 3.6 Add CLI entry point or document usage
+- [x] 3.1 Move magic paths to config
+- [x] 3.3 Fix import paths
+- [x] 3.6 Add CLI entry point or document usage

@@ -8,8 +8,8 @@ from rich import print as rprint
 from rich.prompt import Confirm
 from pathlib import Path
 
-from src.zeit.data.db import DatabaseManager
-from src.zeit.core.utils import today_str
+from zeit.data.db import DatabaseManager
+from zeit.core.utils import today_str
 
 app = typer.Typer(
     name="manage_db",

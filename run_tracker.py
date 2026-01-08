@@ -5,11 +5,11 @@ import logging
 import os
 from pathlib import Path
 from datetime import datetime
-from src.zeit.core.activity_id import ActivityIdentifier
-from src.zeit.core.config import get_config
-from src.zeit.data.db import DatabaseManager, ActivityEntry
+from zeit.core.activity_id import ActivityIdentifier
+from zeit.core.config import get_config
+from zeit.data.db import DatabaseManager, ActivityEntry
 from dotenv import load_dotenv
-from src.zeit.core.idle_detection import is_system_idle, DEFAULT_IDLE_THRESHOLD
+from zeit.core.idle_detection import is_system_idle, DEFAULT_IDLE_THRESHOLD
 import opik
 
 def setup_logging():

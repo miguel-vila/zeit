@@ -6,3 +6,6 @@ models:
   vision: 'qwen3-vl:4b'
   text: 'qwen3:8b'
 
+paths:
+  stop_flag: '~/.zeit_stop'
+

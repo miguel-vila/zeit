@@ -86,9 +86,25 @@ class ModelsConfig(BaseModel):
     text: str = Field(default="qwen3:8b", description="Text model for classification and summarization")
 
 
+class PathsConfig(BaseModel):
+    """Configuration for application paths."""
+    stop_flag: Path = Field(default=Path.home() / ".zeit_stop", description="Path to stop flag file")
+
+    @field_validator('stop_flag', mode='before')
+    @classmethod
+    def expand_path(cls, v: Any) -> Path:
+        """Expand ~ to user home directory."""
+        if isinstance(v, str):
+            return Path(v).expanduser()
+        if isinstance(v, Path):
+            return v.expanduser()
+        raise ValueError(f"Invalid path type: {type(v)}")
+
+
 class ZeitConfig(BaseModel):
     work_hours: WorkHoursConfig
     models: ModelsConfig = Field(default_factory=ModelsConfig)
+    paths: PathsConfig = Field(default_factory=PathsConfig)
 
 
 def load_config(config_path: Optional[Path] = None) -> ZeitConfig:

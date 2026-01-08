@@ -30,9 +30,10 @@ logger = logging.getLogger(__name__)
 
 
 class ZeitMenuBar:
-    """Menu bar application for Zeit activity tracker using PySide6."""
 
-    STOP_FLAG = Path.home() / ".zeit_stop"
+    @property
+    def _stop_flag_path(self) -> Path:
+        return get_config().paths.stop_flag
 
     def __init__(self, app: QApplication):
         logger.info("Starting Zeit Menu Bar App (PySide6)")
@@ -61,8 +62,7 @@ class ZeitMenuBar:
         self.update_menu()
 
     def is_tracking_active(self) -> bool:
-        """Check if tracking is currently active (flag file doesn't exist)."""
-        return not self.STOP_FLAG.exists()
+        return not self._stop_flag_path.exists()
 
     def get_tracking_state(self) -> TrackingState:
         """
@@ -72,7 +72,7 @@ class ZeitMenuBar:
             TrackingState with icon, status_message, and can_toggle flag
         """
         within_work_hours = is_within_work_hours()
-        manually_stopped = self.STOP_FLAG.exists()
+        manually_stopped = self._stop_flag_path.exists()
 
         if not within_work_hours:
             # Outside work hours - highest priority
@@ -132,8 +132,7 @@ class ZeitMenuBar:
 
         try:
             if self.is_tracking_active():
-                # Stop tracking
-                self.STOP_FLAG.touch()
+                self._stop_flag_path.touch()
                 logger.info("Tracking stopped via menu bar toggle")
                 show_macos_notification(
                     title="Zeit Tracking",
@@ -141,8 +140,7 @@ class ZeitMenuBar:
                     message="Tracking has been paused"
                 )
             else:
-                # Resume tracking
-                self.STOP_FLAG.unlink()
+                self._stop_flag_path.unlink()
                 logger.info("Tracking resumed via menu bar toggle")
                 show_macos_notification(
                     title="Zeit Tracking",

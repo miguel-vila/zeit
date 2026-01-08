@@ -11,7 +11,7 @@ source .venv/bin/activate || exit 1
 
 # Use Python to check work hours (reads from conf.yml)
 python -c "
-from src.zeit.core.config import is_within_work_hours
+from zeit.core.config import is_within_work_hours
 import sys
 sys.exit(0 if is_within_work_hours() else 1)
 "
