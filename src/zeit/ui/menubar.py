@@ -1,31 +1,30 @@
 #!/usr/bin/env python3
 
-import sys
-import signal
 import logging
-from pathlib import Path
-from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
+import signal
+import sys
+
 from PySide6.QtCore import QTimer, Slot
 from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
-from zeit.data.db import DatabaseManager, DayRecord
-from zeit.processing.activity_summarization import compute_summary
 from zeit.core.config import get_config, is_within_work_hours
 from zeit.core.logging_config import setup_logging
 from zeit.core.utils import today_str
+from zeit.data.db import DatabaseManager, DayRecord
+from zeit.processing.activity_summarization import compute_summary
+from zeit.ui.details_window import DetailsWindow
 from zeit.ui.qt_helpers import emoji_to_qicon, show_macos_notification
 from zeit.ui.tracking_state import TrackingState
-from zeit.ui.details_window import DetailsWindow
 
 setup_logging(log_file="menubar.log")
 logger = logging.getLogger(__name__)
 
 
 class ZeitMenuBar:
-
     def __init__(self, app: QApplication):
         logger.info("Starting Zeit Menu Bar App (PySide6)")
-        
+
         self._stop_flag_path = get_config().paths.stop_flag
 
         self.app = app
@@ -114,9 +113,7 @@ class ZeitMenuBar:
             status_msg = config.work_hours.get_status_message()
             logger.info("Cannot toggle tracking outside work hours")
             show_macos_notification(
-                title="Zeit Tracking",
-                subtitle="Outside Work Hours",
-                message=status_msg
+                title="Zeit Tracking", subtitle="Outside Work Hours", message=status_msg
             )
             return
 
@@ -125,28 +122,20 @@ class ZeitMenuBar:
                 self._stop_flag_path.touch()
                 logger.info("Tracking stopped via menu bar toggle")
                 show_macos_notification(
-                    title="Zeit Tracking",
-                    subtitle="Stopped",
-                    message="Tracking has been paused"
+                    title="Zeit Tracking", subtitle="Stopped", message="Tracking has been paused"
                 )
             else:
                 self._stop_flag_path.unlink()
                 logger.info("Tracking resumed via menu bar toggle")
                 show_macos_notification(
-                    title="Zeit Tracking",
-                    subtitle="Resumed",
-                    message="Tracking has been resumed"
+                    title="Zeit Tracking", subtitle="Resumed", message="Tracking has been resumed"
                 )
 
             # Update menu to reflect new status
             self.update_menu()
         except Exception as e:
             logger.error(f"Error toggling tracking: {e}", exc_info=True)
-            show_macos_notification(
-                title="Zeit Error",
-                subtitle="Toggle Failed",
-                message=str(e)
-            )
+            show_macos_notification(title="Zeit Error", subtitle="Toggle Failed", message=str(e))
 
     @Slot()
     def update_menu(self):
@@ -192,16 +181,16 @@ class ZeitMenuBar:
         self.menu.addSeparator()
         self._add_standard_actions()
 
-    def _update_menu_with_data(self, day_record: DayRecord, today: str, tracking_state: TrackingState):
+    def _update_menu_with_data(
+        self, day_record: DayRecord, today: str, tracking_state: TrackingState
+    ):
         """Update menu with activity summary data."""
         summary = compute_summary(day_record.activities)
         total_count = len(day_record.activities)
 
         # Calculate work percentage
         work_percentage = sum(
-            entry.percentage
-            for entry in summary
-            if entry.activity.is_work_activity()
+            entry.percentage for entry in summary if entry.activity.is_work_activity()
         )
 
         # Update icon with percentage
@@ -226,7 +215,7 @@ class ZeitMenuBar:
 
         # Add activity breakdown
         for entry in summary:
-            activity_name = entry.activity.value.replace('_', ' ').title()
+            activity_name = entry.activity.value.replace("_", " ").title()
             percentage = entry.percentage
             activity_action = QAction(f"{activity_name}: {percentage:.1f}%", self.menu)
             activity_action.setEnabled(False)
@@ -242,9 +231,7 @@ class ZeitMenuBar:
         """Manually refresh the menu data."""
         logger.info("Manual refresh triggered")
         show_macos_notification(
-            title="Zeit",
-            subtitle="Refreshing...",
-            message="Updating activity data"
+            title="Zeit", subtitle="Refreshing...", message="Updating activity data"
         )
         self.update_menu()
 
@@ -266,14 +253,12 @@ class ZeitMenuBar:
                     show_macos_notification(
                         title="Zeit",
                         subtitle="No Data",
-                        message=f"No activities tracked for {today}"
+                        message=f"No activities tracked for {today}",
                     )
         except Exception as e:
             logger.error(f"Error viewing details: {e}", exc_info=True)
             show_macos_notification(
-                title="Zeit Error",
-                subtitle="Failed to load details",
-                message=str(e)
+                title="Zeit Error", subtitle="Failed to load details", message=str(e)
             )
 
     @Slot()

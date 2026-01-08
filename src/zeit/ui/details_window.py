@@ -1,11 +1,9 @@
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QProgressBar, QPushButton
-)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget
 
 from zeit.data.db import DayRecord
-from zeit.processing.activity_summarization import compute_summary, ActivityWithPercentage
+from zeit.processing.activity_summarization import ActivityWithPercentage, compute_summary
 
 PROGRESS_BAR_STYLE = """
     QProgressBar {{
@@ -63,7 +61,7 @@ class DetailsWindow(QWidget):
         return progress_bar
 
     def _create_activity_widget(self, entry: ActivityWithPercentage) -> QWidget:
-        activity_name = entry.activity.value.replace('_', ' ').title()
+        activity_name = entry.activity.value.replace("_", " ").title()
         percentage = entry.percentage
 
         activity_widget = QWidget()
@@ -85,7 +83,9 @@ class DetailsWindow(QWidget):
         label_layout.addWidget(pct_label)
 
         activity_layout.addLayout(label_layout)
-        activity_layout.addWidget(self._create_progress_bar(percentage, entry.activity.is_work_activity()))
+        activity_layout.addWidget(
+            self._create_progress_bar(percentage, entry.activity.is_work_activity())
+        )
         activity_layout.setSpacing(4)
         activity_layout.setContentsMargins(0, 4, 0, 8)
 

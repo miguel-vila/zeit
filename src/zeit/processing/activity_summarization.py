@@ -1,13 +1,17 @@
 from typing import List
+
 from pydantic import BaseModel, Field
 
 from zeit.core.activity_types import ExtendedActivity
 from zeit.data.db import ActivityEntry
 
+
 class ActivityWithPercentage(BaseModel):
     """Represents an activity along with its occurrence count."""
+
     activity: ExtendedActivity = Field(description="The activity type")
     percentage: float = Field(description="Percentage of total activities")
+
 
 def compute_summary(entries: List[ActivityEntry]) -> List[ActivityWithPercentage]:
     """Compute a summary of activities from a list of ActivityEntry."""
@@ -21,4 +25,7 @@ def compute_summary(entries: List[ActivityEntry]) -> List[ActivityWithPercentage
     total_activities = sum(summary.values())
     if total_activities == 0:
         return []
-    return [ActivityWithPercentage(activity=activity, percentage=(count / total_activities) * 100) for activity, count in sorted_summary]
+    return [
+        ActivityWithPercentage(activity=activity, percentage=(count / total_activities) * 100)
+        for activity, count in sorted_summary
+    ]

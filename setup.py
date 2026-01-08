@@ -7,81 +7,84 @@ Usage:
 
 import sys
 from pathlib import Path
+
 from setuptools import setup
 
 # Add src directory to Python path so imports work
-src_path = Path(__file__).parent / 'src'
+src_path = Path(__file__).parent / "src"
 if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
-APP = ['run_menubar_app.py']
+APP = ["run_menubar_app.py"]
 DATA_FILES = [
-    ('zeit/core', ['src/zeit/core/conf.yml']),
+    ("zeit/core", ["src/zeit/core/conf.yml"]),
 ]
 
 OPTIONS = {
-    'compressed': False, # zlib doesn't work
-    'argv_emulation': False,  # Not needed for menubar apps
-    'strip': False,  # Don't strip binaries (causes issues with signed libs)
-    'packages': [
-        'zeit',
-        'PySide6',
-        'ollama',
-        'mss',
-        'pydantic',
-        'yaml',  # pyyaml package, imported as 'yaml'
-        'opik',
-        'typer',
-        'dotenv',
-        'httpx',  # Required by ollama
-        'shiboken6',  # Required by PySide6
-        'tiktoken',  # Token counting library
+    "compressed": False,  # zlib doesn't work
+    "argv_emulation": False,  # Not needed for menubar apps
+    "strip": False,  # Don't strip binaries (causes issues with signed libs)
+    "packages": [
+        "zeit",
+        "PySide6",
+        "ollama",
+        "mss",
+        "pydantic",
+        "yaml",  # pyyaml package, imported as 'yaml'
+        "opik",
+        "typer",
+        "dotenv",
+        "httpx",  # Required by ollama
+        "shiboken6",  # Required by PySide6
+        "tiktoken",  # Token counting library
     ],
-    'includes': [
-        'zeit.core',
-        'zeit.cli',
-        'zeit.ui',
-        'zeit.processing',
-        'zeit.data',
-        'tiktoken_ext.openai_public',  # Explicitly include tiktoken encodings
+    "includes": [
+        "zeit.core",
+        "zeit.cli",
+        "zeit.ui",
+        "zeit.processing",
+        "zeit.data",
+        "tiktoken_ext.openai_public",  # Explicitly include tiktoken encodings
     ],
-    'excludes': [
-        'tkinter',
-        'matplotlib',
-        'scipy',
-        'numpy',  # Add back if needed
+    "excludes": [
+        "tkinter",
+        "matplotlib",
+        "scipy",
+        "numpy",  # Add back if needed
         # Exclude Qt developer tools (not needed for system tray)
-        'PySide6.QtDesigner',
-        'PySide6.QtHelp',
-        'PySide6.QtQmlModels',
-        'PySide6.QtQuick',
-        'PySide6.QtQuickWidgets',
-        'PySide6.QtUiTools',
+        "PySide6.QtDesigner",
+        "PySide6.QtHelp",
+        "PySide6.QtQmlModels",
+        "PySide6.QtQuick",
+        "PySide6.QtQuickWidgets",
+        "PySide6.QtUiTools",
     ],
-    'qt_plugins': [
-        'platforms',  # Need platform plugins for GUI
+    "qt_plugins": [
+        "platforms",  # Need platform plugins for GUI
     ],
-    'plist': {
-        'CFBundleName': 'Zeit',
-        'CFBundleDisplayName': 'Zeit',
-        'CFBundleIdentifier': 'co.invariante.zeit',
-        'CFBundleVersion': '0.1.0',
-        'CFBundleShortVersionString': '0.1.0',
-        'LSUIElement': True,  # Hides app from Dock (menubar-only)
-        'LSMinimumSystemVersion': '10.15',  # macOS Catalina minimum for screen recording API
+    "plist": {
+        "CFBundleName": "Zeit",
+        "CFBundleDisplayName": "Zeit",
+        "CFBundleIdentifier": "co.invariante.zeit",
+        "CFBundleVersion": "0.1.0",
+        "CFBundleShortVersionString": "0.1.0",
+        "LSUIElement": True,  # Hides app from Dock (menubar-only)
+        "LSMinimumSystemVersion": "10.15",  # macOS Catalina minimum for screen recording API
         # Permission usage descriptions (shown in system dialogs)
-        'NSScreenCaptureUsageDescription': 'Zeit needs screen recording access to capture screenshots and track your activities.',
-        'NSAppleEventsUsageDescription': 'Zeit needs automation access to detect the active window and application.',
+        "NSScreenCaptureUsageDescription": (
+            "Zeit needs screen recording access to capture screenshots and track your activities."
+        ),
+        "NSAppleEventsUsageDescription": (
+            "Zeit needs automation access to detect the active window and application."
+        ),
     },
 }
 
 setup(
-    name='Zeit',
-    version='0.1.0',
+    name="Zeit",
+    version="0.1.0",
     app=APP,
     data_files=DATA_FILES,
-    options={'py2app': OPTIONS},
+    options={"py2app": OPTIONS},
     install_requires=[],  # Prevent setuptools from reading pyproject.toml dependencies
 )
-
-

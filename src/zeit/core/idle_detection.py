@@ -1,7 +1,7 @@
 """Idle detection module for macOS using ioreg."""
 
-import subprocess
 import logging
+import subprocess
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -21,18 +21,14 @@ def get_idle_time_seconds() -> Optional[float]:
     """
     try:
         # Query IOHIDSystem for HIDIdleTime
-        output = subprocess.check_output(
-            ['ioreg', '-c', 'IOHIDSystem'],
-            text=True,
-            timeout=5
-        )
+        output = subprocess.check_output(["ioreg", "-c", "IOHIDSystem"], text=True, timeout=5)
 
         # Parse the output to find HIDIdleTime
-        for line in output.split('\n'):
-            if 'HIDIdleTime' in line:
+        for line in output.split("\n"):
+            if "HIDIdleTime" in line:
                 # Format: "HIDIdleTime" = 12345678900
                 # Value is in nanoseconds
-                parts = line.split('=')
+                parts = line.split("=")
                 if len(parts) >= 2:
                     idle_ns = int(parts[1].strip())
                     idle_seconds = idle_ns / 1_000_000_000

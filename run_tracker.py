@@ -1,16 +1,19 @@
-from ollama import Client
-from time import sleep
-import sys
 import logging
 import os
+import sys
 from datetime import datetime
+from time import sleep
+
+import opik
+from dotenv import load_dotenv
+from ollama import Client
+
 from zeit.core.activity_id import ActivityIdentifier
 from zeit.core.config import get_config
+from zeit.core.idle_detection import DEFAULT_IDLE_THRESHOLD, is_system_idle
 from zeit.core.logging_config import setup_logging
-from zeit.data.db import DatabaseManager, ActivityEntry
-from dotenv import load_dotenv
-from zeit.core.idle_detection import is_system_idle, DEFAULT_IDLE_THRESHOLD
-import opik
+from zeit.data.db import ActivityEntry, DatabaseManager
+
 
 def main():
     load_dotenv()  # Load environment variables from .env file if present
@@ -37,7 +40,7 @@ def main():
             sleep(delay)
 
         # Get idle threshold from environment variable or use default
-        idle_threshold = int(os.getenv('IDLE_THRESHOLD_SECONDS', DEFAULT_IDLE_THRESHOLD))
+        idle_threshold = int(os.getenv("IDLE_THRESHOLD_SECONDS", DEFAULT_IDLE_THRESHOLD))
         logger.debug(f"Using idle threshold: {idle_threshold} seconds")
 
         # Check if system is idle
@@ -98,6 +101,7 @@ def main():
     except Exception as e:
         logger.error(f"Unexpected error in main: {e}", exc_info=True)
         return 1
+
 
 if __name__ == "__main__":
     exit_code = main()

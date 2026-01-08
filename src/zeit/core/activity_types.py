@@ -5,7 +5,7 @@ from enum import Enum
 
 class Activity(str, Enum):
     """Activity types for LLM classification (excludes IDLE which is system-detected)."""
-    
+
     # Personal activities:
     PERSONAL_BROWSING = "personal_browsing"
     SOCIAL_MEDIA = "social_media"
@@ -38,7 +38,7 @@ class Activity(str, Enum):
 
 class ExtendedActivity(str, Enum):
     """Activity types including IDLE for storage and display."""
-    
+
     PERSONAL_BROWSING = "personal_browsing"
     SOCIAL_MEDIA = "social_media"
     YOUTUBE_ENTERTAINMENT = "youtube_entertainment"

@@ -1,11 +1,12 @@
 """Configuration management for Zeit activity tracker."""
 
-from datetime import time, datetime
+import logging
+from datetime import datetime, time
 from pathlib import Path
 from typing import Any, Optional
+
 import yaml
 from pydantic import BaseModel, Field, field_validator
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -16,13 +17,13 @@ class WorkHoursConfig(BaseModel):
     work_start_hour: time = Field(description="Work start time (HH:MM format)")
     work_end_hour: time = Field(description="Work end time (HH:MM format)")
 
-    @field_validator('work_start_hour', 'work_end_hour', mode='before')
+    @field_validator("work_start_hour", "work_end_hour", mode="before")
     @classmethod
     def parse_time_string(cls, v: Any) -> time:
         """Parse time string in HH:MM format to time object."""
         if isinstance(v, str):
             try:
-                hour, minute = v.split(':')
+                hour, minute = v.split(":")
                 return time(int(hour), int(minute))
             except (ValueError, AttributeError) as e:
                 raise ValueError(f"Invalid time format: {v}. Expected HH:MM") from e
@@ -83,14 +84,19 @@ class WorkHoursConfig(BaseModel):
 
 class ModelsConfig(BaseModel):
     vision: str = Field(default="qwen3-vl:4b", description="Vision model for image analysis")
-    text: str = Field(default="qwen3:8b", description="Text model for classification and summarization")
+    text: str = Field(
+        default="qwen3:8b", description="Text model for classification and summarization"
+    )
 
 
 class PathsConfig(BaseModel):
     """Configuration for application paths."""
-    stop_flag: Path = Field(default=Path.home() / ".zeit_stop", description="Path to stop flag file")
 
-    @field_validator('stop_flag', mode='before')
+    stop_flag: Path = Field(
+        default=Path.home() / ".zeit_stop", description="Path to stop flag file"
+    )
+
+    @field_validator("stop_flag", mode="before")
     @classmethod
     def expand_path(cls, v: Any) -> Path:
         """Expand ~ to user home directory."""
@@ -129,7 +135,7 @@ def load_config(config_path: Optional[Path] = None) -> ZeitConfig:
 
     logger.debug(f"Loading configuration from {config_path}")
 
-    with open(config_path, 'r') as f:
+    with open(config_path, "r") as f:
         config_data = yaml.safe_load(f)
 
     return ZeitConfig(**config_data)

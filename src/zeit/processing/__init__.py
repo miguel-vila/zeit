@@ -1,6 +1,6 @@
 """Data processing for Zeit."""
 
-from zeit.processing.activity_summarization import compute_summary, ActivityWithPercentage
+from zeit.processing.activity_summarization import ActivityWithPercentage, compute_summary
 from zeit.processing.day_summarizer import DaySummarizer, DaySummary
 
 __all__ = [

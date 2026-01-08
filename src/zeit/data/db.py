@@ -1,20 +1,26 @@
-import sqlite3
 import json
 import logging
+import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
+
 from pydantic import BaseModel, Field
+
 from zeit.core.activity_types import ExtendedActivity
 from zeit.core.models import ActivitiesResponseWithTimestamp
 
 logger = logging.getLogger(__name__)
 
+
 class ActivityEntry(BaseModel):
     """Represents a single activity at a specific time."""
+
     timestamp: str = Field(description="ISO format timestamp when the activity was detected")
     activity: ExtendedActivity = Field(description="The detected activity type")
-    reasoning: Optional[str] = Field(default=None, description="Reasoning for why this activity was identified")
+    reasoning: Optional[str] = Field(
+        default=None, description="Reasoning for why this activity was identified"
+    )
 
     @classmethod
     def from_response(cls, activities_response: ActivitiesResponseWithTimestamp):
@@ -22,22 +28,22 @@ class ActivityEntry(BaseModel):
         return cls(
             timestamp=activities_response.timestamp.isoformat(),
             activity=ExtendedActivity(activities_response.main_activity.value),
-            reasoning=activities_response.reasoning
+            reasoning=activities_response.reasoning,
         )
 
     @classmethod
     def idle(cls, timestamp: datetime):
         """Create an ActivityEntry for idle state."""
-        return cls(
-            timestamp=timestamp.isoformat(),
-            activity=ExtendedActivity.IDLE,
-            reasoning=None
-        )
+        return cls(timestamp=timestamp.isoformat(), activity=ExtendedActivity.IDLE, reasoning=None)
+
 
 class DayRecord(BaseModel):
     """Represents all activities for a single day."""
+
     date: str = Field(description="Date in YYYY-MM-DD format")
-    activities: List[ActivityEntry] = Field(description="List of activities detected during the day")
+    activities: List[ActivityEntry] = Field(
+        description="List of activities detected during the day"
+    )
 
     def add_activity(self, entry: ActivityEntry):
         """Add an activity entry to this day."""
@@ -53,6 +59,7 @@ class DayRecord(BaseModel):
         activities_data = json.loads(activities_json)
         activities = [ActivityEntry(**activity) for activity in activities_data]
         return cls(date=date, activities=activities)
+
 
 class DatabaseManager:
     """Manages the SQLite database for activity tracking."""
@@ -136,7 +143,7 @@ class DatabaseManager:
 
                 cursor.execute(
                     "UPDATE daily_activities SET activities = ?, updated_at = ? WHERE date = ?",
-                    (day_record.to_json(), now, date_str)
+                    (day_record.to_json(), now, date_str),
                 )
                 logger.debug(f"Updated existing day record for {date_str}")
             else:
@@ -145,14 +152,19 @@ class DatabaseManager:
                 day_record.add_activity(activity_entry)
 
                 cursor.execute(
-                    "INSERT INTO daily_activities (date, activities, created_at, updated_at) VALUES (?, ?, ?, ?)",
-                    (date_str, day_record.to_json(), now, now)
+                    """
+                    INSERT INTO daily_activities (date, activities, created_at, updated_at)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (date_str, day_record.to_json(), now, now),
                 )
                 logger.debug(f"Created new day record for {date_str}")
 
             # Commit transaction
             self.conn.commit()
-            logger.info(f"Successfully inserted activity '{activity_entry.activity.value}' for {date_str}")
+            logger.info(
+                f"Successfully inserted activity '{activity_entry.activity.value}' for {date_str}"
+            )
             return True
 
         except sqlite3.Error as e:
@@ -176,7 +188,9 @@ class DatabaseManager:
         """
         try:
             cursor = self.conn.cursor()
-            cursor.execute("SELECT date, activities FROM daily_activities WHERE date = ?", (date_str,))
+            cursor.execute(
+                "SELECT date, activities FROM daily_activities WHERE date = ?", (date_str,)
+            )
             row = cursor.fetchone()
 
             if row:

@@ -8,9 +8,9 @@ from ollama import Client
 
 from zeit.core.config import get_config
 from zeit.core.utils import today_str, yesterday_str
+from zeit.data.db import DatabaseManager
 from zeit.processing.activity_summarization import compute_summary
 from zeit.processing.day_summarizer import DaySummarizer
-from zeit.data.db import DatabaseManager
 
 # CLI formatting constants
 SEPARATOR_WIDTH = 70
@@ -74,7 +74,9 @@ def _print_day_activities(date_str: str):
 def _print_all_days():
     with DatabaseManager() as db:
         cursor = db.conn.cursor()
-        cursor.execute("SELECT date, activities, created_at FROM daily_activities ORDER BY date DESC")
+        cursor.execute(
+            "SELECT date, activities, created_at FROM daily_activities ORDER BY date DESC"
+        )
         rows = cursor.fetchall()
 
         if not rows:
@@ -145,7 +147,9 @@ def cmd_day(date: str = typer.Argument(..., help="Date in YYYY-MM-DD format")):
 
 @app.command("summarize")
 def cmd_summarize(
-    date: Optional[str] = typer.Argument(None, help="Date in YYYY-MM-DD format (defaults to today)")
+    date: Optional[str] = typer.Argument(
+        None, help="Date in YYYY-MM-DD format (defaults to today)"
+    ),
 ):
     date_str = date if date else today_str()
     _summarize_day_impl(date_str)

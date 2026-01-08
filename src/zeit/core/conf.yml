@@ -8,4 +8,3 @@ models:
 
 paths:
   stop_flag: '~/.zeit_stop'
-

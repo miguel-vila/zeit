@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """Database management CLI for Zeit activity tracker."""
 
-import typer
-from datetime import datetime
-from typing import Optional
-from rich import print as rprint
-from rich.prompt import Confirm
 from pathlib import Path
 
-from zeit.data.db import DatabaseManager
+import typer
+from rich import print as rprint
+from rich.prompt import Confirm
+
 from zeit.core.utils import today_str
+from zeit.data.db import DatabaseManager
 
 app = typer.Typer(
     name="manage_db",
@@ -20,12 +19,7 @@ app = typer.Typer(
 
 @app.command("delete-today")
 def delete_today(
-    force: bool = typer.Option(
-        False,
-        "--force",
-        "-f",
-        help="Skip confirmation prompt"
-    )
+    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation prompt"),
 ):
     """
     Delete all activity entries for today.
@@ -82,7 +76,7 @@ def database_info():
     file_size = db_path.stat().st_size
     file_size_kb = file_size / 1024
 
-    rprint(f"\n[bold]Database Information[/bold]")
+    rprint("\n[bold]Database Information[/bold]")
     rprint(f"Location: {db_path.absolute()}")
     rprint(f"Size: {file_size_kb:.2f} KB ({file_size} bytes)")
 

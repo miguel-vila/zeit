@@ -3,10 +3,11 @@
 
 import logging
 from typing import Optional
-from PySide6.QtGui import QIcon, QPixmap, QPainter, QFont
-from PySide6.QtCore import Qt, QSize
 
-from zeit.core.macos_helpers import run_applescript, AppleScriptError
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont, QIcon, QPainter, QPixmap
+
+from zeit.core.macos_helpers import AppleScriptError, run_applescript
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,9 @@ def show_macos_notification(title: str, subtitle: str = "", message: str = "") -
     """
     try:
         if subtitle:
-            script = f'''display notification "{message}" with title "{title}" subtitle "{subtitle}"'''
+            script = (
+                f'''display notification "{message}" with title "{title}" subtitle "{subtitle}"'''
+            )
         else:
             script = f'''display notification "{message}" with title "{title}"'''
 

@@ -1,17 +1,18 @@
-from datetime import datetime
 import logging
+import os
+from datetime import datetime
 from pathlib import Path
 from typing import Dict
+
 import mss
 import mss.tools
-import os
 
 logger = logging.getLogger(__name__)
 
 
 class MultiScreenCapture:
     """Context manager that captures all connected monitors.
-    
+
     Skips monitor index 0 (mss's virtual combined screen) and captures
     all real monitors. Cleans up all screenshots on exit.
     """
@@ -48,4 +49,4 @@ class MultiScreenCapture:
             if path and os.path.exists(path):
                 os.remove(path)
                 logger.debug(f"Deleted screenshot {path}")
-        logger.info(f"Cleaned up {len(self.screenshot_paths)} screenshot(s)")    
+        logger.info(f"Cleaned up {len(self.screenshot_paths)} screenshot(s)")

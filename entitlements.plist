@@ -5,15 +5,15 @@
     <!-- Screen Recording: Required for capturing screenshots -->
     <key>com.apple.security.device.screen-capture</key>
     <true/>
-    
+
     <!-- Automation/AppleScript: Required for detecting active window -->
     <key>com.apple.security.automation.apple-events</key>
     <true/>
-    
+
     <!-- Network Client: Required for communicating with Ollama API -->
     <key>com.apple.security.network.client</key>
     <true/>
-    
+
     <!-- Read/Write User Files: Required for database and logs -->
     <key>com.apple.security.files.user-selected.read-write</key>
     <true/>

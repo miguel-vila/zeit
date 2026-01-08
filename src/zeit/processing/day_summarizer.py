@@ -1,8 +1,9 @@
+import logging
 from datetime import datetime
 from typing import List, Optional
-import logging
-from pydantic import BaseModel
+
 from ollama import Client
+from pydantic import BaseModel
 
 from zeit.core.activity_types import ExtendedActivity
 from zeit.data.db import ActivityEntry
@@ -32,7 +33,7 @@ class DaySummarizer:
             timestamp = datetime.fromisoformat(activity.timestamp)
             time_str = timestamp.strftime("%H:%M")
             reasoning = activity.reasoning or "No description"
-            formatted_lines.append(f"{time_str} - {activity.activity.value}: \"{reasoning}\"")
+            formatted_lines.append(f'{time_str} - {activity.activity.value}: "{reasoning}"')
 
         activities_text = "\n".join(formatted_lines)
 
@@ -40,7 +41,7 @@ class DaySummarizer:
 
 {activities_text}
 
-Summarize the user's day qualitatively. 
+Summarize the user's day qualitatively.
 Describe what they focused on, how their time was distributed, and any notable patterns.
 Don't make value judgments (either positive or negative).
 Don't talk about balance unless there's numerical evidence that really justifies that description.
