@@ -6,10 +6,13 @@ import typer
 from ollama import Client
 
 from zeit.core.config import get_config
+from zeit.core.logging_config import setup_logging
 from zeit.core.utils import today_str, yesterday_str
 from zeit.data.db import DatabaseManager
 from zeit.processing.activity_summarization import compute_summary
 from zeit.processing.day_summarizer import DaySummarizer
+
+setup_logging()
 
 # CLI formatting constants
 SEPARATOR_WIDTH = 70
