@@ -212,6 +212,13 @@ class ZeitMenuBar:
 
         self.menu.addSeparator()
 
+        # Add work percentage
+        work_action = QAction(f"Work activities: {work_percentage:.0f}%", self.menu)
+        work_action.setEnabled(False)
+        self.menu.addAction(work_action)
+
+        self.menu.addSeparator()
+
         # Add activity breakdown
         for entry in summary:
             activity_name = entry.activity.value.replace("_", " ").title()
