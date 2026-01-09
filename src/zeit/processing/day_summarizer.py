@@ -32,7 +32,7 @@ class DaySummarizer:
     def _format_group(self, group: ActivityGroup) -> str:
         """Format an activity group for the prompt."""
         time_range = self._format_time_range(group.start_time, group.end_time)
-        reasoning = group.merged_reasoning or "No description"
+        reasoning = "; ".join(group.reasonings) if group.reasonings else "No description"
         activity_name = group.activity.value.replace("_", " ")
         return f'{time_range} - {activity_name} ({group.duration_minutes} min): "{reasoning}"'
 
@@ -44,12 +44,8 @@ class DaySummarizer:
 
         logger.info(f"Starting summarization with {len(non_idle)} non-idle activities")
 
-        # Build condensed summary with grouped activities and merged reasonings
-        condensed = build_condensed_summary(
-            entries=activities,
-            client=self.client,
-            llm=self.llm,
-        )
+        # Build condensed summary with grouped activities
+        condensed = build_condensed_summary(entries=activities)
 
         logger.info(
             f"Condensed {condensed.original_entry_count} activities "
@@ -70,9 +66,9 @@ class DaySummarizer:
             percentage_breakdown=percentage_text,
             activities_text=activities_text,
         )
+        logger.debug(f"Day summarization prompt:\n{prompt}")
 
         try:
-            logger.debug("Calling LLM to summarize day activities")
             response = self.client.generate(
                 model=self.llm,
                 prompt=prompt,

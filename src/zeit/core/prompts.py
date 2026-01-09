@@ -67,17 +67,6 @@ those cases, select professional_development as the main activity.
 The description of the PRIMARY screen activity is as follows:
 {image_description}{secondary_context_section}"""
 
-# Template for merging multiple minute-by-minute reasonings into one
-MERGE_REASONINGS_PROMPT = """These are minute-by-minute observations of {activity_name} over {duration} minutes.
-
-Observations:
-{reasonings_list}
-
-Synthesize into a single, coherent description (1-2 sentences).
-- Combine similar observations
-- Highlight any progression or changes in focus
-- Do not add information not present in the observations"""
-
 # Template for day summarization with numeric breakdown
 DAY_SUMMARIZATION_PROMPT = """This is a condensed view of the user's activities during the day.
 

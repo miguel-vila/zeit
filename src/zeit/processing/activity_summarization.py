@@ -1,11 +1,9 @@
 import logging
 from datetime import datetime
 
-from ollama import Client
 from pydantic import BaseModel, Field
 
 from zeit.core.activity_types import ExtendedActivity
-from zeit.core.prompts import MERGE_REASONINGS_PROMPT
 from zeit.data.db import ActivityEntry
 
 logger = logging.getLogger(__name__)
@@ -26,9 +24,6 @@ class ActivityGroup(BaseModel):
     end_time: datetime = Field(description="Timestamp of the last activity in the group")
     duration_minutes: int = Field(description="Number of minutes this group spans")
     reasonings: list[str] = Field(description="All individual reasonings from grouped activities")
-    merged_reasoning: str | None = Field(
-        default=None, description="LLM-merged reasoning if group has multiple entries"
-    )
 
 
 class CondensedActivitySummary(BaseModel):
@@ -100,65 +95,16 @@ def _create_group(entries: list[ActivityEntry]) -> ActivityGroup:
         end_time=end_time,
         duration_minutes=len(entries),
         reasonings=reasonings,
-        merged_reasoning=None,
     )
 
 
-def merge_reasonings(
-    reasonings: list[str],
-    activity: ExtendedActivity,
-    duration_minutes: int,
-    client: Client,
-    llm: str,
-) -> str:
-    """Use LLM to merge multiple minute-by-minute reasonings into one.
-
-    Args:
-        reasonings: List of individual reasonings from consecutive activities
-        activity: The activity type (for context in the prompt)
-        duration_minutes: Number of minutes the activity spans
-        client: Ollama client
-        llm: Model name to use
-
-    Returns:
-        A single merged reasoning string
-    """
-    reasonings_list = "\n".join(f"- {r}" for r in reasonings)
-    prompt = MERGE_REASONINGS_PROMPT.format(
-        activity_name=activity.value.replace("_", " "),
-        duration=duration_minutes,
-        reasonings_list=reasonings_list,
-    )
-
-    try:
-        logger.debug(f"Merging {len(reasonings)} reasonings for {activity.value}")
-        response = client.generate(
-            model=llm,
-            prompt=prompt,
-            options={"temperature": 0.3},
-        )
-        return response.response.strip()
-    except Exception as e:
-        logger.error(f"Failed to merge reasonings: {e}", exc_info=True)
-        # Fallback: just return the first reasoning
-        # TODO: don't fallback and raise an error instead?
-        return reasonings[0] if reasonings else "No description"
-
-
-def build_condensed_summary(
-    entries: list[ActivityEntry],
-    client: Client,
-    llm: str,
-) -> CondensedActivitySummary:
+def build_condensed_summary(entries: list[ActivityEntry]) -> CondensedActivitySummary:
     """Build a complete condensed summary from raw activity entries.
 
-    If client and llm are provided, will use LLM to merge reasonings for groups
-    with multiple entries. Otherwise, just concatenates reasonings.
+    Groups consecutive activities of the same type and computes percentage breakdown.
 
     Args:
         entries: List of ActivityEntry
-        client: Optional Ollama client for reasoning merging
-        llm: Optional model name for reasoning merging
 
     Returns:
         CondensedActivitySummary with grouped activities and percentages
@@ -166,16 +112,6 @@ def build_condensed_summary(
     non_idle = [e for e in entries if e.activity != ExtendedActivity.IDLE]
     groups = group_consecutive_activities(entries)
     logger.info(f"Grouped {len(non_idle)} activities into {len(groups)} groups")
-
-    # Merge reasonings for groups with multiple entries
-    for group in groups:
-        if len(group.reasonings) > 1:
-            group.merged_reasoning = merge_reasonings(
-                group.reasonings, group.activity, group.duration_minutes, client, llm
-            )
-        elif group.reasonings:
-            # Single reasoning or no LLM - just use the first one
-            group.merged_reasoning = group.reasonings[0]
 
     percentage_breakdown = compute_summary(entries)
 
