@@ -3,7 +3,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget
 
 from zeit.data.db import DayRecord
-from zeit.processing.activity_summarization import ActivityWithPercentage, compute_summary
+from zeit.processing.activity_summarization import ActivitySummary, compute_summary
 
 PROGRESS_BAR_STYLE = """
     QProgressBar {{
@@ -60,9 +60,10 @@ class DetailsWindow(QWidget):
         progress_bar.setStyleSheet(PROGRESS_BAR_STYLE.format(color=color))
         return progress_bar
 
-    def _create_activity_widget(self, entry: ActivityWithPercentage) -> QWidget:
+    def _create_activity_widget(self, entry: ActivitySummary) -> QWidget:
         activity_name = entry.activity.value.replace("_", " ").title()
         percentage = entry.percentage
+        approx_minutes = entry.approx_minutes
 
         activity_widget = QWidget()
         activity_layout = QVBoxLayout()
@@ -75,7 +76,7 @@ class DetailsWindow(QWidget):
         name_label.setFont(name_font)
         label_layout.addWidget(name_label)
 
-        pct_label = QLabel(f"{percentage:.1f}%")
+        pct_label = QLabel(f"{percentage:.1f}% ({approx_minutes} min)")
         pct_font = QFont()
         pct_font.setPointSize(12)
         pct_font.setBold(True)

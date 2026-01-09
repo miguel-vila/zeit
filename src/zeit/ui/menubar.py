@@ -222,8 +222,8 @@ class ZeitMenuBar:
         # Add activity breakdown
         for entry in summary:
             activity_name = entry.activity.value.replace("_", " ").title()
-            percentage = entry.percentage
-            activity_action = QAction(f"{activity_name}: {percentage:.1f}%", self.menu)
+            text = f"{activity_name}: {entry.percentage:.1f}% ({entry.approx_minutes} min)"
+            activity_action = QAction(text, self.menu)
             activity_action.setEnabled(False)
             self.menu.addAction(activity_action)
 

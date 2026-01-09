@@ -9,11 +9,12 @@ from zeit.data.db import ActivityEntry
 logger = logging.getLogger(__name__)
 
 
-class ActivityWithPercentage(BaseModel):
-    """Represents an activity along with its occurrence count."""
+class ActivitySummary(BaseModel):
+    """Represents an activity with its percentage and approximate time."""
 
     activity: ExtendedActivity = Field(description="The activity type")
     percentage: float = Field(description="Percentage of total activities")
+    approx_minutes: int = Field(description="Approximate time spent in minutes")
 
 
 class ActivityGroup(BaseModel):
@@ -30,7 +31,7 @@ class CondensedActivitySummary(BaseModel):
     """Container for the full condensed activity data."""
 
     groups: list[ActivityGroup] = Field(description="Chronologically ordered activity groups")
-    percentage_breakdown: list[ActivityWithPercentage] = Field(
+    percentage_breakdown: list[ActivitySummary] = Field(
         description="Activity percentages sorted by frequency"
     )
     total_active_minutes: int = Field(description="Total non-idle minutes tracked")
@@ -38,7 +39,7 @@ class CondensedActivitySummary(BaseModel):
     condensed_entry_count: int = Field(description="Number of activity groups after condensation")
 
 
-def compute_summary(entries: list[ActivityEntry]) -> list[ActivityWithPercentage]:
+def compute_summary(entries: list[ActivityEntry]) -> list[ActivitySummary]:
     """Compute a summary of activities from a list of ActivityEntry."""
     summary: dict[ExtendedActivity, int] = {}
     for entry in entries:
@@ -51,7 +52,11 @@ def compute_summary(entries: list[ActivityEntry]) -> list[ActivityWithPercentage
     if total_activities == 0:
         return []
     return [
-        ActivityWithPercentage(activity=activity, percentage=(count / total_activities) * 100)
+        ActivitySummary(
+            activity=activity,
+            percentage=(count / total_activities) * 100,
+            approx_minutes=count,
+        )
         for activity, count in sorted_summary
     ]
 
