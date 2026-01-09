@@ -14,6 +14,7 @@ from zeit.core.utils import today_str
 from zeit.data.db import DatabaseManager, DayRecord
 from zeit.processing.activity_summarization import compute_summary
 from zeit.ui.details_window import DetailsWindow
+from zeit.ui.objectives_dialog import ObjectivesDialog
 from zeit.ui.qt_helpers import emoji_to_qicon, show_macos_notification
 from zeit.ui.tracking_state import TrackingState
 
@@ -41,6 +42,9 @@ class ZeitMenuBar:
 
         # Create details window (hidden initially)
         self.details_window = DetailsWindow()
+
+        # Create objectives dialog (hidden initially)
+        self.objectives_dialog = ObjectivesDialog()
 
         # Set up timer for periodic updates (60 seconds)
         self.timer = QTimer()
@@ -96,6 +100,10 @@ class ZeitMenuBar:
         details_action = QAction("View Details", self.menu)
         details_action.triggered.connect(self.view_details)
         self.menu.addAction(details_action)
+
+        objectives_action = QAction("Set Day Objectives", self.menu)
+        objectives_action.triggered.connect(self.set_objectives)
+        self.menu.addAction(objectives_action)
 
         self.menu.addSeparator()
 
@@ -265,6 +273,20 @@ class ZeitMenuBar:
             logger.error(f"Error viewing details: {e}", exc_info=True)
             show_macos_notification(
                 title="Zeit Error", subtitle="Failed to load details", message=str(e)
+            )
+
+    @Slot()
+    def set_objectives(self) -> None:
+        """Open the objectives dialog."""
+        try:
+            self.objectives_dialog.load_objectives_for_today()
+            self.objectives_dialog.show()
+            self.objectives_dialog.raise_()
+            self.objectives_dialog.activateWindow()
+        except Exception as e:
+            logger.error(f"Error opening objectives dialog: {e}", exc_info=True)
+            show_macos_notification(
+                title="Zeit Error", subtitle="Failed to open objectives", message=str(e)
             )
 
     @Slot()

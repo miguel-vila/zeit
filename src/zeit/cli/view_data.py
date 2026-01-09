@@ -112,9 +112,12 @@ def _summarize_day_impl(date_str: str) -> None:
             print(f"No activities recorded for {date_str}")
             return
 
+        # Fetch objectives for this day (if any)
+        objectives = db.get_day_objectives(date_str)
+
         config = get_config()
         summarizer = DaySummarizer(Client(), llm=config.models.text)
-        result = summarizer.summarize(day_record.activities)
+        result = summarizer.summarize(day_record.activities, objectives=objectives)
 
         if result is None:
             print(f"No non-idle activities recorded for {date_str}")
@@ -122,6 +125,10 @@ def _summarize_day_impl(date_str: str) -> None:
 
         print_header(f"Day Summary for {date_str}")
         print(f"({result.start_time.strftime('%H:%M')} - {result.end_time.strftime('%H:%M')})")
+        if objectives:
+            print(f"Main objective: {objectives.main_objective}")
+            if objectives.secondary_objectives:
+                print(f"Secondary: {', '.join(objectives.secondary_objectives)}")
         print()
         print(result.summary)
         print_footer()
@@ -153,6 +160,43 @@ def cmd_summarize(
 ) -> None:
     date_str = date if date else today_str()
     _summarize_day_impl(date_str)
+
+
+@app.command("objectives")
+def cmd_objectives(
+    date: str | None = typer.Argument(None, help="Date in YYYY-MM-DD format (defaults to today)"),
+) -> None:
+    """View objectives for a specific day."""
+    date_str = date if date else today_str()
+
+    with DatabaseManager() as db:
+        objectives = db.get_day_objectives(date_str)
+
+        if objectives is None:
+            print(f"No objectives set for {date_str}")
+            return
+
+        print_header(f"Objectives for {date_str}")
+        print(f"Main: {objectives.main_objective}")
+        if objectives.secondary_objectives:
+            print("\nSecondary:")
+            for obj in objectives.secondary_objectives:
+                print(f"  - {obj}")
+        print_footer()
+
+
+@app.command("delete-objectives")
+def cmd_delete_objectives(
+    date: str = typer.Argument(..., help="Date in YYYY-MM-DD format"),
+) -> None:
+    """Delete objectives for a specific day."""
+    with DatabaseManager() as db:
+        deleted = db.delete_day_objectives(date)
+
+        if deleted:
+            print(f"Deleted objectives for {date}")
+        else:
+            print(f"No objectives found for {date}")
 
 
 if __name__ == "__main__":

@@ -83,3 +83,24 @@ Summarize the user's day qualitatively.
 - Don't make value judgments (either positive or negative)
 - Don't talk about balance unless the numbers clearly justify it
 - Just summarize the activities in an objective manner"""
+
+# Template for day summarization with objectives
+DAY_SUMMARIZATION_WITH_OBJECTIVES_PROMPT = """This is a condensed view of the user's activities during the day.
+
+## User's Day Objectives
+**Main Objective:** {main_objective}
+{secondary_objectives_section}
+
+## Time Distribution
+{percentage_breakdown}
+
+## Chronological Activities
+{activities_text}
+
+Summarize the user's day and evaluate alignment with their objectives.
+- Describe what they focused on and how their time was distributed
+- Reference the percentages to provide numerical context where relevant
+- Assess whether their activities aligned with their stated objectives
+- Note which objectives were supported by their activities and which were not
+- Be objective and factual in your assessment
+- Don't make value judgments (either positive or negative)"""

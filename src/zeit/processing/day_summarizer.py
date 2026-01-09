@@ -5,8 +5,8 @@ from ollama import Client
 from pydantic import BaseModel
 
 from zeit.core.activity_types import ExtendedActivity
-from zeit.core.prompts import DAY_SUMMARIZATION_PROMPT
-from zeit.data.db import ActivityEntry
+from zeit.core.prompts import DAY_SUMMARIZATION_PROMPT, DAY_SUMMARIZATION_WITH_OBJECTIVES_PROMPT
+from zeit.data.db import ActivityEntry, DayObjectives
 from zeit.processing.activity_summarization import ActivityGroup, build_condensed_summary
 
 logger = logging.getLogger(__name__)
@@ -36,13 +36,28 @@ class DaySummarizer:
         activity_name = group.activity.value.replace("_", " ")
         return f'{time_range} - {activity_name} ({group.duration_minutes} min): "{reasoning}"'
 
-    def summarize(self, activities: list[ActivityEntry]) -> DaySummary | None:
+    def _format_objectives_section(self, objectives: DayObjectives) -> str:
+        """Format secondary objectives section for the prompt."""
+        if not objectives.secondary_objectives:
+            return ""
+        lines = ["**Secondary Objectives:**"]
+        for obj in objectives.secondary_objectives:
+            lines.append(f"- {obj}")
+        return "\n".join(lines)
+
+    def summarize(
+        self,
+        activities: list[ActivityEntry],
+        objectives: DayObjectives | None = None,
+    ) -> DaySummary | None:
         non_idle = [a for a in activities if a.activity != ExtendedActivity.IDLE]
 
         if not non_idle:
             return None
 
         logger.info(f"Starting summarization with {len(non_idle)} non-idle activities")
+        if objectives:
+            logger.info(f"Using objectives: main='{objectives.main_objective}'")
 
         # Build condensed summary with grouped activities
         condensed = build_condensed_summary(entries=activities)
@@ -61,11 +76,19 @@ class DaySummarizer:
             for p in condensed.percentage_breakdown
         )
 
-        # Build the final prompt
-        prompt = DAY_SUMMARIZATION_PROMPT.format(
-            percentage_breakdown=percentage_text,
-            activities_text=activities_text,
-        )
+        # Build the final prompt based on whether objectives are provided
+        if objectives:
+            prompt = DAY_SUMMARIZATION_WITH_OBJECTIVES_PROMPT.format(
+                main_objective=objectives.main_objective,
+                secondary_objectives_section=self._format_objectives_section(objectives),
+                percentage_breakdown=percentage_text,
+                activities_text=activities_text,
+            )
+        else:
+            prompt = DAY_SUMMARIZATION_PROMPT.format(
+                percentage_breakdown=percentage_text,
+                activities_text=activities_text,
+            )
         logger.debug(f"Day summarization prompt:\n{prompt}")
 
         try:

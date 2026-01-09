@@ -62,6 +62,34 @@ class DayRecord(BaseModel):
         return cls(date=date, activities=activities)
 
 
+class DayObjectives(BaseModel):
+    """Represents the user's objectives for a specific day."""
+
+    date: str = Field(description="Date in YYYY-MM-DD format")
+    main_objective: str = Field(description="The main objective for the day")
+    secondary_objectives: list[str] = Field(
+        default_factory=list, description="Up to 2 secondary objectives for the day"
+    )
+    created_at: str = Field(description="ISO format timestamp when objectives were created")
+    updated_at: str = Field(description="ISO format timestamp when objectives were last updated")
+
+    def to_json_secondary(self) -> str:
+        """Convert secondary objectives list to JSON string for database storage."""
+        return json.dumps(self.secondary_objectives)
+
+    @classmethod
+    def from_db_row(cls, row: sqlite3.Row) -> "DayObjectives":
+        """Create a DayObjectives from database row."""
+        secondary = json.loads(row["secondary_objectives"])
+        return cls(
+            date=row["date"],
+            main_objective=row["main_objective"],
+            secondary_objectives=secondary,
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )
+
+
 class DatabaseManager:
     """Manages the SQLite database for activity tracking."""
 
@@ -101,6 +129,15 @@ class DatabaseManager:
                 CREATE TABLE IF NOT EXISTS daily_activities (
                     date TEXT PRIMARY KEY,
                     activities TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS day_objectives (
+                    date TEXT PRIMARY KEY,
+                    main_objective TEXT NOT NULL,
+                    secondary_objectives TEXT NOT NULL,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
@@ -249,6 +286,103 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logger.error(f"Failed to retrieve all days: {e}", exc_info=True)
             return []
+
+    def save_day_objectives(self, date_str: str, main: str, secondary: list[str]) -> bool:
+        """
+        Save or update objectives for a specific day.
+
+        Args:
+            date_str: Date in YYYY-MM-DD format
+            main: The main objective for the day
+            secondary: List of secondary objectives (max 2)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            now = datetime.now().isoformat()
+            secondary_json = json.dumps(secondary[:2])  # Limit to 2 secondary objectives
+            cursor = self.conn.cursor()
+
+            # Check if objectives exist for this day
+            cursor.execute("SELECT date FROM day_objectives WHERE date = ?", (date_str,))
+            row = cursor.fetchone()
+
+            if row:
+                # Update existing objectives
+                cursor.execute(
+                    """UPDATE day_objectives
+                       SET main_objective = ?, secondary_objectives = ?, updated_at = ?
+                       WHERE date = ?""",
+                    (main, secondary_json, now, date_str),
+                )
+                logger.debug(f"Updated objectives for {date_str}")
+            else:
+                # Insert new objectives
+                cursor.execute(
+                    """INSERT INTO day_objectives
+                       (date, main_objective, secondary_objectives, created_at, updated_at)
+                       VALUES (?, ?, ?, ?, ?)""",
+                    (date_str, main, secondary_json, now, now),
+                )
+                logger.debug(f"Created new objectives for {date_str}")
+
+            self.conn.commit()
+            logger.info(f"Successfully saved objectives for {date_str}")
+            return True
+
+        except sqlite3.Error as e:
+            logger.error(f"Database error while saving objectives: {e}", exc_info=True)
+            self.conn.rollback()
+            return False
+
+    def get_day_objectives(self, date_str: str) -> DayObjectives | None:
+        """
+        Retrieve objectives for a specific day.
+
+        Args:
+            date_str: Date in YYYY-MM-DD format
+
+        Returns:
+            DayObjectives if found, None otherwise
+        """
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT * FROM day_objectives WHERE date = ?", (date_str,))
+            row = cursor.fetchone()
+
+            if row:
+                return DayObjectives.from_db_row(row)
+            return None
+        except sqlite3.Error as e:
+            logger.error(f"Failed to retrieve objectives for {date_str}: {e}", exc_info=True)
+            return None
+
+    def delete_day_objectives(self, date_str: str) -> bool:
+        """
+        Delete objectives for a specific day.
+
+        Args:
+            date_str: Date in YYYY-MM-DD format
+
+        Returns:
+            True if deleted, False if not found or error
+        """
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("DELETE FROM day_objectives WHERE date = ?", (date_str,))
+            self.conn.commit()
+            rows_deleted = cursor.rowcount
+
+            if rows_deleted > 0:
+                logger.info(f"Deleted objectives for {date_str}")
+                return True
+            logger.warning(f"No objectives found for {date_str} to delete")
+            return False
+        except sqlite3.Error as e:
+            logger.error(f"Failed to delete objectives for {date_str}: {e}", exc_info=True)
+            self.conn.rollback()
+            return False
 
     def close(self) -> None:
         """Close the database connection."""
