@@ -14,7 +14,7 @@ DEFAULT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 def setup_logging(
     log_file: str = "zeit.log",
     log_dir: str = DEFAULT_LOG_DIR,
-    file_level: int = logging.DEBUG,
+    file_level: int = logging.INFO,
     console_level: int = logging.INFO,
     log_format: str | None = None,
 ) -> logging.Logger:
@@ -23,7 +23,7 @@ def setup_logging(
     Args:
         log_file: Name of the log file (default: "zeit.log")
         log_dir: Directory for log files (default: "logs")
-        file_level: Logging level for file handler (default: DEBUG)
+        file_level: Logging level for file handler (default: INFO)
         console_level: Logging level for console handler (default: INFO)
         log_format: Custom log format (default: standard format with timestamp)
 
@@ -53,7 +53,7 @@ def setup_logging(
 
     # Configure root logger
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)  # Allow all messages, handlers filter
+    root_logger.setLevel(logging.INFO)  # Allow all messages, handlers filter
 
     # Remove existing handlers to avoid duplicates on repeated calls
     root_logger.handlers.clear()

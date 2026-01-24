@@ -103,4 +103,7 @@ Summarize the user's day and evaluate alignment with their objectives.
 - Assess whether their activities aligned with their stated objectives
 - Note which objectives were supported by their activities and which were not
 - Be objective and factual in your assessment
-- Don't make value judgments (either positive or negative)"""
+- Don't make value judgments (either positive or negative)
+
+For each objective, provide a brief evaluation of alignment based on the activities described.
+"""

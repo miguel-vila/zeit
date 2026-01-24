@@ -26,6 +26,7 @@ Logs what you are doing in your computer and summarizes it using local models:
 - idle should not be counted
 - preconfigure ollama models to download
 - do main screen identification using macos APIs ()
+- test single screen
 
 ## Building as a macOS App
 

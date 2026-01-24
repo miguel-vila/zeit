@@ -58,6 +58,12 @@ class DaySummarizer:
         logger.info(f"Starting summarization with {len(non_idle)} non-idle activities")
         if objectives:
             logger.info(f"Using objectives: main='{objectives.main_objective}'")
+            secondary = (
+                "\n".join(objectives.secondary_objectives)
+                if objectives.secondary_objectives
+                else "None"
+            )
+            logger.info(f"Secondary objectives: {secondary}")
 
         # Build condensed summary with grouped activities
         condensed = build_condensed_summary(entries=activities)
