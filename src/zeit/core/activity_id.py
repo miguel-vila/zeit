@@ -1,11 +1,13 @@
 import base64
 import logging
+from collections.abc import Callable
 from datetime import datetime
+from functools import wraps
 from pathlib import Path
 from time import time
+from typing import Any, TypeVar
 
 from ollama import Client
-from opik import opik_context, track
 
 from zeit.core.active_window import get_active_screen_number
 from zeit.core.config import ModelsConfig
@@ -24,6 +26,43 @@ from zeit.core.prompts import (
 from zeit.core.screen import MultiScreenCapture
 
 logger = logging.getLogger(__name__)
+
+# Make opik optional - it has heavy dependencies that complicate packaging
+F = TypeVar("F", bound=Callable[..., Any])
+OPIK_AVAILABLE = False
+opik_context: Any = None
+_opik_track: Any = None
+
+try:
+    from opik import opik_context as _ctx
+    from opik import track as _trk
+
+    OPIK_AVAILABLE = True
+    opik_context = _ctx
+    _opik_track = _trk
+except ImportError:
+    pass
+
+
+def track(**kwargs: Any) -> Callable[[F], F]:
+    """Wrapper for opik.track that becomes a no-op when opik is unavailable."""
+    if OPIK_AVAILABLE and _opik_track is not None:
+        return _opik_track(**kwargs)
+
+    def decorator(func: F) -> F:
+        @wraps(func)
+        def wrapper(*args: Any, **kw: Any) -> Any:
+            return func(*args, **kw)
+
+        return wrapper  # type: ignore[return-value]
+
+    return decorator
+
+
+def encode_image_to_base64(image_path: Path) -> str:
+    """Encode image file to base64 string."""
+    with open(image_path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
 
 
 class ActivityIdentifier:
@@ -70,6 +109,7 @@ class ActivityIdentifier:
                     images=encoded_images,
                     format=MultiScreenDescription.model_json_schema(),
                     options={"temperature": 0, "timeout": 30},
+                    think=True,
                 )
             else:
                 response = self.client.generate(
@@ -79,24 +119,25 @@ class ActivityIdentifier:
                     options={"temperature": 0, "timeout": 30},
                 )
 
-            opik_context.update_current_span(
-                metadata={
-                    "model": response["model"],
-                    "eval_duration": response["eval_duration"],
-                    "load_duration": response["load_duration"],
-                    "prompt_eval_duration": response["prompt_eval_duration"],
-                    "prompt_eval_count": response["prompt_eval_count"],
-                    "done": response["done"],
-                    "done_reason": response["done_reason"],
-                    "screen_count": len(screenshot_paths),
-                    "active_screen_detected": active_screen_hint,
-                },
-                usage={
-                    "completion_tokens": response["eval_count"],
-                    "prompt_tokens": response["prompt_eval_count"],
-                    "total_tokens": response["eval_count"] + response["prompt_eval_count"],
-                },
-            )
+            if OPIK_AVAILABLE and opik_context is not None:
+                opik_context.update_current_span(
+                    metadata={
+                        "model": response["model"],
+                        "eval_duration": response["eval_duration"],
+                        "load_duration": response["load_duration"],
+                        "prompt_eval_duration": response["prompt_eval_duration"],
+                        "prompt_eval_count": response["prompt_eval_count"],
+                        "done": response["done"],
+                        "done_reason": response["done_reason"],
+                        "screen_count": len(screenshot_paths),
+                        "active_screen_detected": active_screen_hint,
+                    },
+                    usage={
+                        "completion_tokens": response["eval_count"],
+                        "prompt_tokens": response["prompt_eval_count"],
+                        "total_tokens": response["eval_count"] + response["prompt_eval_count"],
+                    },
+                )
             logger.debug("Vision model response received")
 
             if is_multi_screen:
@@ -139,22 +180,23 @@ class ActivityIdentifier:
                 options={"temperature": 0, "timeout": 30},
                 think=True,
             )
-            opik_context.update_current_span(
-                metadata={
-                    "model": response["model"],
-                    "eval_duration": response["eval_duration"],
-                    "load_duration": response["load_duration"],
-                    "prompt_eval_duration": response["prompt_eval_duration"],
-                    "prompt_eval_count": response["prompt_eval_count"],
-                    "done": response["done"],
-                    "done_reason": response["done_reason"],
-                },
-                usage={
-                    "completion_tokens": response["eval_count"],
-                    "prompt_tokens": response["prompt_eval_count"],
-                    "total_tokens": response["eval_count"] + response["prompt_eval_count"],
-                },
-            )
+            if OPIK_AVAILABLE and opik_context is not None:
+                opik_context.update_current_span(
+                    metadata={
+                        "model": response["model"],
+                        "eval_duration": response["eval_duration"],
+                        "load_duration": response["load_duration"],
+                        "prompt_eval_duration": response["prompt_eval_duration"],
+                        "prompt_eval_count": response["prompt_eval_count"],
+                        "done": response["done"],
+                        "done_reason": response["done_reason"],
+                    },
+                    usage={
+                        "completion_tokens": response["eval_count"],
+                        "prompt_tokens": response["prompt_eval_count"],
+                        "total_tokens": response["eval_count"] + response["prompt_eval_count"],
+                    },
+                )
             activities_response = ActivitiesResponse.model_validate_json(response.response)
             if response.thinking:
                 logger.debug(f"Model thinking: {response.thinking}")
@@ -171,47 +213,39 @@ class ActivityIdentifier:
         with MultiScreenCapture(now) as screenshot_paths:
             logger.info(f"Captured {len(screenshot_paths)} screen(s)")
 
-            # Detect active screen using native macOS APIs
-            active_screen_hint: int | None = None
-            if len(screenshot_paths) > 1:
-                active_screen_hint = get_active_screen_number()
-                logger.info(f"Native detection: active screen is {active_screen_hint}")
+            # Try to get the active screen number from the native API
+            active_screen = get_active_screen_number()
+            if active_screen:
+                logger.debug(f"Active screen detected: {active_screen}")
 
-            start_time = time()
-            screen_description = self._describe_images(screenshot_paths, active_screen_hint)
-            end_time = time()
+            start_describe = time()
+            description = self._describe_images(screenshot_paths, active_screen_hint=active_screen)
+            elapsed_describe = time() - start_describe
+            logger.debug(f"Image description took {elapsed_describe:.2f}s")
 
-        if screen_description is None:
-            logger.error("Failed to get image description")
-            return None
+            if description is None:
+                logger.error("Failed to describe images")
+                return None
 
-        logger.info(f"Primary screen: {screen_description.primary_screen}")
-        logger.info(f"Main activity description: {screen_description.main_activity_description}")
-        if screen_description.secondary_context:
-            logger.info(f"Secondary context: {screen_description.secondary_context}")
-        logger.info(f"Time taken for image description: {end_time - start_time:.2f} seconds")
+            logger.info(f"Primary screen: {description.primary_screen}")
+            logger.debug(f"Activity description: {description.main_activity_description}")
+            if description.secondary_context:
+                logger.debug(f"Secondary context: {description.secondary_context}")
 
-        # Classify activity
-        start_time = time()
-        activities_response = self._describe_activities(
-            screen_description.main_activity_description, screen_description.secondary_context
-        )
-        end_time = time()
+            start_classify = time()
+            activities_response = self._describe_activities(
+                description.main_activity_description,
+                secondary_context=description.secondary_context,
+            )
+            elapsed_classify = time() - start_classify
+            logger.debug(f"Activity classification took {elapsed_classify:.2f}s")
 
-        if activities_response is None:
-            logger.error("Failed to classify activity")
-            return None
+            if activities_response is None:
+                logger.error("Failed to classify activity")
+                return None
 
-        logger.info(f"Time taken for activity classification: {end_time - start_time:.2f} seconds")
-        return ActivitiesResponseWithTimestamp(
-            main_activity=activities_response.main_activity,
-            reasoning=activities_response.reasoning,
-            secondary_context=screen_description.secondary_context,
-            timestamp=now,
-        )
-
-
-def encode_image_to_base64(image_path: Path) -> str:
-    """Encodes an image file to a base64 string."""
-    with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode("utf-8")
+            return ActivitiesResponseWithTimestamp(
+                main_activity=activities_response.main_activity,
+                reasoning=activities_response.reasoning,
+                timestamp=now,
+            )

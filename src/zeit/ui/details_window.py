@@ -95,8 +95,9 @@ class DetailsWindow(QWidget):
     def update_data(self, day_record: DayRecord, date_str: str) -> None:
         while self.activities_layout.count():
             item = self.activities_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
 
         total_count = len(day_record.activities)
         self.header_label.setText("Activity Summary")
