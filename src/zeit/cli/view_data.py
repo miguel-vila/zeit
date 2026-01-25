@@ -199,5 +199,31 @@ def cmd_delete_objectives(
             print(f"No objectives found for {date}")
 
 
+@app.command("set-objectives")
+def cmd_set_objectives(
+    main: str = typer.Option(..., "--main", help="Main objective for the day"),
+    opt1: str | None = typer.Option(None, "--opt1", help="First secondary objective"),
+    opt2: str | None = typer.Option(None, "--opt2", help="Second secondary objective"),
+    date: str | None = typer.Option(
+        None, "--date", help="Date in YYYY-MM-DD format (defaults to today)"
+    ),
+) -> None:
+    """Set objectives for a specific day."""
+    date_str = date if date else today_str()
+
+    secondary = [obj for obj in [opt1, opt2] if obj is not None]
+
+    with DatabaseManager() as db:
+        success = db.save_day_objectives(date_str, main, secondary)
+
+        if success:
+            print(f"Objectives set for {date_str}")
+            print(f"Main: {main}")
+            if secondary:
+                print(f"Secondary: {', '.join(secondary)}")
+        else:
+            print(f"Failed to set objectives for {date_str}")
+
+
 if __name__ == "__main__":
     app()
