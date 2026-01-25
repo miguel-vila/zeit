@@ -20,6 +20,14 @@ DATA_FILES = [
     ("zeit/core", ["src/zeit/core/conf.yml"]),
 ]
 
+# Bundle CLI binary if it exists (built by PyInstaller before py2app)
+cli_binary = Path(__file__).parent / "dist" / "zeit"
+if cli_binary.exists():
+    DATA_FILES.append(("bin", [str(cli_binary)]))
+    print(f"Bundling CLI binary: {cli_binary}")
+else:
+    print(f"Warning: CLI binary not found at {cli_binary}, will not be bundled")
+
 OPTIONS = {
     "compressed": False,  # zlib doesn't work
     "argv_emulation": False,  # Not needed for menubar apps

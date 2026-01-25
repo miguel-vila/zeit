@@ -297,11 +297,34 @@ class ZeitMenuBar:
         self.app.quit()
 
 
+def _check_first_run_setup(app: QApplication) -> None:
+    """Check if first-run setup is needed and show dialog if so."""
+    from zeit.core.installer import is_setup_complete
+    from zeit.ui.setup_dialog import SetupDialog
+
+    if is_setup_complete():
+        logger.debug("Setup already complete, skipping first-run dialog")
+        return
+
+    logger.info("First run detected, showing setup dialog")
+
+    dialog = SetupDialog()
+    result = dialog.exec()
+
+    if result == SetupDialog.DialogCode.Accepted:
+        logger.info("Setup dialog completed with Install")
+    else:
+        logger.info("Setup dialog was skipped")
+
+
 def main() -> None:
     """Main entry point."""
     try:
         app = QApplication(sys.argv)
         app.setQuitOnLastWindowClosed(False)  # Keep running even with no windows
+
+        # Check for first-run setup
+        _check_first_run_setup(app)
 
         menubar = ZeitMenuBar(app)
 

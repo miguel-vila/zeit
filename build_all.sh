@@ -61,6 +61,25 @@ if [ "$SKIP_CHECKS" = false ]; then
     echo "All checks passed!"
 fi
 
+# Build CLI with PyInstaller (FIRST, so it can be bundled in app)
+if [ "$SKIP_CLI" = false ]; then
+    echo ""
+    echo "Building CLI (PyInstaller)..."
+    echo "----------------------------------------"
+
+    # Clean previous build
+    rm -rf build/zeit_cli dist/zeit
+
+    # Run PyInstaller
+    uv run pyinstaller zeit_cli.spec --noconfirm
+
+    # Code sign
+    echo "Code signing CLI..."
+    codesign --force --sign - dist/zeit
+
+    echo "CLI built: dist/zeit"
+fi
+
 # Build menubar app with py2app
 if [ "$SKIP_APP" = false ]; then
     echo ""
@@ -70,6 +89,12 @@ if [ "$SKIP_APP" = false ]; then
         echo "Building menubar app (py2app - distribution mode)..."
     fi
     echo "----------------------------------------"
+
+    # Verify CLI binary exists (needed for bundling)
+    if [ ! -f dist/zeit ]; then
+        echo "Warning: CLI binary not found at dist/zeit. It will not be bundled in the app."
+        echo "Run without --skip-cli to bundle the CLI."
+    fi
 
     # Temporarily hide pyproject.toml (py2app conflicts with it)
     cleanup_pyproject() {
@@ -101,25 +126,6 @@ if [ "$SKIP_APP" = false ]; then
     trap - EXIT
 
     echo "Menubar app built: dist/Zeit.app"
-fi
-
-# Build CLI with PyInstaller
-if [ "$SKIP_CLI" = false ]; then
-    echo ""
-    echo "Building CLI (PyInstaller)..."
-    echo "----------------------------------------"
-
-    # Clean previous build
-    rm -rf build/zeit_cli dist/zeit
-
-    # Run PyInstaller
-    uv run pyinstaller zeit_cli.spec --noconfirm
-
-    # Code sign
-    echo "Code signing CLI..."
-    codesign --force --sign - dist/zeit
-
-    echo "CLI built: dist/zeit"
 fi
 
 # Create DMG if requested
