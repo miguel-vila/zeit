@@ -13,6 +13,10 @@ logger = logging.getLogger(__name__)
 # Central data directory for all Zeit files
 DATA_DIR = Path.home() / ".local" / "share" / "zeit"
 
+# macOS system directories (not user-configurable)
+LOG_DIR = Path.home() / "Library" / "Logs" / "zeit"
+LAUNCH_AGENTS_DIR = Path.home() / "Library" / "LaunchAgents"
+
 
 class WorkHoursConfig(BaseModel):
     """Work hours configuration with validation."""

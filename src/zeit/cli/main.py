@@ -252,23 +252,18 @@ def doctor() -> None:
         checks.append((f"Model: {model}", model_present, hint))
 
     # Check 4: Database directory and file
-    from pathlib import Path as PathLib
-
-    home = PathLib.home()
-    data_dir = home / ".local" / "share" / "zeit"
-    db_file = PathLib("data") / "zeit.db"  # Default location used by DatabaseManager
-
-    checks.append(("Data directory", data_dir.exists(), str(data_dir)))
-    checks.append(("Database file", db_file.exists(), str(db_file)))
+    paths = config.paths
+    checks.append(("Data directory", paths.data_dir.exists(), str(paths.data_dir)))
+    checks.append(("Database file", paths.db_path.exists(), str(paths.db_path)))
 
     # Check 5: Log directory
-    log_dir = home / "Library" / "Logs" / "zeit"
-    checks.append(("Log directory", log_dir.exists(), str(log_dir)))
+    from zeit.core.config import LAUNCH_AGENTS_DIR, LOG_DIR
+
+    checks.append(("Log directory", LOG_DIR.exists(), str(LOG_DIR)))
 
     # Check 6: LaunchAgents
-    launch_agents_dir = home / "Library" / "LaunchAgents"
-    tracker_plist = launch_agents_dir / "co.invariante.zeit.plist"
-    menubar_plist = launch_agents_dir / "co.invariante.zeit.menubar.plist"
+    tracker_plist = LAUNCH_AGENTS_DIR / "co.invariante.zeit.plist"
+    menubar_plist = LAUNCH_AGENTS_DIR / "co.invariante.zeit.menubar.plist"
 
     checks.append(("Tracker LaunchAgent", tracker_plist.exists(), str(tracker_plist)))
     checks.append(("Menubar LaunchAgent", menubar_plist.exists(), str(menubar_plist)))
