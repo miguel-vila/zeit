@@ -150,7 +150,8 @@ python scripts/install.py status
 | Add menubar features | `src/zeit/ui/menubar.py` |
 | Add dialog | `src/zeit/ui/` (see objectives_dialog.py) |
 | Change database schema | `src/zeit/data/db.py` → _create_tables() |
-| Modify work hours | `src/zeit/core/conf.yml` |
+| Modify work hours | `~/.local/share/zeit/conf.yml` (or edit bundled default) |
+| Change data paths | `src/zeit/core/config.py` → DATA_DIR, PathsConfig |
 | Modify build process | `build_all.sh`, `zeit_cli.spec` |
 | Installation logic | `scripts/install.py`, `src/zeit/cli/service.py` |
 
@@ -162,11 +163,22 @@ python scripts/install.py status
 
 **System**: idle (auto-detected via IOKit)
 
+## Data Directory
+
+All runtime data is stored in `~/.local/share/zeit/`:
+
+| File | Purpose |
+|------|---------|
+| `conf.yml` | User config (copied from bundled default on first run) |
+| `zeit.db` | SQLite database with activities and objectives |
+| `.zeit_stop` | Flag file to pause tracking |
+
 ## Configuration
 
 | File | Purpose |
 |------|---------|
-| `src/zeit/core/conf.yml` | Work hours, model names |
+| `~/.local/share/zeit/conf.yml` | User config: work hours, model names, paths |
+| `src/zeit/core/conf.yml` | Bundled default config (copied to user dir on first run) |
 | `.env` | Runtime env vars |
 | `pyproject.toml` | Dependencies, CLI entry point, tool configs |
 | `zeit_cli.spec` | PyInstaller build config |

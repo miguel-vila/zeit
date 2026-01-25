@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """Database management CLI commands for Zeit."""
 
-from pathlib import Path
-
 import typer
 from rich import print as rprint
 from rich.prompt import Confirm
 
+from zeit.core.config import DATA_DIR
 from zeit.core.utils import today_str
 from zeit.data.db import DatabaseManager
 
@@ -125,17 +124,17 @@ def delete_objectives(
 @app.command("info")
 def database_info() -> None:
     """Display database location and statistics."""
-    db_path = Path("data/zeit.db")
+    db_path = DATA_DIR / "zeit.db"
 
     if not db_path.exists():
-        rprint("[red]Database file not found at data/zeit.db[/red]")
+        rprint(f"[red]Database file not found at {db_path}[/red]")
         raise typer.Exit(code=1)
 
     file_size = db_path.stat().st_size
     file_size_kb = file_size / 1024
 
     rprint("\n[bold]Database Information[/bold]")
-    rprint(f"Location: {db_path.absolute()}")
+    rprint(f"Location: {db_path}")
     rprint(f"Size: {file_size_kb:.2f} KB ({file_size} bytes)")
 
     with DatabaseManager() as db:

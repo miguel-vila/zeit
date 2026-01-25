@@ -10,6 +10,9 @@ from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger(__name__)
 
+# Central data directory for all Zeit files
+DATA_DIR = Path.home() / ".local" / "share" / "zeit"
+
 
 class WorkHoursConfig(BaseModel):
     """Work hours configuration with validation."""
@@ -92,11 +95,11 @@ class ModelsConfig(BaseModel):
 class PathsConfig(BaseModel):
     """Configuration for application paths."""
 
-    stop_flag: Path = Field(
-        default=Path.home() / ".zeit_stop", description="Path to stop flag file"
-    )
+    data_dir: Path = Field(default=DATA_DIR, description="Base data directory")
+    stop_flag: Path = Field(default=DATA_DIR / ".zeit_stop", description="Path to stop flag file")
+    db_path: Path = Field(default=DATA_DIR / "zeit.db", description="Path to SQLite database")
 
-    @field_validator("stop_flag", mode="before")
+    @field_validator("data_dir", "stop_flag", "db_path", mode="before")
     @classmethod
     def expand_path(cls, v: Any) -> Path:
         """Expand ~ to user home directory."""
@@ -113,12 +116,51 @@ class ZeitConfig(BaseModel):
     paths: PathsConfig = Field(default_factory=PathsConfig)
 
 
+def _get_bundled_config_path() -> Path:
+    """Get path to the bundled default config file."""
+    return Path(__file__).parent / "conf.yml"
+
+
+def _get_user_config_path() -> Path:
+    """Get path to the user's config file in DATA_DIR."""
+    return DATA_DIR / "conf.yml"
+
+
+def _ensure_user_config() -> Path:
+    """
+    Ensure user config exists, copying from bundled default if needed.
+
+    Returns:
+        Path to the user config file
+    """
+    user_config = _get_user_config_path()
+    bundled_config = _get_bundled_config_path()
+
+    # Ensure data directory exists
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    if not user_config.exists():
+        if bundled_config.exists():
+            # Copy bundled config to user location
+            import shutil
+
+            shutil.copy(bundled_config, user_config)
+            logger.info(f"Copied default config to {user_config}")
+        else:
+            raise FileNotFoundError(
+                f"No config found at {user_config} and no bundled default at {bundled_config}"
+            )
+
+    return user_config
+
+
 def load_config(config_path: Path | None = None) -> ZeitConfig:
     """
     Load configuration from conf.yml.
 
     Args:
-        config_path: Path to config file, defaults to ./conf.yml
+        config_path: Path to config file. If None, uses user config at
+                     ~/.local/share/zeit/conf.yml (copying bundled default if needed)
 
     Returns:
         Validated ZeitConfig object
@@ -128,7 +170,7 @@ def load_config(config_path: Path | None = None) -> ZeitConfig:
         ValueError: If config is invalid
     """
     if config_path is None:
-        config_path = Path(__file__).parent / "conf.yml"
+        config_path = _ensure_user_config()
 
     if not config_path.exists():
         raise FileNotFoundError(f"Configuration file not found: {config_path}")

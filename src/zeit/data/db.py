@@ -9,6 +9,7 @@ from typing import Self
 from pydantic import BaseModel, Field
 
 from zeit.core.activity_types import ExtendedActivity
+from zeit.core.config import DATA_DIR
 from zeit.core.models import ActivitiesResponseWithTimestamp
 
 logger = logging.getLogger(__name__)
@@ -98,12 +99,12 @@ class DatabaseManager:
         Initialize the database manager.
 
         Args:
-            db_path: Path to the SQLite database file. If None, uses default location.
+            db_path: Path to the SQLite database file. If None, uses default location
+                     at ~/.local/share/zeit/zeit.db
         """
         if db_path is None:
-            db_dir = Path("data")
-            db_dir.mkdir(parents=True, exist_ok=True)
-            db_path = db_dir / "zeit.db"
+            DATA_DIR.mkdir(parents=True, exist_ok=True)
+            db_path = DATA_DIR / "zeit.db"
 
         self.db_path = db_path
         # self.conn: Optional[sqlite3.Connection] = None

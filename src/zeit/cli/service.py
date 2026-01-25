@@ -10,7 +10,7 @@ from typing import Annotated
 import typer
 from rich import print as rprint
 
-from zeit.core.config import get_config
+from zeit.core.config import DATA_DIR, get_config
 
 app = typer.Typer(
     name="service",
@@ -23,7 +23,6 @@ TRACKER_LABEL = "co.invariante.zeit"
 MENUBAR_LABEL = "co.invariante.zeit.menubar"
 LAUNCH_AGENTS_DIR = Path.home() / "Library" / "LaunchAgents"
 LOG_DIR = Path.home() / "Library" / "Logs" / "zeit"
-DATA_DIR = Path.home() / ".local" / "share" / "zeit"
 
 
 def _get_domain() -> str:

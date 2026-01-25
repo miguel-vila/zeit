@@ -7,4 +7,6 @@ models:
   text: 'qwen3:8b'
 
 paths:
-  stop_flag: '~/.zeit_stop'
+  data_dir: '~/.local/share/zeit'
+  stop_flag: '~/.local/share/zeit/.zeit_stop'
+  db_path: '~/.local/share/zeit/zeit.db'
