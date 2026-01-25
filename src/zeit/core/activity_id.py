@@ -28,30 +28,55 @@ from zeit.core.screen import MultiScreenCapture
 logger = logging.getLogger(__name__)
 
 # Make opik optional - it has heavy dependencies that complicate packaging
+# Lazy-loaded to avoid ~1.3s import time on CLI startup
 F = TypeVar("F", bound=Callable[..., Any])
-OPIK_AVAILABLE = False
-opik_context: Any = None
+_opik_loaded = False
+_opik_available = False
+_opik_context: Any = None
 _opik_track: Any = None
 
-try:
-    from opik import opik_context as _ctx
-    from opik import track as _trk
 
-    OPIK_AVAILABLE = True
-    opik_context = _ctx
-    _opik_track = _trk
-except ImportError:
-    pass
+def _load_opik() -> bool:
+    """Lazy-load opik on first use. Returns True if available."""
+    global _opik_loaded, _opik_available, _opik_context, _opik_track
+    if _opik_loaded:
+        return _opik_available
+    _opik_loaded = True
+    try:
+        from opik import opik_context as ctx
+        from opik import track as trk
+
+        _opik_available = True
+        _opik_context = ctx
+        _opik_track = trk
+    except ImportError:
+        _opik_available = False
+    return _opik_available
+
+
+def get_opik_context() -> Any:
+    """Get opik_context, lazy-loading opik if needed."""
+    if _load_opik():
+        return _opik_context
+    return None
 
 
 def track(**kwargs: Any) -> Callable[[F], F]:
-    """Wrapper for opik.track that becomes a no-op when opik is unavailable."""
-    if OPIK_AVAILABLE and _opik_track is not None:
-        return _opik_track(**kwargs)
+    """Wrapper for opik.track that becomes a no-op when opik is unavailable.
+
+    The opik import is deferred until the decorated function is actually called,
+    not when the decorator is applied (class definition time).
+    """
 
     def decorator(func: F) -> F:
         @wraps(func)
         def wrapper(*args: Any, **kw: Any) -> Any:
+            # Lazy load opik on first actual call, not at decoration time
+            if _load_opik() and _opik_track is not None:
+                # Replace this wrapper with the real opik-tracked function
+                tracked_func = _opik_track(**kwargs)(func)
+                # Cache it on the instance to avoid re-wrapping
+                return tracked_func(*args, **kw)
             return func(*args, **kw)
 
         return wrapper  # type: ignore[return-value]
@@ -119,8 +144,9 @@ class ActivityIdentifier:
                     options={"temperature": 0, "timeout": 30},
                 )
 
-            if OPIK_AVAILABLE and opik_context is not None:
-                opik_context.update_current_span(
+            opik_ctx = get_opik_context()
+            if opik_ctx is not None:
+                opik_ctx.update_current_span(
                     metadata={
                         "model": response["model"],
                         "eval_duration": response["eval_duration"],
@@ -180,8 +206,9 @@ class ActivityIdentifier:
                 options={"temperature": 0, "timeout": 30},
                 think=True,
             )
-            if OPIK_AVAILABLE and opik_context is not None:
-                opik_context.update_current_span(
+            opik_ctx = get_opik_context()
+            if opik_ctx is not None:
+                opik_ctx.update_current_span(
                     metadata={
                         "model": response["model"],
                         "eval_duration": response["eval_duration"],

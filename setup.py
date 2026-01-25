@@ -20,13 +20,29 @@ DATA_FILES = [
     ("zeit/core", ["src/zeit/core/conf.yml"]),
 ]
 
-# Bundle CLI binary if it exists (built by PyInstaller before py2app)
-cli_binary = Path(__file__).parent / "dist" / "zeit"
-if cli_binary.exists():
-    DATA_FILES.append(("bin", [str(cli_binary)]))
-    print(f"Bundling CLI binary: {cli_binary}")
+# Bundle CLI if it exists (built by PyInstaller before py2app)
+# Supports both onefile mode (single binary) and onedir mode (directory)
+cli_path = Path(__file__).parent / "dist" / "zeit"
+if cli_path.exists():
+    if cli_path.is_dir():
+        # onedir mode: bundle the entire directory structure
+        # Add the main executable
+        DATA_FILES.append(("bin/zeit", [str(cli_path / "zeit")]))
+        # Add _internal directory contents
+        internal_dir = cli_path / "_internal"
+        if internal_dir.exists():
+            for item in internal_dir.rglob("*"):
+                if item.is_file():
+                    rel_path = item.relative_to(cli_path)
+                    dest_dir = f"bin/zeit/{rel_path.parent}"
+                    DATA_FILES.append((dest_dir, [str(item)]))
+        print(f"Bundling CLI directory (onedir mode): {cli_path}")
+    else:
+        # onefile mode: single binary
+        DATA_FILES.append(("bin", [str(cli_path)]))
+        print(f"Bundling CLI binary (onefile mode): {cli_path}")
 else:
-    print(f"Warning: CLI binary not found at {cli_binary}, will not be bundled")
+    print(f"Warning: CLI not found at {cli_path}, will not be bundled")
 
 OPTIONS = {
     "compressed": False,  # zlib doesn't work

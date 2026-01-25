@@ -32,8 +32,7 @@ def main() -> None:
         choices=["install", "uninstall", "status"],
         help="Action to perform",
     )
-    parser.add_argument("--cli", type=Path, help="Path to zeit CLI binary")
-    parser.add_argument("--app", type=Path, help="Path to Zeit.app")
+    parser.add_argument("--app", type=Path, help="Path to Zeit.app (required for install)")
     parser.add_argument(
         "--to-applications",
         action="store_true",
@@ -50,21 +49,24 @@ def main() -> None:
     installer = ZeitInstaller()
 
     if args.action == "install":
-        if args.cli:
-            cli_path = installer.install_cli(args.cli)
-            print(f"Installed CLI to: {cli_path}")
-            installer.install_tracker_service(cli_path)
-            print(f"Installed tracker service: {installer.TRACKER_LABEL}")
-
-        if args.app:
-            app_path = installer.install_app(args.app, args.to_applications)
-            print(f"Using app at: {app_path}")
-            installer.install_menubar_service(app_path, kickstart=True)
-            print(f"Installed menubar service: {installer.MENUBAR_LABEL}")
-
-        if not args.cli and not args.app:
-            print("Error: Specify --cli and/or --app to install")
+        if not args.app:
+            print("Error: --app is required (CLI is bundled inside the app)")
             sys.exit(1)
+
+        # Install app (optionally to /Applications)
+        app_path = installer.install_app(args.app, args.to_applications)
+        print(f"Installed app to: {app_path}")
+
+        # Create symlink to CLI inside the app
+        cli_symlink = installer.install_cli_symlink(app_path)
+        print(f"Created CLI symlink: {cli_symlink}")
+
+        # Install services
+        installer.install_tracker_service(cli_symlink)
+        print(f"Installed tracker service: {installer.TRACKER_LABEL}")
+
+        installer.install_menubar_service(app_path, kickstart=True)
+        print(f"Installed menubar service: {installer.MENUBAR_LABEL}")
 
         print("\nInstallation complete!")
         print(f"Add {installer.INSTALL_DIR} to your PATH if not already.")

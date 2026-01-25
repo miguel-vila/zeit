@@ -69,10 +69,13 @@ class ZeitInstaller:
 
     def get_bundled_cli_path(self) -> Path | None:
         """
-        Find the CLI binary bundled within the app.
+        Find the CLI bundled within the app.
+
+        Supports both onefile mode (single binary) and onedir mode (directory).
 
         Returns:
-            Path to bundled CLI, or None if not found or not running from app bundle.
+            Path to bundled CLI (directory for onedir, file for onefile),
+            or None if not found or not running from app bundle.
         """
         # When running from a .app bundle, sys.executable is inside the bundle
         # e.g., /Applications/Zeit.app/Contents/MacOS/Zeit
@@ -89,6 +92,7 @@ class ZeitInstaller:
         bundled_cli = contents_dir / "Resources" / "bin" / "zeit"
 
         if bundled_cli.exists():
+            # Could be a file (onefile) or directory (onedir)
             logger.debug(f"Found bundled CLI: {bundled_cli}")
             return bundled_cli
 
@@ -228,30 +232,41 @@ class ZeitInstaller:
         )
         return result.returncode == 0
 
-    def install_cli(self, source: Path) -> Path:
+    def install_cli_symlink(self, app_path: Path) -> Path:
         """
-        Install CLI binary to user bin directory.
+        Create a symlink to the CLI bundled inside the app.
 
         Args:
-            source: Path to the CLI binary to install
+            app_path: Path to the Zeit.app bundle (must be in /Applications/)
 
         Returns:
-            Path to the installed CLI binary
+            Path to the symlink
 
         Raises:
-            FileNotFoundError: If source binary doesn't exist
+            FileNotFoundError: If CLI not found in app bundle
         """
         self._ensure_directories()
 
-        if not source.exists():
-            raise FileNotFoundError(f"CLI binary not found: {source}")
+        # Find CLI executable inside app bundle
+        # Supports both onedir (bin/zeit/zeit) and onefile (bin/zeit) modes
+        cli_dir = app_path / "Contents" / "Resources" / "bin" / "zeit"
+        cli_executable = cli_dir / "zeit" if cli_dir.is_dir() else cli_dir
 
-        dest_path = self.INSTALL_DIR / "zeit"
-        shutil.copy2(source, dest_path)
-        dest_path.chmod(0o755)
+        if not cli_executable.exists():
+            raise FileNotFoundError(f"CLI not found in app bundle: {cli_executable}")
 
-        logger.info(f"Installed CLI to: {dest_path}")
-        return dest_path
+        symlink_path = self.INSTALL_DIR / "zeit"
+
+        # Remove existing symlink or file
+        if symlink_path.is_symlink() or symlink_path.exists():
+            if symlink_path.is_dir() and not symlink_path.is_symlink():
+                shutil.rmtree(symlink_path)
+            else:
+                symlink_path.unlink()
+
+        symlink_path.symlink_to(cli_executable)
+        logger.info(f"Created symlink: {symlink_path} -> {cli_executable}")
+        return symlink_path
 
     def install_app(self, app_path: Path, to_applications: bool = False) -> Path:
         """
@@ -324,10 +339,16 @@ class ZeitInstaller:
                 logger.info(f"Removed service: {label}")
 
     def uninstall_cli(self) -> None:
-        """Remove CLI binary."""
+        """Remove CLI symlink (or legacy file/directory)."""
         cli_path = self.INSTALL_DIR / "zeit"
-        if cli_path.exists():
+        if cli_path.is_symlink():
             cli_path.unlink()
+            logger.info(f"Removed CLI symlink: {cli_path}")
+        elif cli_path.exists():
+            if cli_path.is_dir():
+                shutil.rmtree(cli_path)
+            else:
+                cli_path.unlink()
             logger.info(f"Removed CLI: {cli_path}")
 
     def uninstall_all(self, remove_data: bool = False) -> None:
@@ -362,16 +383,16 @@ class ZeitInstaller:
         steps_completed: list[SetupStep] = []
 
         try:
-            # Step 1: Find and install CLI
-            bundled_cli = self.get_bundled_cli_path()
-            if bundled_cli is None:
+            # Step 1: Create symlink to bundled CLI
+            app_path = self.get_app_bundle_path()
+            if app_path is None:
                 return SetupResult(
                     success=False,
                     message="Setup failed",
-                    error="Could not find bundled CLI binary. App may be corrupted.",
+                    error="Could not find app bundle. Run from Zeit.app.",
                 )
 
-            cli_path = self.install_cli(bundled_cli)
+            cli_path = self.install_cli_symlink(app_path)
             steps_completed.append(SetupStep.CLI_INSTALL)
 
             # Step 2: Install tracker service
@@ -415,10 +436,25 @@ class ZeitInstaller:
             }
 
         cli_path = self.INSTALL_DIR / "zeit"
-        status["cli"] = {
-            "installed": cli_path.exists(),
-            "path": str(cli_path) if cli_path.exists() else None,
-        }
+        if cli_path.is_symlink():
+            target = cli_path.resolve() if cli_path.exists() else None
+            status["cli"] = {
+                "installed": target is not None and target.exists(),
+                "path": str(cli_path),
+                "target": str(target) if target else "broken symlink",
+            }
+        elif cli_path.is_dir():
+            # Legacy onedir installation
+            executable = cli_path / "zeit"
+            status["cli"] = {
+                "installed": executable.exists(),
+                "path": str(executable) if executable.exists() else None,
+            }
+        else:
+            status["cli"] = {
+                "installed": cli_path.exists(),
+                "path": str(cli_path) if cli_path.exists() else None,
+            }
 
         status["setup"] = {
             "complete": self.is_setup_complete(),

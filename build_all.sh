@@ -73,11 +73,15 @@ if [ "$SKIP_CLI" = false ]; then
     # Run PyInstaller
     uv run pyinstaller zeit_cli.spec --noconfirm
 
-    # Code sign
-    echo "Code signing CLI..."
-    codesign --force --sign - dist/zeit
+    # Clear quarantine attributes to avoid macOS security scanning delays
+    echo "Clearing quarantine attributes..."
+    xattr -cr dist/zeit/
 
-    echo "CLI built: dist/zeit"
+    # Code sign the executable
+    echo "Code signing CLI..."
+    codesign --force --sign - dist/zeit/zeit
+
+    echo "CLI built: dist/zeit/zeit"
 fi
 
 # Build menubar app with py2app
@@ -91,8 +95,8 @@ if [ "$SKIP_APP" = false ]; then
     echo "----------------------------------------"
 
     # Verify CLI binary exists (needed for bundling)
-    if [ ! -f dist/zeit ]; then
-        echo "Warning: CLI binary not found at dist/zeit. It will not be bundled in the app."
+    if [ ! -f dist/zeit/zeit ]; then
+        echo "Warning: CLI binary not found at dist/zeit/zeit. It will not be bundled in the app."
         echo "Run without --skip-cli to bundle the CLI."
     fi
 
@@ -146,7 +150,7 @@ echo "================================================"
 echo ""
 echo "Outputs:"
 [ "$SKIP_APP" = false ] && echo "  - Menubar app: dist/Zeit.app"
-[ "$SKIP_CLI" = false ] && echo "  - CLI binary:  dist/zeit"
+[ "$SKIP_CLI" = false ] && echo "  - CLI binary:  dist/zeit/zeit"
 [ "$CREATE_DMG" = true ] && [ "$SKIP_APP" = false ] && echo "  - DMG installer: dist/Zeit-*.dmg"
 echo ""
 
@@ -154,13 +158,11 @@ echo ""
 if [ "$INSTALL" = true ]; then
     echo "Installing..."
 
-    INSTALL_ARGS=""
-    [ "$SKIP_CLI" = false ] && INSTALL_ARGS="$INSTALL_ARGS --cli dist/zeit"
-    [ "$SKIP_APP" = false ] && INSTALL_ARGS="$INSTALL_ARGS --app dist/Zeit.app"
-
-    if [ -n "$INSTALL_ARGS" ]; then
-        uv run python scripts/install.py install $INSTALL_ARGS
-    else
-        echo "Nothing to install (both --skip-cli and --skip-app specified)"
+    if [ "$SKIP_APP" = true ]; then
+        echo "Error: Cannot install without app (CLI is bundled inside)"
+        exit 1
     fi
+
+    # Install app to /Applications and create CLI symlink
+    uv run python scripts/install.py install --app dist/Zeit.app --to-applications
 fi
