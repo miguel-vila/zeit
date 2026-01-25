@@ -44,7 +44,6 @@ OPTIONS = {
         "dotenv",
         "httpx",  # Required by ollama
         "shiboken6",  # Required by PySide6
-        "tiktoken",  # Token counting library
     ],
     "includes": [
         "zeit.core",
@@ -52,13 +51,13 @@ OPTIONS = {
         "zeit.ui",
         "zeit.processing",
         "zeit.data",
-        "tiktoken_ext.openai_public",  # Explicitly include tiktoken encodings
     ],
     "excludes": [
         "tkinter",
         "matplotlib",
         "scipy",
         "numpy",  # Add back if needed
+        "tiktoken",  # Not directly used, causes signing issues
         # Exclude Qt developer tools (not needed for system tray)
         "PySide6.QtDesigner",
         "PySide6.QtHelp",
@@ -66,6 +65,11 @@ OPTIONS = {
         "PySide6.QtQuick",
         "PySide6.QtQuickWidgets",
         "PySide6.QtUiTools",
+        "PySide6.QtQuickLayouts",
+        "PySide6.QtOpenGL",
+        "PySide6.QtOpenGLWidgets",
+        "PySide6.QtPrintSupport",
+        "PySide6.scripts",  # Exclude development scripts like Linguist
     ],
     "qt_plugins": [
         "platforms",  # Need platform plugins for GUI
