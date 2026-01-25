@@ -12,6 +12,8 @@ SKIP_CHECKS=false
 INSTALL=false
 LOCAL_APP=false
 CREATE_DMG=false
+SIGN=false
+NOTARIZE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -21,6 +23,8 @@ while [[ $# -gt 0 ]]; do
         --install) INSTALL=true; shift ;;
         --local) LOCAL_APP=true; shift ;;
         --dmg) CREATE_DMG=true; shift ;;
+        --sign) SIGN=true; shift ;;
+        --notarize) NOTARIZE=true; SIGN=true; shift ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
@@ -29,14 +33,49 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-app      Skip building menubar app"
             echo "  --skip-checks   Skip code quality checks"
             echo "  --install       Install after building"
-            echo "  --local         Build menubar app in alias mode (for development)"
+            echo "  --local         Build in development mode (fast, local only)"
             echo "  --dmg           Create DMG installer after building app"
+            echo "  --sign          Sign with Developer ID (requires DEVELOPER_ID env var)"
+            echo "  --notarize      Notarize with Apple (requires --sign, NOTARIZE_PROFILE env var)"
             echo "  -h, --help      Show this help message"
+            echo ""
+            echo "Environment variables for signing:"
+            echo "  DEVELOPER_ID       Developer ID certificate name"
+            echo "  NOTARIZE_PROFILE   Keychain profile for notarytool credentials"
+            echo ""
+            echo "Examples:"
+            echo "  $0 --local --install          # Fast dev build"
+            echo "  $0 --install                  # Distribution build"
+            echo "  $0 --sign --notarize --dmg    # Signed release"
             exit 0
             ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
+
+# Load signing environment if available
+if [ -f .env.signing ]; then
+    source .env.signing
+fi
+
+# Validate signing requirements
+if [ "$SIGN" = true ]; then
+    if [ -z "$DEVELOPER_ID" ]; then
+        echo "Error: --sign requires DEVELOPER_ID environment variable"
+        echo "Example: export DEVELOPER_ID=\"Developer ID Application: Your Name (TEAM_ID)\""
+        exit 1
+    fi
+    echo "Signing with: $DEVELOPER_ID"
+fi
+
+if [ "$NOTARIZE" = true ]; then
+    if [ -z "$NOTARIZE_PROFILE" ]; then
+        echo "Error: --notarize requires NOTARIZE_PROFILE environment variable"
+        echo "Create profile: xcrun notarytool store-credentials \"zeit-notarize\" ..."
+        exit 1
+    fi
+    echo "Notarization profile: $NOTARIZE_PROFILE"
+fi
 
 # Ensure dependencies
 echo ""
@@ -78,8 +117,15 @@ if [ "$SKIP_CLI" = false ]; then
     xattr -cr dist/zeit/
 
     # Code sign the executable
-    echo "Code signing CLI..."
-    codesign --force --sign - dist/zeit/zeit
+    if [ "$SIGN" = true ]; then
+        echo "Code signing CLI with Developer ID..."
+        codesign --force --options runtime --sign "$DEVELOPER_ID" \
+            --entitlements entitlements.plist \
+            dist/zeit/zeit
+    else
+        echo "Code signing CLI (ad-hoc)..."
+        codesign --force --sign - dist/zeit/zeit
+    fi
 
     echo "CLI built: dist/zeit/zeit"
 fi
@@ -123,6 +169,22 @@ if [ "$SKIP_APP" = false ]; then
         codesign --force --deep --sign - dist/Zeit.app
     else
         uv run python setup.py py2app
+
+        # Clear quarantine attributes
+        echo "Clearing quarantine attributes..."
+        xattr -cr dist/Zeit.app
+
+        # Code sign the app
+        if [ "$SIGN" = true ]; then
+            echo "Code signing app with Developer ID..."
+            codesign --force --deep --options runtime \
+                --sign "$DEVELOPER_ID" \
+                --entitlements entitlements.plist \
+                dist/Zeit.app
+        else
+            echo "Code signing app (ad-hoc)..."
+            codesign --force --deep --sign - dist/Zeit.app
+        fi
     fi
 
     # Restore pyproject.toml
@@ -130,6 +192,36 @@ if [ "$SKIP_APP" = false ]; then
     trap - EXIT
 
     echo "Menubar app built: dist/Zeit.app"
+fi
+
+# Notarize if requested
+if [ "$NOTARIZE" = true ] && [ "$SKIP_APP" = false ]; then
+    echo ""
+    echo "Notarizing app..."
+    echo "----------------------------------------"
+
+    # Create zip for notarization
+    echo "Creating zip for notarization..."
+    ditto -c -k --keepParent dist/Zeit.app dist/Zeit.zip
+
+    # Submit for notarization
+    echo "Submitting to Apple (this may take a few minutes)..."
+    xcrun notarytool submit dist/Zeit.zip \
+        --keychain-profile "$NOTARIZE_PROFILE" \
+        --wait
+
+    # Staple the ticket
+    echo "Stapling notarization ticket..."
+    xcrun stapler staple dist/Zeit.app
+
+    # Clean up zip
+    rm dist/Zeit.zip
+
+    # Verify
+    echo "Verifying notarization..."
+    spctl -a -v dist/Zeit.app
+
+    echo "Notarization complete!"
 fi
 
 # Create DMG if requested

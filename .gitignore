@@ -18,3 +18,4 @@ data/
 *.log
 *.db
 .env
+.env.signing
