@@ -10,9 +10,8 @@ from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 from zeit.core.config import get_config, is_within_work_hours
 from zeit.core.installer import (
-    is_menubar_plist_installed,
+    ensure_menubar_service_loaded,
     is_menubar_service_loaded,
-    load_menubar_service,
     unload_menubar_service,
 )
 from zeit.core.logging_config import setup_logging
@@ -116,15 +115,8 @@ class ZeitMenuBar:
         # Launch at Login toggle
         launch_at_login_action = QAction("Launch at Login", self.menu)
         launch_at_login_action.setCheckable(True)
-
-        if is_menubar_plist_installed():
-            launch_at_login_action.setChecked(is_menubar_service_loaded())
-            launch_at_login_action.triggered.connect(self.toggle_launch_at_login)
-        else:
-            # Plist not installed - disable the option
-            launch_at_login_action.setEnabled(False)
-            launch_at_login_action.setToolTip("Install via 'zeit service install' first")
-
+        launch_at_login_action.setChecked(is_menubar_service_loaded())
+        launch_at_login_action.triggered.connect(self.toggle_launch_at_login)
         self.menu.addAction(launch_at_login_action)
 
         self.menu.addSeparator()
@@ -151,13 +143,17 @@ class ZeitMenuBar:
                 self._stop_flag_path.touch()
                 logger.info("Tracking stopped via menu bar toggle")
                 show_macos_notification(
-                    title="Zeit Tracking", subtitle="Stopped", message="Tracking has been paused"
+                    title="Zeit Tracking",
+                    subtitle="Stopped",
+                    message="Tracking has been paused",
                 )
             else:
                 self._stop_flag_path.unlink()
                 logger.info("Tracking resumed via menu bar toggle")
                 show_macos_notification(
-                    title="Zeit Tracking", subtitle="Resumed", message="Tracking has been resumed"
+                    title="Zeit Tracking",
+                    subtitle="Resumed",
+                    message="Tracking has been resumed",
                 )
 
             # Update menu to reflect new status
@@ -187,7 +183,7 @@ class ZeitMenuBar:
                         message="Failed to disable",
                     )
             else:
-                success = load_menubar_service()
+                success, error = ensure_menubar_service_loaded()
                 if success:
                     logger.info("Enabled launch at login")
                     show_macos_notification(
@@ -196,11 +192,11 @@ class ZeitMenuBar:
                         message="Enabled - Zeit will start automatically",
                     )
                 else:
-                    logger.warning("Failed to enable launch at login")
+                    logger.warning(f"Failed to enable launch at login: {error}")
                     show_macos_notification(
                         title="Zeit",
                         subtitle="Launch at Login",
-                        message="Failed to enable",
+                        message=error or "Failed to enable",
                     )
 
             # Refresh menu to update checkbox state

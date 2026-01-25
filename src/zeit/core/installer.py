@@ -551,3 +551,35 @@ def is_menubar_plist_installed() -> bool:
     """
     installer = get_installer()
     return installer._get_plist_path(installer.MENUBAR_LABEL).exists()
+
+
+def ensure_menubar_service_loaded() -> tuple[bool, str | None]:
+    """
+    Ensure the menubar service is installed and loaded.
+
+    Creates the plist if it doesn't exist (requires running from .app bundle).
+
+    Returns:
+        Tuple of (success, error_message). error_message is None on success.
+    """
+    installer = get_installer()
+    plist_path = installer._get_plist_path(installer.MENUBAR_LABEL)
+
+    if plist_path.exists():
+        # Plist exists, just bootstrap it
+        if installer._bootstrap_service(plist_path):
+            return True, None
+        return False, "Failed to load service"
+
+    # Need to create the plist - requires app bundle
+    app_path = installer.get_app_bundle_path()
+    if app_path is None:
+        return False, "Run from Zeit.app to enable this feature"
+
+    # Install the service (creates plist and bootstraps, no kickstart since we're running)
+    try:
+        installer.install_menubar_service(app_path, kickstart=False)
+        return True, None
+    except Exception as e:
+        logger.error(f"Failed to install menubar service: {e}")
+        return False, str(e)

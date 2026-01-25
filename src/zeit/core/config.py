@@ -96,7 +96,8 @@ class WorkHoursConfig(BaseModel):
 class ModelsConfig(BaseModel):
     vision: str = Field(default="qwen3-vl:4b", description="Vision model for image analysis")
     text: str = Field(
-        default="qwen3:8b", description="Text model for classification and summarization"
+        default="qwen3:8b",
+        description="Text model for classification and summarization",
     )
 
 
