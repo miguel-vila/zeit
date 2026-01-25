@@ -9,6 +9,12 @@ from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 from zeit.core.config import get_config, is_within_work_hours
+from zeit.core.installer import (
+    is_menubar_plist_installed,
+    is_menubar_service_loaded,
+    load_menubar_service,
+    unload_menubar_service,
+)
 from zeit.core.logging_config import setup_logging
 from zeit.core.utils import today_str
 from zeit.data.db import DatabaseManager, DayRecord
@@ -107,6 +113,22 @@ class ZeitMenuBar:
 
         self.menu.addSeparator()
 
+        # Launch at Login toggle
+        launch_at_login_action = QAction("Launch at Login", self.menu)
+        launch_at_login_action.setCheckable(True)
+
+        if is_menubar_plist_installed():
+            launch_at_login_action.setChecked(is_menubar_service_loaded())
+            launch_at_login_action.triggered.connect(self.toggle_launch_at_login)
+        else:
+            # Plist not installed - disable the option
+            launch_at_login_action.setEnabled(False)
+            launch_at_login_action.setToolTip("Install via 'zeit service install' first")
+
+        self.menu.addAction(launch_at_login_action)
+
+        self.menu.addSeparator()
+
         quit_action = QAction("Quit", self.menu)
         quit_action.triggered.connect(self.quit_app)
         self.menu.addAction(quit_action)
@@ -142,6 +164,49 @@ class ZeitMenuBar:
             self.update_menu()
         except Exception as e:
             logger.error(f"Error toggling tracking: {e}", exc_info=True)
+            show_macos_notification(title="Zeit Error", subtitle="Toggle Failed", message=str(e))
+
+    @Slot()
+    def toggle_launch_at_login(self) -> None:
+        """Toggle whether the menubar app starts at login."""
+        try:
+            if is_menubar_service_loaded():
+                success = unload_menubar_service()
+                if success:
+                    logger.info("Disabled launch at login")
+                    show_macos_notification(
+                        title="Zeit",
+                        subtitle="Launch at Login",
+                        message="Disabled - Zeit won't start automatically",
+                    )
+                else:
+                    logger.warning("Failed to disable launch at login")
+                    show_macos_notification(
+                        title="Zeit",
+                        subtitle="Launch at Login",
+                        message="Failed to disable",
+                    )
+            else:
+                success = load_menubar_service()
+                if success:
+                    logger.info("Enabled launch at login")
+                    show_macos_notification(
+                        title="Zeit",
+                        subtitle="Launch at Login",
+                        message="Enabled - Zeit will start automatically",
+                    )
+                else:
+                    logger.warning("Failed to enable launch at login")
+                    show_macos_notification(
+                        title="Zeit",
+                        subtitle="Launch at Login",
+                        message="Failed to enable",
+                    )
+
+            # Refresh menu to update checkbox state
+            self.update_menu()
+        except Exception as e:
+            logger.error(f"Error toggling launch at login: {e}", exc_info=True)
             show_macos_notification(title="Zeit Error", subtitle="Toggle Failed", message=str(e))
 
     @Slot()

@@ -17,6 +17,10 @@ DATA_DIR = Path.home() / ".local" / "share" / "zeit"
 LOG_DIR = Path.home() / "Library" / "Logs" / "zeit"
 LAUNCH_AGENTS_DIR = Path.home() / "Library" / "LaunchAgents"
 
+# LaunchAgent service identifiers
+MENUBAR_SERVICE_LABEL = "co.invariante.zeit.menubar"
+MENUBAR_PLIST_PATH = LAUNCH_AGENTS_DIR / f"{MENUBAR_SERVICE_LABEL}.plist"
+
 
 class WorkHoursConfig(BaseModel):
     """Work hours configuration with validation."""

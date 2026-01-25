@@ -484,3 +484,70 @@ def is_setup_complete() -> bool:
 def run_full_setup(skip_menubar_service: bool = True) -> SetupResult:
     """Run the full first-time setup."""
     return get_installer().run_full_setup(skip_menubar_service)
+
+
+def is_menubar_service_loaded() -> bool:
+    """
+    Check if the menubar LaunchAgent is loaded (will start at login).
+
+    Uses `launchctl print` to check if the service is bootstrapped,
+    not just if a process is currently running.
+
+    Returns:
+        True if the service is loaded and will start at login.
+    """
+    installer = get_installer()
+    result = subprocess.run(
+        ["launchctl", "print", f"{installer.domain}/{installer.MENUBAR_LABEL}"],
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0
+
+
+def load_menubar_service() -> bool:
+    """
+    Load the menubar LaunchAgent (enable launch at login).
+
+    Returns:
+        True if successfully loaded, False otherwise.
+    """
+    installer = get_installer()
+    plist_path = installer._get_plist_path(installer.MENUBAR_LABEL)
+
+    if not plist_path.exists():
+        logger.warning(f"Menubar plist not found: {plist_path}")
+        return False
+
+    return installer._bootstrap_service(plist_path)
+
+
+def unload_menubar_service() -> bool:
+    """
+    Unload the menubar LaunchAgent (disable launch at login).
+
+    Note: This only prevents auto-start at login. The currently running
+    app will continue to run.
+
+    Returns:
+        True if successfully unloaded, False otherwise.
+    """
+    installer = get_installer()
+    plist_path = installer._get_plist_path(installer.MENUBAR_LABEL)
+
+    if not plist_path.exists():
+        logger.warning(f"Menubar plist not found: {plist_path}")
+        return False
+
+    return installer._bootout_service(plist_path, installer.MENUBAR_LABEL)
+
+
+def is_menubar_plist_installed() -> bool:
+    """
+    Check if the menubar LaunchAgent plist file exists.
+
+    Returns:
+        True if the plist file exists.
+    """
+    installer = get_installer()
+    return installer._get_plist_path(installer.MENUBAR_LABEL).exists()
