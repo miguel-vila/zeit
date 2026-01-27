@@ -15,7 +15,7 @@ def setup_logging(
     log_file: str = "zeit.log",
     log_dir: str = DEFAULT_LOG_DIR,
     file_level: int = logging.INFO,
-    console_level: int = logging.INFO,
+    console_level: int = logging.ERROR,
     log_format: str | None = None,
 ) -> logging.Logger:
     """Configure logging to file and console.
@@ -24,7 +24,7 @@ def setup_logging(
         log_file: Name of the log file (default: "zeit.log")
         log_dir: Directory for log files (default: "logs")
         file_level: Logging level for file handler (default: INFO)
-        console_level: Logging level for console handler (default: INFO)
+        console_level: Logging level for console handler (default: ERROR)
         log_format: Custom log format (default: standard format with timestamp)
 
     Returns:
@@ -53,7 +53,7 @@ def setup_logging(
 
     # Configure root logger
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)  # Allow all messages, handlers filter
+    root_logger.setLevel(min(file_level, console_level))  # Allow handlers to filter
 
     # Remove existing handlers to avoid duplicates on repeated calls
     root_logger.handlers.clear()
