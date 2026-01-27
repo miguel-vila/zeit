@@ -234,9 +234,11 @@ def doctor() -> None:
         pass
     checks.append(("Ollama running", ollama_running, ""))
 
-    # Check 3: Required models
+    # Check 3: Required models (only check Ollama models)
     config = get_config()
-    required_models = [config.models.vision, config.models.text]
+    required_models = [config.models.vision]
+    if config.models.text.provider == "ollama":
+        required_models.append(config.models.text.model)
 
     for model in required_models:
         model_present = False

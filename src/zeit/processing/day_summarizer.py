@@ -1,10 +1,10 @@
 import logging
 from datetime import datetime
 
-from ollama import Client
 from pydantic import BaseModel
 
 from zeit.core.activity_types import ExtendedActivity
+from zeit.core.llm_provider import LLMProvider
 from zeit.core.prompts import DAY_SUMMARIZATION_PROMPT, DAY_SUMMARIZATION_WITH_OBJECTIVES_PROMPT
 from zeit.data.db import ActivityEntry, DayObjectives
 from zeit.processing.activity_summarization import ActivityGroup, build_condensed_summary
@@ -19,9 +19,8 @@ class DaySummary(BaseModel):
 
 
 class DaySummarizer:
-    def __init__(self, ollama_client: Client, llm: str) -> None:
-        self.client = ollama_client
-        self.llm = llm
+    def __init__(self, provider: LLMProvider) -> None:
+        self.provider = provider
 
     def _format_time_range(self, start: datetime, end: datetime) -> str:
         """Format a time range like '09:15-09:45' or just '09:15' if single minute."""
@@ -98,11 +97,7 @@ class DaySummarizer:
         logger.debug(f"Day summarization prompt:\n{prompt}")
 
         try:
-            response = self.client.generate(
-                model=self.llm,
-                prompt=prompt,
-                options={"temperature": 0.7},
-            )
+            response_text = self.provider.generate(prompt, temperature=0.7)
         except Exception as e:
             logger.error(f"Failed to summarize day activities: {e}", exc_info=True)
             return None
@@ -112,7 +107,7 @@ class DaySummarizer:
 
         logger.debug(f"Day summary generated for {start_time.date()}")
         return DaySummary(
-            summary=response.response,
+            summary=response_text,
             start_time=start_time,
             end_time=end_time,
         )

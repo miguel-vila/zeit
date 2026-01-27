@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime, time
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, Field, field_validator
@@ -93,10 +93,23 @@ class WorkHoursConfig(BaseModel):
         return "Within work hours"
 
 
+class TextModelConfig(BaseModel):
+    """Configuration for text model with provider selection."""
+
+    provider: Literal["ollama", "openai"] = Field(
+        default="ollama",
+        description="LLM provider ('ollama' or 'openai')",
+    )
+    model: str = Field(
+        default="qwen3:8b",
+        description="Model name (e.g., 'qwen3:8b' for ollama, 'gpt-4o-mini' for openai)",
+    )
+
+
 class ModelsConfig(BaseModel):
     vision: str = Field(default="qwen3-vl:4b", description="Vision model for image analysis")
-    text: str = Field(
-        default="qwen3:8b",
+    text: TextModelConfig = Field(
+        default_factory=TextModelConfig,
         description="Text model for classification and summarization",
     )
 

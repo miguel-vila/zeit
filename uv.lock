@@ -2459,6 +2459,7 @@ source = { editable = "." }
 dependencies = [
     { name = "mss" },
     { name = "ollama" },
+    { name = "openai" },
     { name = "opik" },
     { name = "py2app" },
     { name = "pydantic" },
@@ -2481,6 +2482,7 @@ dev = [
 requires-dist = [
     { name = "mss", specifier = ">=10.1.0" },
     { name = "ollama", specifier = ">=0.6.1" },
+    { name = "openai", specifier = ">=1.0.0" },
     { name = "opik", specifier = ">=1.9.33" },
     { name = "py2app", specifier = ">=0.28.9" },
     { name = "pydantic", specifier = ">=2.12.5" },

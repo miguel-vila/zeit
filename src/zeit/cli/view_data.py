@@ -3,9 +3,9 @@
 from datetime import datetime
 
 import typer
-from ollama import Client
 
 from zeit.core.config import get_config
+from zeit.core.llm_provider import LLMProvider, OllamaProvider, OpenAIProvider
 from zeit.core.logging_config import setup_logging
 from zeit.core.utils import today_str, yesterday_str
 from zeit.data.db import DatabaseManager
@@ -104,7 +104,29 @@ def _print_all_days() -> None:
                 print()
 
 
-def _summarize_day_impl(date_str: str) -> None:
+def _parse_model_override(override: str) -> tuple[str, str]:
+    """Parse model override in format 'provider:model'.
+
+    Returns:
+        Tuple of (provider, model)
+
+    Raises:
+        ValueError: If format is invalid
+    """
+    if ":" not in override:
+        raise ValueError(
+            f"Invalid format '{override}'. Expected 'provider:model' (e.g., 'openai:gpt-4o-mini')"
+        )
+
+    provider, _, model = override.partition(":")
+    if provider not in ("ollama", "openai"):
+        raise ValueError(f"Unknown provider '{provider}'. Supported: ollama, openai")
+    if not model:
+        raise ValueError("Model name cannot be empty")
+    return provider, model
+
+
+def _summarize_day_impl(date_str: str, model_override: str | None = None) -> None:
     with DatabaseManager() as db:
         day_record = db.get_day_record(date_str)
 
@@ -116,7 +138,23 @@ def _summarize_day_impl(date_str: str) -> None:
         objectives = db.get_day_objectives(date_str)
 
         config = get_config()
-        summarizer = DaySummarizer(Client(), llm=config.models.text)
+        text_config = config.models.text
+
+        # Determine provider and model (override takes precedence)
+        if model_override:
+            provider_name, model_name = _parse_model_override(model_override)
+        else:
+            provider_name = text_config.provider
+            model_name = text_config.model
+
+        # Create provider
+        provider: LLMProvider
+        if provider_name == "openai":
+            provider = OpenAIProvider(model=model_name)
+        else:
+            provider = OllamaProvider(model=model_name)
+
+        summarizer = DaySummarizer(provider)
         result = summarizer.summarize(day_record.activities, objectives=objectives)
 
         if result is None:
@@ -157,9 +195,20 @@ def cmd_day(date: str = typer.Argument(..., help="Date in YYYY-MM-DD format")) -
 @app.command("summarize")
 def cmd_summarize(
     date: str | None = typer.Argument(None, help="Date in YYYY-MM-DD format (defaults to today)"),
+    model: str | None = typer.Option(
+        None,
+        "--model",
+        "-m",
+        help="Override model in format 'provider:model' (e.g., 'openai:gpt-4o-mini')",
+    ),
 ) -> None:
+    """Generate an AI summary of activities for a day."""
     date_str = date if date else today_str()
-    _summarize_day_impl(date_str)
+    try:
+        _summarize_day_impl(date_str, model_override=model)
+    except ValueError as e:
+        print(f"Error: {e}")
+        raise typer.Exit(1) from e
 
 
 @app.command("objectives")

@@ -94,7 +94,7 @@ class ActivityIdentifier:
     def __init__(self, ollama_client: Client, models_config: ModelsConfig) -> None:
         self.client = ollama_client
         self.vlm = models_config.vision
-        self.llm = models_config.text
+        self.llm = models_config.text.model
 
     @track(tags=["ollama", "python-library"])
     def _describe_images(

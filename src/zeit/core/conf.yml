@@ -4,7 +4,9 @@ work_hours:
 
 models:
   vision: 'qwen3-vl:4b'
-  text: 'qwen3:8b'
+  text:
+    provider: 'ollama'  # 'ollama' or 'openai'
+    model: 'qwen3:8b'   # e.g., 'gpt-4o-mini' for openai
 
 paths:
   data_dir: '~/.local/share/zeit'

@@ -28,6 +28,9 @@ a = Analysis(
         'pydantic.deprecated.decorator',
         # Ollama
         'ollama',
+        # OpenAI
+        'openai',
+        # HTTP clients (shared by ollama/openai)
         'httpx',
         'httpcore',
         'h11',
