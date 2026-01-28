@@ -6,8 +6,8 @@ Installs Zeit CLI, menubar app, and LaunchAgents.
 No sudo required - installs to user directories.
 
 Usage:
-    python scripts/install.py install --cli dist/zeit --app dist/Zeit.app
-    python scripts/install.py uninstall
+    python scripts/install.py install --app dist/Zeit.app [--to-applications]
+    python scripts/install.py uninstall [--remove-data]
     python scripts/install.py status
 """
 
