@@ -49,6 +49,9 @@ app.add_typer(service_app, name="service", help="Service management")
 @app.command()
 def track(
     delay: int = typer.Option(0, "--delay", "-d", help="Delay in seconds before tracking"),
+    force: bool = typer.Option(
+        False, "--force", "-f", help="Bypass work hours and stop flag checks"
+    ),
 ) -> None:
     """
     Run single tracking iteration.
@@ -84,16 +87,19 @@ def track(
     logger.info("Starting zeit activity tracker")
 
     # Check work hours
-    if not is_within_work_hours():
+    if not force and not is_within_work_hours():
         logger.debug("Outside work hours, skipping")
         raise typer.Exit(0)
 
     # Check stop flag
     config = get_config()
     stop_flag = config.paths.stop_flag
-    if stop_flag.exists():
+    if not force and stop_flag.exists():
         logger.debug("Stop flag set, skipping")
         raise typer.Exit(0)
+
+    if force:
+        logger.info("Force mode enabled, bypassing work hours and stop flag checks")
 
     # Optional delay
     if delay > 0:
@@ -253,17 +259,24 @@ def doctor() -> None:
         hint = f"ollama pull {model}" if not model_present else ""
         checks.append((f"Model: {model}", model_present, hint))
 
-    # Check 4: Database directory and file
+    # Check 4: macOS Permissions
+    from zeit.core.permissions import get_all_permission_statuses
+
+    for perm in get_all_permission_statuses():
+        hint = f"Open: {perm.settings_url}" if not perm.granted else ""
+        checks.append((f"Permission: {perm.name}", perm.granted, hint))
+
+    # Check 5: Database directory and file
     paths = config.paths
     checks.append(("Data directory", paths.data_dir.exists(), str(paths.data_dir)))
     checks.append(("Database file", paths.db_path.exists(), str(paths.db_path)))
 
-    # Check 5: Log directory
+    # Check 6: Log directory
     from zeit.core.config import LAUNCH_AGENTS_DIR, LOG_DIR
 
     checks.append(("Log directory", LOG_DIR.exists(), str(LOG_DIR)))
 
-    # Check 6: LaunchAgents
+    # Check 7: LaunchAgents
     tracker_plist = LAUNCH_AGENTS_DIR / "co.invariante.zeit.plist"
     menubar_plist = LAUNCH_AGENTS_DIR / "co.invariante.zeit.menubar.plist"
 

@@ -378,6 +378,19 @@ def _check_first_run_setup(app: QApplication) -> None:
         logger.info("Setup dialog was skipped")
 
 
+def _check_permissions(app: QApplication) -> None:
+    """Check if required permissions are granted and show dialog if not."""
+    from zeit.ui.permissions_dialog import show_permissions_dialog_if_needed
+
+    _ = app  # Unused, but kept for consistency with other check functions
+    if not show_permissions_dialog_if_needed():
+        logger.warning(
+            "Permissions not fully granted - some features may not work correctly. "
+            "Screen Recording permission is needed for screenshots, "
+            "Accessibility permission is needed for active window detection."
+        )
+
+
 def main() -> None:
     """Main entry point."""
     try:
@@ -386,6 +399,9 @@ def main() -> None:
 
         # Check for first-run setup
         _check_first_run_setup(app)
+
+        # Check for permissions
+        _check_permissions(app)
 
         menubar = ZeitMenuBar(app)
 
