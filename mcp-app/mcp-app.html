@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>Zeit Activity Visualization</title>
+</head>
+<body>
+  <main class="main">
+    <header class="header">
+      <h1>Activity Breakdown</h1>
+      <div class="date-selector">
+        <select id="date-select">
+          <option value="">Loading...</option>
+        </select>
+      </div>
+    </header>
+
+    <div id="loading" class="loading">Loading activity data...</div>
+    <div id="no-data" class="no-data" style="display: none;">
+      <p>No activity data for this date.</p>
+    </div>
+
+    <div id="content" style="display: none;">
+      <div class="summary-cards">
+        <div class="card work">
+          <span class="card-label">Work</span>
+          <span class="card-value" id="work-pct">0%</span>
+        </div>
+        <div class="card personal">
+          <span class="card-label">Personal</span>
+          <span class="card-value" id="personal-pct">0%</span>
+        </div>
+        <div class="card idle">
+          <span class="card-label">Idle</span>
+          <span class="card-value" id="idle-pct">0%</span>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <canvas id="pie-chart" width="300" height="300"></canvas>
+      </div>
+
+      <div class="legend" id="legend"></div>
+
+      <div class="details">
+        <h2>Activity Details</h2>
+        <div class="activity-list" id="activity-list"></div>
+      </div>
+    </div>
+  </main>
+  <script type="module" src="/src/mcp-app.ts"></script>
+</body>
+</html>

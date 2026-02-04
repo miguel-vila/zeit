@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 class DaySummary(BaseModel):
     summary: str
+    percentages_breakdown: str
     start_time: datetime
     end_time: datetime
 
@@ -108,6 +109,7 @@ class DaySummarizer:
         logger.debug(f"Day summary generated for {start_time.date()}")
         return DaySummary(
             summary=response_text,
+            percentages_breakdown=percentage_text,
             start_time=start_time,
             end_time=end_time,
         )

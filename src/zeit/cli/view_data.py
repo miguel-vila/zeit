@@ -3,12 +3,15 @@
 from datetime import datetime
 
 import typer
+from rich import print as rprint
+from rich.table import Table
 
 from zeit.core.config import get_config
 from zeit.core.llm_provider import LLMProvider, OllamaProvider, OpenAIProvider
 from zeit.core.logging_config import setup_logging
 from zeit.core.utils import today_str, yesterday_str
 from zeit.data.db import DatabaseManager
+from zeit.processing.activity_stats import get_day_stats
 from zeit.processing.activity_summarization import compute_summary
 from zeit.processing.day_summarizer import DaySummarizer
 
@@ -169,6 +172,10 @@ def _summarize_day_impl(date_str: str, model_override: str | None = None) -> Non
                 print(f"Secondary: {', '.join(objectives.secondary_objectives)}")
         print()
         print(result.summary)
+        print()
+        print("**Percentages Breakdown:**")
+        print()
+        print(result.percentages_breakdown)
         print_footer()
 
 
@@ -272,6 +279,75 @@ def cmd_set_objectives(
                 print(f"Secondary: {', '.join(secondary)}")
         else:
             print(f"Failed to set objectives for {date_str}")
+
+
+# Category colors for rich output
+CATEGORY_COLORS = {
+    "work": "blue",
+    "personal": "magenta",
+    "system": "dim",
+}
+
+
+@app.command("stats")
+def cmd_stats(
+    date: str | None = typer.Argument(None, help="Date in YYYY-MM-DD format (defaults to today)"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+) -> None:
+    """Show activity statistics for a day.
+
+    Displays a breakdown of time spent on each activity type,
+    grouped by category (work, personal, idle/system).
+    """
+    import json
+
+    date_str = date if date else today_str()
+    stats = get_day_stats(date_str)
+
+    if stats is None:
+        rprint(f"[yellow]No data found for {date_str}[/yellow]")
+        raise typer.Exit(1)
+
+    if json_output:
+        print(json.dumps(stats.model_dump(), indent=2))
+        return
+
+    # Header
+    rprint(f"\n[bold]Activity Statistics for {date_str}[/bold]")
+    rprint(f"Total samples: {stats.total_samples}\n")
+
+    # Summary cards
+    rprint(
+        f"[blue]Work: {stats.work_percentage:.1f}%[/blue] | "
+        f"[magenta]Personal: {stats.personal_percentage:.1f}%[/magenta] | "
+        f"[dim]Idle: {stats.idle_percentage:.1f}%[/dim]\n"
+    )
+
+    # Detailed table
+    table = Table(title="Activity Breakdown")
+    table.add_column("Activity", style="cyan")
+    table.add_column("Category", style="dim")
+    table.add_column("Count", justify="right")
+    table.add_column("Percentage", justify="right")
+    table.add_column("Bar", style="green")
+
+    for activity_stat in stats.activities:
+        # Create a simple bar
+        bar_width = int(activity_stat.percentage / 2)  # Max 50 chars for 100%
+        bar = "█" * bar_width
+
+        category_color = CATEGORY_COLORS.get(activity_stat.category, "white")
+        category_display = f"[{category_color}]{activity_stat.category}[/{category_color}]"
+
+        table.add_row(
+            activity_stat.activity.replace("_", " ").title(),
+            category_display,
+            str(activity_stat.count),
+            f"{activity_stat.percentage:.1f}%",
+            bar,
+        )
+
+    rprint(table)
 
 
 if __name__ == "__main__":

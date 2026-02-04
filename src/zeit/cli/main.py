@@ -154,6 +154,27 @@ def track(
 
 
 @app.command()
+def stats(
+    date: str = typer.Argument(None, help="Date in YYYY-MM-DD format (defaults to today)"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+) -> None:
+    """Show activity statistics for a day.
+
+    Displays a breakdown of time spent on each activity type,
+    grouped by category (work, personal, idle/system).
+
+    Examples:
+        zeit stats              # Today's stats
+        zeit stats 2026-01-30   # Specific day
+        zeit stats --json       # JSON output for scripts
+    """
+    # Import here to avoid slowing down CLI startup
+    from zeit.cli.view_data import cmd_stats
+
+    cmd_stats(date, json_output)
+
+
+@app.command()
 def version() -> None:
     """Show version information."""
     typer.echo(f"Zeit version {__version__}")
@@ -260,11 +281,28 @@ def doctor() -> None:
         checks.append((f"Model: {model}", model_present, hint))
 
     # Check 4: macOS Permissions
+    # Note: macOS permissions are per-executable. Only meaningful when running as installed binary.
+    import sys
+
+    is_frozen = getattr(sys, "frozen", False)  # True when running as PyInstaller bundle
+
     from zeit.core.permissions import get_all_permission_statuses
 
-    for perm in get_all_permission_statuses():
-        hint = f"Open: {perm.settings_url}" if not perm.granted else ""
-        checks.append((f"Permission: {perm.name}", perm.granted, hint))
+    if is_frozen:
+        # Running as installed binary - check permissions normally
+        for perm in get_all_permission_statuses():
+            hint = f"Open: {perm.settings_url}" if not perm.granted else ""
+            checks.append((f"Permission: {perm.name}", perm.granted, hint))
+    else:
+        # Running from source (uv run) - permissions check would be for Python interpreter
+        # which is not useful. Skip the check and explain.
+        checks.append(
+            (
+                "Permissions (dev mode)",
+                True,
+                "Skipped - run installed binary to check",
+            )
+        )
 
     # Check 5: Database directory and file
     paths = config.paths

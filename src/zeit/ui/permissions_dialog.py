@@ -3,7 +3,7 @@
 import logging
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QCloseEvent, QFont
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -208,7 +208,7 @@ class PermissionsDialog(QDialog):
         """Return True if the user clicked Skip for Now."""
         return self._skipped
 
-    def closeEvent(self, event: object) -> None:
+    def closeEvent(self, event: QCloseEvent) -> None:
         """Stop the timer when the dialog is closed."""
         self._refresh_timer.stop()
         super().closeEvent(event)

@@ -1,0 +1,19 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-size: 1rem;
+  background: var(--color-background-primary, #ffffff);
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+@media (prefers-color-scheme: dark) {
+  html, body {
+    background: var(--color-background-primary, #1a1a1a);
+    color: var(--color-text-primary, #ffffff);
+  }
+}
