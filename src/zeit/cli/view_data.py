@@ -11,8 +11,7 @@ from zeit.core.llm_provider import LLMProvider, OllamaProvider, OpenAIProvider
 from zeit.core.logging_config import setup_logging
 from zeit.core.utils import today_str, yesterday_str
 from zeit.data.db import DatabaseManager
-from zeit.processing.activity_stats import get_day_stats
-from zeit.processing.activity_summarization import compute_summary
+from zeit.processing.activity_stats import compute_activity_breakdown, get_day_stats
 from zeit.processing.day_summarizer import DaySummarizer
 
 setup_logging()
@@ -66,13 +65,13 @@ def _print_day_activities(date_str: str) -> None:
                 print(f"   Reasoning: {activity.reasoning}")
             print()
 
-        summary = compute_summary(day_record.activities)
+        summary = compute_activity_breakdown(day_record.activities, include_idle=False)
 
         print(SEPARATOR_DOUBLE)
         print("Daily Summary:")
         print_section_divider()
-        for summary_entry in summary:
-            print(f"- {summary_entry.activity.value}: {summary_entry.percentage:.2f}%")
+        for stat in summary:
+            print(f"- {stat.activity}: {stat.percentage:.2f}%")
         print_footer()
 
 

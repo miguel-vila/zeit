@@ -78,7 +78,7 @@ class DaySummarizer:
 
         # Format percentage breakdown
         percentage_text = "\n".join(
-            f"- {p.activity.value.replace('_', ' ')}: {p.percentage:.1f}%"
+            f"- {p.activity.replace('_', ' ')}: {p.percentage:.1f}%"
             for p in condensed.percentage_breakdown
         )
 

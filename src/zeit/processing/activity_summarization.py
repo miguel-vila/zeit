@@ -5,16 +5,9 @@ from pydantic import BaseModel, Field
 
 from zeit.core.activity_types import ExtendedActivity
 from zeit.data.db import ActivityEntry
+from zeit.processing.activity_stats import ActivityStat, compute_activity_breakdown
 
 logger = logging.getLogger(__name__)
-
-
-class ActivitySummary(BaseModel):
-    """Represents an activity with its percentage and approximate time."""
-
-    activity: ExtendedActivity = Field(description="The activity type")
-    percentage: float = Field(description="Percentage of total activities")
-    approx_minutes: int = Field(description="Approximate time spent in minutes")
 
 
 class ActivityGroup(BaseModel):
@@ -31,34 +24,12 @@ class CondensedActivitySummary(BaseModel):
     """Container for the full condensed activity data."""
 
     groups: list[ActivityGroup] = Field(description="Chronologically ordered activity groups")
-    percentage_breakdown: list[ActivitySummary] = Field(
-        description="Activity percentages sorted by frequency"
+    percentage_breakdown: list[ActivityStat] = Field(
+        description="Activity percentages sorted by frequency (excludes idle)"
     )
     total_active_minutes: int = Field(description="Total non-idle minutes tracked")
     original_entry_count: int = Field(description="Number of activities before condensation")
     condensed_entry_count: int = Field(description="Number of activity groups after condensation")
-
-
-def compute_summary(entries: list[ActivityEntry]) -> list[ActivitySummary]:
-    """Compute a summary of activities from a list of ActivityEntry."""
-    summary: dict[ExtendedActivity, int] = {}
-    for entry in entries:
-        activity_name = entry.activity
-        if activity_name == ExtendedActivity.IDLE:
-            continue
-        summary[activity_name] = summary.get(activity_name, 0) + 1
-    sorted_summary = sorted(summary.items(), key=lambda x: -x[1])
-    total_activities = sum(summary.values())
-    if total_activities == 0:
-        return []
-    return [
-        ActivitySummary(
-            activity=activity,
-            percentage=(count / total_activities) * 100,
-            approx_minutes=count,
-        )
-        for activity, count in sorted_summary
-    ]
 
 
 def group_consecutive_activities(entries: list[ActivityEntry]) -> list[ActivityGroup]:
@@ -118,7 +89,8 @@ def build_condensed_summary(entries: list[ActivityEntry]) -> CondensedActivitySu
     groups = group_consecutive_activities(entries)
     logger.info(f"Grouped {len(non_idle)} activities into {len(groups)} groups")
 
-    percentage_breakdown = compute_summary(entries)
+    # Use the centralized breakdown function (excludes idle)
+    percentage_breakdown = compute_activity_breakdown(entries, include_idle=False)
 
     return CondensedActivitySummary(
         groups=groups,

@@ -67,6 +67,56 @@ def get_activity_category(activity: ExtendedActivity) -> str:
     return "system"
 
 
+def compute_activity_breakdown(
+    entries: list[ActivityEntry],
+    include_idle: bool = True,
+) -> list[ActivityStat]:
+    """Compute per-activity statistics from entries.
+
+    This is the core function for computing activity breakdowns, used by
+    both the stats command and day summarization.
+
+    Args:
+        entries: List of activity entries
+        include_idle: Whether to include idle activities (default True)
+
+    Returns:
+        List of ActivityStat sorted by percentage descending
+    """
+    # Filter entries if excluding idle
+    if include_idle:
+        filtered_entries = entries
+    else:
+        filtered_entries = [e for e in entries if e.activity != ExtendedActivity.IDLE]
+
+    total = len(filtered_entries)
+    if total == 0:
+        return []
+
+    # Count activities
+    counts: dict[ExtendedActivity, int] = {}
+    for entry in filtered_entries:
+        counts[entry.activity] = counts.get(entry.activity, 0) + 1
+
+    # Build per-activity stats
+    activity_stats: list[ActivityStat] = []
+    for activity, count in counts.items():
+        percentage = (count / total) * 100
+        category = get_activity_category(activity)
+        activity_stats.append(
+            ActivityStat(
+                activity=activity.value,
+                count=count,
+                percentage=percentage,
+                category=category,
+            )
+        )
+
+    # Sort by percentage descending
+    activity_stats.sort(key=lambda x: -x.percentage)
+    return activity_stats
+
+
 def compute_day_stats(date_str: str, entries: list[ActivityEntry]) -> DayStats:
     """Compute statistics for a day's activities.
 
@@ -92,39 +142,13 @@ def compute_day_stats(date_str: str, entries: list[ActivityEntry]) -> DayStats:
             idle_count=0,
         )
 
-    # Count activities
-    counts: dict[ExtendedActivity, int] = {}
-    for entry in entries:
-        counts[entry.activity] = counts.get(entry.activity, 0) + 1
+    # Use the shared breakdown function
+    activity_stats = compute_activity_breakdown(entries, include_idle=True)
 
-    # Build per-activity stats
-    activity_stats: list[ActivityStat] = []
-    work_count = 0
-    personal_count = 0
-    idle_count = 0
-
-    for activity, count in counts.items():
-        percentage = (count / total) * 100
-        category = get_activity_category(activity)
-
-        activity_stats.append(
-            ActivityStat(
-                activity=activity.value,
-                count=count,
-                percentage=percentage,
-                category=category,
-            )
-        )
-
-        if category == "work":
-            work_count += count
-        elif category == "personal":
-            personal_count += count
-        else:
-            idle_count += count
-
-    # Sort by percentage descending
-    activity_stats.sort(key=lambda x: -x.percentage)
+    # Compute category totals
+    work_count = sum(s.count for s in activity_stats if s.category == "work")
+    personal_count = sum(s.count for s in activity_stats if s.category == "personal")
+    idle_count = sum(s.count for s in activity_stats if s.category == "system")
 
     return DayStats(
         date=date_str,

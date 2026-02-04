@@ -17,7 +17,7 @@ from zeit.core.installer import (
 from zeit.core.logging_config import setup_logging
 from zeit.core.utils import today_str
 from zeit.data.db import DatabaseManager, DayRecord
-from zeit.processing.activity_summarization import compute_summary
+from zeit.processing.activity_stats import compute_activity_breakdown
 from zeit.ui.details_window import DetailsWindow
 from zeit.ui.objectives_dialog import ObjectivesDialog
 from zeit.ui.qt_helpers import emoji_to_qicon, show_macos_notification
@@ -253,13 +253,11 @@ class ZeitMenuBar:
         self, day_record: DayRecord, today: str, tracking_state: TrackingState
     ) -> None:
         """Update menu with activity summary data."""
-        summary = compute_summary(day_record.activities)
+        stats = compute_activity_breakdown(day_record.activities, include_idle=False)
         total_count = len(day_record.activities)
 
         # Calculate work percentage
-        work_percentage = sum(
-            entry.percentage for entry in summary if entry.activity.is_work_activity()
-        )
+        work_percentage = sum(stat.percentage for stat in stats if stat.category == "work")
 
         # Update icon with percentage
         # For now, use emoji. Could enhance to render text with emoji
@@ -289,9 +287,9 @@ class ZeitMenuBar:
         self.menu.addSeparator()
 
         # Add activity breakdown
-        for entry in summary:
-            activity_name = entry.activity.value.replace("_", " ").title()
-            text = f"{activity_name}: {entry.percentage:.1f}% ({entry.approx_minutes} min)"
+        for stat in stats:
+            activity_name = stat.activity.replace("_", " ").title()
+            text = f"{activity_name}: {stat.percentage:.1f}% ({stat.count} min)"
             activity_action = QAction(text, self.menu)
             activity_action.setEnabled(False)
             self.menu.addAction(activity_action)

@@ -3,7 +3,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget
 
 from zeit.data.db import DayRecord
-from zeit.processing.activity_summarization import ActivitySummary, compute_summary
+from zeit.processing.activity_stats import ActivityStat, compute_activity_breakdown
 
 PROGRESS_BAR_STYLE = """
     QProgressBar {{
@@ -60,10 +60,10 @@ class DetailsWindow(QWidget):
         progress_bar.setStyleSheet(PROGRESS_BAR_STYLE.format(color=color))
         return progress_bar
 
-    def _create_activity_widget(self, entry: ActivitySummary) -> QWidget:
-        activity_name = entry.activity.value.replace("_", " ").title()
-        percentage = entry.percentage
-        approx_minutes = entry.approx_minutes
+    def _create_activity_widget(self, stat: ActivityStat) -> QWidget:
+        activity_name = stat.activity.replace("_", " ").title()
+        percentage = stat.percentage
+        approx_minutes = stat.count  # 1 sample ≈ 1 minute
 
         activity_widget = QWidget()
         activity_layout = QVBoxLayout()
@@ -84,9 +84,7 @@ class DetailsWindow(QWidget):
         label_layout.addWidget(pct_label)
 
         activity_layout.addLayout(label_layout)
-        activity_layout.addWidget(
-            self._create_progress_bar(percentage, entry.activity.is_work_activity())
-        )
+        activity_layout.addWidget(self._create_progress_bar(percentage, stat.category == "work"))
         activity_layout.setSpacing(4)
         activity_layout.setContentsMargins(0, 4, 0, 8)
 
@@ -103,6 +101,6 @@ class DetailsWindow(QWidget):
         self.header_label.setText("Activity Summary")
         self.date_label.setText(f"{date_str} • {total_count} activities tracked")
 
-        summary = compute_summary(day_record.activities)
-        for entry in summary:
-            self.activities_layout.addWidget(self._create_activity_widget(entry))
+        stats = compute_activity_breakdown(day_record.activities, include_idle=False)
+        for stat in stats:
+            self.activities_layout.addWidget(self._create_activity_widget(stat))
