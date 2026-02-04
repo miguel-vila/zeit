@@ -289,15 +289,14 @@ CATEGORY_COLORS = {
 }
 
 
-@app.command("stats")
 def cmd_stats(
-    date: str | None = typer.Argument(None, help="Date in YYYY-MM-DD format (defaults to today)"),
-    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+    date: str | None = None,
+    json_output: bool = False,
+    include_idle: bool = False,
 ) -> None:
     """Show activity statistics for a day.
 
-    Displays a breakdown of time spent on each activity type,
-    grouped by category (work, personal, idle/system).
+    This is the implementation used by `zeit stats` command.
     """
     import json
 
@@ -308,20 +307,60 @@ def cmd_stats(
         rprint(f"[yellow]No data found for {date_str}[/yellow]")
         raise typer.Exit(1)
 
+    # Filter out idle activities unless --include-idle is set
+    if include_idle:
+        activities_to_show = stats.activities
+        total_for_percentage = stats.total_samples
+    else:
+        activities_to_show = [a for a in stats.activities if a.activity != "idle"]
+        total_for_percentage = stats.total_samples - stats.idle_count
+
     if json_output:
-        print(json.dumps(stats.model_dump(), indent=2))
+        if include_idle:
+            print(json.dumps(stats.model_dump(), indent=2))
+        else:
+            # Recalculate percentages for non-idle activities
+            filtered_stats = stats.model_dump()
+            filtered_stats["activities"] = [
+                {
+                    **a,
+                    "percentage": (a["count"] / total_for_percentage * 100)
+                    if total_for_percentage > 0
+                    else 0,
+                }
+                for a in filtered_stats["activities"]
+                if a["activity"] != "idle"
+            ]
+            filtered_stats["total_samples"] = total_for_percentage
+            print(json.dumps(filtered_stats, indent=2))
         return
 
     # Header
     rprint(f"\n[bold]Activity Statistics for {date_str}[/bold]")
-    rprint(f"Total samples: {stats.total_samples}\n")
+    if include_idle:
+        rprint(f"Total samples: {stats.total_samples}\n")
+    else:
+        rprint(f"Total samples: {total_for_percentage} (excluding {stats.idle_count} idle)\n")
 
     # Summary cards
-    rprint(
-        f"[blue]Work: {stats.work_percentage:.1f}%[/blue] | "
-        f"[magenta]Personal: {stats.personal_percentage:.1f}%[/magenta] | "
-        f"[dim]Idle: {stats.idle_percentage:.1f}%[/dim]\n"
-    )
+    if include_idle:
+        rprint(
+            f"[blue]Work: {stats.work_percentage:.1f}%[/blue] | "
+            f"[magenta]Personal: {stats.personal_percentage:.1f}%[/magenta] | "
+            f"[dim]Idle: {stats.idle_percentage:.1f}%[/dim]\n"
+        )
+    else:
+        # Recalculate work/personal percentages excluding idle
+        if total_for_percentage > 0:
+            work_pct = (stats.work_count / total_for_percentage) * 100
+            personal_pct = (stats.personal_count / total_for_percentage) * 100
+        else:
+            work_pct = 0.0
+            personal_pct = 0.0
+        rprint(
+            f"[blue]Work: {work_pct:.1f}%[/blue] | "
+            f"[magenta]Personal: {personal_pct:.1f}%[/magenta]\n"
+        )
 
     # Detailed table
     table = Table(title="Activity Breakdown")
@@ -331,9 +370,15 @@ def cmd_stats(
     table.add_column("Percentage", justify="right")
     table.add_column("Bar", style="green")
 
-    for activity_stat in stats.activities:
+    for activity_stat in activities_to_show:
+        # Recalculate percentage if excluding idle
+        if include_idle or total_for_percentage == 0:
+            percentage = activity_stat.percentage
+        else:
+            percentage = (activity_stat.count / total_for_percentage) * 100
+
         # Create a simple bar
-        bar_width = int(activity_stat.percentage / 2)  # Max 50 chars for 100%
+        bar_width = int(percentage / 2)  # Max 50 chars for 100%
         bar = "█" * bar_width
 
         category_color = CATEGORY_COLORS.get(activity_stat.category, "white")
@@ -343,7 +388,7 @@ def cmd_stats(
             activity_stat.activity.replace("_", " ").title(),
             category_display,
             str(activity_stat.count),
-            f"{activity_stat.percentage:.1f}%",
+            f"{percentage:.1f}%",
             bar,
         )
 

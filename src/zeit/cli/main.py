@@ -7,7 +7,9 @@ Commands:
     zeit view yesterday      View yesterday's activities
     zeit view all            View all days
     zeit view day <date>     View specific day
-    zeit summarize [date]    Generate AI summary
+    zeit view summarize      Generate AI summary
+
+    zeit stats [date]        Show activity statistics (excludes idle by default)
 
     zeit db info             Database information
     zeit db delete-today     Delete today's data
@@ -157,21 +159,23 @@ def track(
 def stats(
     date: str = typer.Argument(None, help="Date in YYYY-MM-DD format (defaults to today)"),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+    include_idle: bool = typer.Option(False, "--include-idle", help="Include idle time in stats"),
 ) -> None:
     """Show activity statistics for a day.
 
     Displays a breakdown of time spent on each activity type,
-    grouped by category (work, personal, idle/system).
+    grouped by category (work, personal). Idle time is excluded by default.
 
     Examples:
-        zeit stats              # Today's stats
-        zeit stats 2026-01-30   # Specific day
-        zeit stats --json       # JSON output for scripts
+        zeit stats                  # Today's stats (excludes idle)
+        zeit stats 2026-01-30       # Specific day
+        zeit stats --include-idle   # Include idle time
+        zeit stats --json           # JSON output for scripts
     """
     # Import here to avoid slowing down CLI startup
     from zeit.cli.view_data import cmd_stats
 
-    cmd_stats(date, json_output)
+    cmd_stats(date, json_output, include_idle)
 
 
 @app.command()
