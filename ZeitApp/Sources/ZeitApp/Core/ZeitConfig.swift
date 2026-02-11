@@ -30,9 +30,9 @@ struct ZeitConfig: Sendable {
         text: .init(provider: "ollama", model: "qwen3:8b")
     )
 
-    // MARK: - Loading
+    // MARK: - Paths
 
-    private static let dataDir = FileManager.default
+    static let dataDir = FileManager.default
         .homeDirectoryForCurrentUser
         .appendingPathComponent(".local/share/zeit")
 
@@ -40,8 +40,50 @@ struct ZeitConfig: Sendable {
         dataDir.appendingPathComponent("conf.yml")
     }
 
+    // MARK: - Default Config Content
+
+    private static let defaultConfigYAML = """
+        work_hours:
+          start_hour: 9
+          end_hour: 18
+
+        models:
+          vision: 'qwen3-vl:4b'
+          text:
+            provider: 'ollama'  # 'ollama' or 'openai'
+            model: 'qwen3:8b'   # e.g., 'gpt-4o-mini' for openai
+
+        paths:
+          data_dir: '~/.local/share/zeit'
+          stop_flag: '~/.local/share/zeit/.zeit_stop'
+          db_path: '~/.local/share/zeit/zeit.db'
+        """
+
+    // MARK: - Bootstrap
+
+    /// Ensure the data directory and default config file exist.
+    /// Call this early in app startup (both CLI and GUI paths).
+    static func ensureSetup() {
+        let fm = FileManager.default
+
+        // Create data directory if needed
+        if !fm.fileExists(atPath: dataDir.path) {
+            try? fm.createDirectory(at: dataDir, withIntermediateDirectories: true)
+        }
+
+        // Write default config if no config file exists
+        let configFile = configPath
+        if !fm.fileExists(atPath: configFile.path) {
+            try? defaultConfigYAML.write(to: configFile, atomically: true, encoding: .utf8)
+        }
+    }
+
+    // MARK: - Loading
+
     /// Load configuration from conf.yml, falling back to defaults for missing values.
     static func load() -> ZeitConfig {
+        ensureSetup()
+
         let path = configPath
 
         guard FileManager.default.fileExists(atPath: path.path),
