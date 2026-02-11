@@ -19,3 +19,9 @@ data/
 *.db
 .env
 .env.signing
+
+# Implementation logs
+implementation-logs/
+
+# Swift files
+ZeitApp/.build
