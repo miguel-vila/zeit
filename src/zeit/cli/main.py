@@ -236,12 +236,15 @@ def check_update() -> None:
 
 
 @app.command()
-def doctor() -> None:
+def doctor(
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+) -> None:
     """
     Check system setup and diagnose issues.
 
     Verifies Ollama, models, permissions, and services are properly configured.
     """
+    import json
     import shutil
     import subprocess
 
@@ -339,25 +342,37 @@ def doctor() -> None:
             pass
         checks.append((name, loaded, ""))
 
-    # Display results
-    table = Table(title="Zeit System Check")
-    table.add_column("Check", style="cyan")
-    table.add_column("Status", style="green")
-    table.add_column("Details", style="dim")
-
-    all_passed = True
-    for check_name, passed, details in checks:
-        status = "[green]✓[/green]" if passed else "[red]✗[/red]"
-        if not passed:
-            all_passed = False
-        table.add_row(check_name, status, details)
-
-    rprint(table)
-
-    if all_passed:
-        rprint("\n[green]All checks passed![/green]")
+    # Output results
+    if json_output:
+        # JSON output for programmatic access (e.g., from Swift menubar app)
+        json_result = {
+            "checks": [
+                {"name": name, "passed": passed, "details": details}
+                for name, passed, details in checks
+            ],
+            "all_passed": all(passed for _, passed, _ in checks),
+        }
+        typer.echo(json.dumps(json_result))
     else:
-        rprint("\n[yellow]Some checks failed. See details above.[/yellow]")
+        # Human-readable table output
+        table = Table(title="Zeit System Check")
+        table.add_column("Check", style="cyan")
+        table.add_column("Status", style="green")
+        table.add_column("Details", style="dim")
+
+        all_passed = True
+        for check_name, passed, details in checks:
+            status = "[green]✓[/green]" if passed else "[red]✗[/red]"
+            if not passed:
+                all_passed = False
+            table.add_row(check_name, status, details)
+
+        rprint(table)
+
+        if all_passed:
+            rprint("\n[green]All checks passed![/green]")
+        else:
+            rprint("\n[yellow]Some checks failed. See details above.[/yellow]")
 
 
 def main() -> None:
