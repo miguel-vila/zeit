@@ -15,6 +15,8 @@ Logs what you are doing in your computer and summarizes it using local models:
 
 - ~~build this as an executable (py2app?)~~ (see Build section below)
 - handle permissions better (maybe building this as an app helps?)
+  - Assistive access
+  - Screen recording
 - add last half an hour summary in the menubar app
 - collect only necessary data
 - day summary report at the end of the day
