@@ -59,6 +59,16 @@ struct DetailsView: View {
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
+
+                Button {
+                    store.send(.close)
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.tertiary)
+                        .font(.title2)
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.escape)
             }
 
             Divider()
@@ -77,15 +87,6 @@ struct DetailsView: View {
             }
 
             Spacer()
-
-            // Close button
-            HStack {
-                Spacer()
-                Button("Close") {
-                    store.send(.close)
-                }
-                .keyboardShortcut(.escape)
-            }
         }
         .padding(20)
         .frame(minWidth: 440, minHeight: 380)

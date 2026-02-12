@@ -7,14 +7,28 @@ struct SetupView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             // Header
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Welcome to Zeit")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Welcome to Zeit")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
 
-                Text("Activity Tracking for macOS")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
+                    Text("Activity Tracking for macOS")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button {
+                    store.send(.close)
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.tertiary)
+                        .font(.title2)
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.escape)
             }
 
             Text("""
@@ -127,10 +141,6 @@ struct SetupView: View {
                     .buttonStyle(.borderedProminent)
                 } else {
                     Spacer()
-                    Button("Close") {
-                        store.send(.close)
-                    }
-                    .buttonStyle(.borderedProminent)
                 }
             }
         }
