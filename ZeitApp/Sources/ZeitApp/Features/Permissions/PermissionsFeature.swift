@@ -26,9 +26,10 @@ struct PermissionsFeature {
     }
 
     @Dependency(\.permissionsClient) var permissions
+    @Dependency(\.continuousClock) var clock
     @Dependency(\.dismiss) var dismiss
 
-    private enum CancelID { case appObserver }
+    private enum CancelID { case appObserver, refreshTimer }
 
     var body: some ReducerOf<Self> {
         Reduce { state, action in
@@ -36,7 +37,8 @@ struct PermissionsFeature {
             case .task:
                 return .merge(
                     .send(.checkPermissions),
-                    startAppObserver()
+                    startAppObserver(),
+                    startRefreshTimer()
                 )
 
             case .checkPermissions:
@@ -75,6 +77,7 @@ struct PermissionsFeature {
             case .skip:
                 return .merge(
                     .cancel(id: CancelID.appObserver),
+                    .cancel(id: CancelID.refreshTimer),
                     .run { _ in
                         await dismiss()
                     }
@@ -83,6 +86,7 @@ struct PermissionsFeature {
             case .continuePressed:
                 return .merge(
                     .cancel(id: CancelID.appObserver),
+                    .cancel(id: CancelID.refreshTimer),
                     .run { _ in
                         await dismiss()
                     }
@@ -90,7 +94,10 @@ struct PermissionsFeature {
 
             case .allPermissionsGranted:
                 // Parent will handle dismissing
-                return .cancel(id: CancelID.appObserver)
+                return .merge(
+                    .cancel(id: CancelID.appObserver),
+                    .cancel(id: CancelID.refreshTimer)
+                )
             }
         }
     }
@@ -106,5 +113,14 @@ struct PermissionsFeature {
             }
         }
         .cancellable(id: CancelID.appObserver)
+    }
+
+    private func startRefreshTimer() -> Effect<Action> {
+        .run { send in
+            for await _ in clock.timer(interval: .seconds(5)) {
+                await send(.checkPermissions)
+            }
+        }
+        .cancellable(id: CancelID.refreshTimer)
     }
 }

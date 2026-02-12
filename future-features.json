@@ -2,15 +2,16 @@
   {
     "id": "remove-ollama-dependency",
     "description": "Refactor the code to remove the direct dependency on the Ollama CLI. Instead, implement something that downloads the models. You can find some information about this at @features-docs/qwen-on-device-integration.md . You will have to implement a new model management feature, as part of the app onboarding, because the user will need to download the models before using the app. This is a more complex feature that will require changes in multiple areas of the codebase, including the CLI, the ActivityIdentifier, and possibly the config management. The goal is to have the app manage its own models without relying on an external CLI tool.",
-    "pythonEquivalent": [],
     "implemented": false
   },
   {
     "id": "check-update-command",
     "description": "Implement a 'zeit check-update' CLI command that checks GitHub releases for newer versions. It should fetch the latest release from the GitHub API (repo: the zeit repository), compare the version tag against the current app version, and inform the user if an update is available with a download link. Use URLSession for the HTTP request. Add the command as a subcommand of the root ZeitCLI in ZeitCLI.swift.",
-    "pythonEquivalent": [
-      "src/zeit/cli/main.py"
-    ],
+    "implemented": false
+  },
+  {
+    "id": "allow-user-to-describe-activity-types",
+    "description": "Allow users to list and describe their activity types. This feature requires doing it as part of the app onboarding, after setting up the permissions.",
     "implemented": false
   }
 ]

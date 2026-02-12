@@ -65,15 +65,9 @@ struct PermissionsView: View {
 
             // Buttons
             HStack(spacing: 10) {
-                Button {
-                    store.send(.checkPermissions)
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.caption)
-                        Text("Check Again")
-                    }
-                }
+                Text("Permissions refresh automatically")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
 
                 Spacer()
 
