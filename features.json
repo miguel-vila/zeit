@@ -2,26 +2,26 @@
   {
     "id": "basic-ui-enhancements",
     "description": "Enhance the UI with better layout and styling. Hover effects on buttons, improved spacing, and a more modern look. This will involve updating the SwiftUI views and possibly adding new components for a better user experience.",
-    "implemented": false
+    "implemented": true
   },
   {
     "id": "present-all-activity-types",
     "description": "The menubar should present activity percentage for all activity types, not just the top ones",
-    "implemented": false
+    "implemented": true
   },
   {
     "id": "replace-close-button-with-xmark",
     "description": "Replace the close button in the menubar with an 'xmark' icon for a more intuitive user experience. This will involve updating the SwiftUI view that contains the close button to use the appropriate SF Symbol and ensuring that it maintains its functionality.",
-    "implemented": false
+    "implemented": true
   },
   {
     "id": "refresh-permissions-checking",
     "description": "Implement a mechanism to refresh the permissions checking in the app. Instead of making the user click a button to check permissions, the app should automatically refresh the permissions status at regular intervals or when certain events occur (e.g., app launch, returning from background). This will improve the user experience by providing up-to-date information without requiring manual intervention.",
-    "implemented": false
+    "implemented": true
   },
   {
     "id": "include-day-objectives-in-menubar",
     "description": "Include the day's objectives in the menubar, if they are set. They should be displayed prominently, perhaps at the top of the menubar, to remind users of their goals for the day. This will involve updating the data model to include objectives and modifying the SwiftUI view to display them appropriately.",
-    "implemented": false
+    "implemented": true
   }
 ]
