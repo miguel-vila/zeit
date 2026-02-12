@@ -10,6 +10,7 @@ struct MenubarFeature {
         var totalActivities: Int = 0
         var workPercentage: Double = 0
         var todayDate: String = ""
+        var dayObjectives: DayObjectives?
 
         // Child feature states
         @Presents var details: DetailsFeature.State?
@@ -30,7 +31,7 @@ struct MenubarFeature {
         case refreshData
 
         // Data responses
-        case dataLoaded(DayRecord?)
+        case dataLoaded(DayRecord?, DayObjectives?)
         case trackingStateUpdated(TrackingState)
 
         // User actions
@@ -87,12 +88,14 @@ struct MenubarFeature {
 
                 return .run { send in
                     let record = try? await database.getDayRecord(today)
-                    await send(.dataLoaded(record))
+                    let objectives = try? await database.getDayObjectives(today)
+                    await send(.dataLoaded(record, objectives))
                 }
 
-            case .dataLoaded(let record):
+            case .dataLoaded(let record, let objectives):
                 state.isLoading = false
                 state.trackingState = tracking.getTrackingState()
+                state.dayObjectives = objectives
 
                 if let record {
                     state.totalActivities = record.count

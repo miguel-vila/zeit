@@ -12,6 +12,13 @@ struct MenubarView: View {
             Divider()
                 .padding(.horizontal, 12)
 
+            // Day objectives
+            if let objectives = store.dayObjectives {
+                objectivesSection(objectives)
+                Divider()
+                    .padding(.horizontal, 12)
+            }
+
             // Activity stats
             if store.totalActivities > 0 {
                 statsSection
@@ -144,6 +151,49 @@ struct MenubarView: View {
             }
 
         }
+        .padding(.vertical, 8)
+    }
+
+    private func objectivesSection(_ objectives: DayObjectives) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "target")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                Text("Today's Objectives")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(alignment: .top, spacing: 6) {
+                Image(systemName: "star.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+                    .padding(.top, 1)
+                Text(objectives.mainObjective)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .lineLimit(3)
+            }
+
+            let secondary = objectives.secondaryObjectives.filter { !$0.isEmpty }
+            if !secondary.isEmpty {
+                ForEach(secondary, id: \.self) { objective in
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: "circle.fill")
+                            .font(.system(size: 4))
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 4)
+                        Text(objective)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 14)
         .padding(.vertical, 8)
     }
 
