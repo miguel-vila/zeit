@@ -7,7 +7,7 @@ struct SetupView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             // Header
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text("Welcome to Zeit")
                     .font(.largeTitle)
                     .fontWeight(.bold)
@@ -17,19 +17,21 @@ struct SetupView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Text("""
+                Zeit tracks your computer activity throughout the day, helping you \
+                understand how you spend your time.
+                """)
+            .foregroundStyle(.secondary)
+
             Divider()
 
-            // Description
-            VStack(alignment: .leading, spacing: 12) {
-                Text("""
-                    Zeit tracks your computer activity throughout the day, helping you \
-                    understand how you spend your time.
-                    """)
-
-                Group {
-                    Text("What will be installed:")
-                        .fontWeight(.semibold)
-
+            // Cards
+            VStack(spacing: 12) {
+                SetupCard(
+                    icon: "square.and.arrow.down",
+                    iconColor: .blue,
+                    title: "What will be installed"
+                ) {
                     BulletPoint(
                         title: "CLI Tool",
                         description: "(~/.local/bin/zeit) - Command-line interface"
@@ -40,10 +42,11 @@ struct SetupView: View {
                     )
                 }
 
-                Group {
-                    Text("Permissions required:")
-                        .fontWeight(.semibold)
-
+                SetupCard(
+                    icon: "lock.shield",
+                    iconColor: .orange,
+                    title: "Permissions required"
+                ) {
                     BulletPoint(
                         title: "Screen Recording",
                         description: "to capture screenshots"
@@ -53,38 +56,46 @@ struct SetupView: View {
                         description: "to detect the active window"
                     )
                 }
-
-                Text("Note: Your data stays local. Zeit uses Ollama for AI processing.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
+
+            HStack(spacing: 6) {
+                Image(systemName: "lock.fill")
+                    .font(.caption2)
+                Text("Your data stays local. Zeit uses Ollama for AI processing.")
+                    .font(.caption)
+            }
+            .foregroundStyle(.tertiary)
 
             Spacer()
 
             // Progress/Result
             if store.isInstalling {
-                HStack {
+                HStack(spacing: 8) {
                     ProgressView()
-                        .scaleEffect(0.8)
+                        .scaleEffect(0.7)
                     Text(store.progress)
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
+                .padding(.vertical, 4)
             } else if let result = store.result {
                 switch result {
                 case .success:
-                    HStack {
+                    HStack(spacing: 6) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
                         Text("Setup completed successfully!")
-                            .foregroundStyle(.green)
+                            .fontWeight(.medium)
                     }
+                    .foregroundStyle(.green)
+                    .padding(.vertical, 4)
                 case .failure(let error):
-                    HStack {
+                    HStack(spacing: 6) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.red)
                         Text("Setup failed: \(error)")
-                            .foregroundStyle(.red)
                     }
+                    .foregroundStyle(.red)
+                    .font(.subheadline)
+                    .padding(.vertical, 4)
                 }
             }
 
@@ -97,8 +108,20 @@ struct SetupView: View {
 
                     Spacer()
 
-                    Button("Install") {
+                    Button {
                         store.send(.install)
+                    } label: {
+                        HStack(spacing: 4) {
+                            if store.isInstalling {
+                                ProgressView()
+                                    .scaleEffect(0.5)
+                                    .frame(width: 12, height: 12)
+                            } else {
+                                Image(systemName: "arrow.down.circle")
+                                    .font(.caption)
+                            }
+                            Text("Install")
+                        }
                     }
                     .disabled(store.isInstalling)
                     .buttonStyle(.borderedProminent)
@@ -111,8 +134,38 @@ struct SetupView: View {
                 }
             }
         }
-        .padding(24)
-        .frame(minWidth: 500, minHeight: 400)
+        .padding(26)
+        .frame(minWidth: 520, minHeight: 420)
+    }
+}
+
+// MARK: - Setup Card
+
+private struct SetupCard<Content: View>: View {
+    let icon: String
+    let iconColor: Color
+    let title: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label {
+                Text(title)
+                    .fontWeight(.semibold)
+            } icon: {
+                Image(systemName: icon)
+                    .foregroundStyle(iconColor)
+                    .font(.caption)
+            }
+
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.primary.opacity(0.03))
+        )
     }
 }
 
@@ -124,13 +177,15 @@ private struct BulletPoint: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
-            Text("•")
+            Text("\u{2022}")
+                .foregroundStyle(.tertiary)
             Text(title)
                 .fontWeight(.medium)
                 + Text(" ")
                 + Text(description)
                     .foregroundStyle(.secondary)
         }
-        .padding(.leading, 8)
+        .font(.subheadline)
+        .padding(.leading, 4)
     }
 }

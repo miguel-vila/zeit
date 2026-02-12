@@ -4,16 +4,28 @@ import SwiftUI
 struct ObjectivesView: View {
     @Bindable var store: StoreOf<ObjectivesFeature>
 
+    private var canSave: Bool {
+        !store.mainObjective.trimmingCharacters(in: .whitespaces).isEmpty && !store.isSaving
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Header
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Set Your Day Objectives")
-                    .font(.title2)
-                    .fontWeight(.bold)
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Day Objectives")
+                        .font(.title2)
+                        .fontWeight(.bold)
 
-                Text("Date: \(store.date)")
-                    .font(.subheadline)
+                    Text(store.date)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "target")
+                    .font(.title2)
                     .foregroundStyle(.secondary)
             }
 
@@ -24,9 +36,15 @@ struct ObjectivesView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 // Main objective
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Main Objective:")
-                        .fontWeight(.semibold)
+                VStack(alignment: .leading, spacing: 6) {
+                    Label {
+                        Text("Main Objective")
+                            .fontWeight(.semibold)
+                    } icon: {
+                        Image(systemName: "star.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
 
                     TextField(
                         "e.g., Complete the API integration for project X",
@@ -36,9 +54,19 @@ struct ObjectivesView: View {
                 }
 
                 // Secondary objectives
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Secondary Objectives (optional):")
-                        .fontWeight(.semibold)
+                VStack(alignment: .leading, spacing: 6) {
+                    Label {
+                        Text("Secondary Objectives")
+                            .fontWeight(.semibold)
+                    } icon: {
+                        Image(systemName: "list.bullet")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Text("Optional goals for the day")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
 
                     TextField(
                         "e.g., Review pull requests",
@@ -65,18 +93,25 @@ struct ObjectivesView: View {
 
                 Spacer()
 
-                Button("Save") {
+                Button {
                     store.send(.save)
+                } label: {
+                    HStack(spacing: 4) {
+                        if store.isSaving {
+                            ProgressView()
+                                .scaleEffect(0.6)
+                                .frame(width: 12, height: 12)
+                        }
+                        Text("Save")
+                    }
                 }
                 .keyboardShortcut(.return)
-                .disabled(
-                    store.mainObjective.trimmingCharacters(in: .whitespaces).isEmpty
-                        || store.isSaving
-                )
+                .buttonStyle(.borderedProminent)
+                .disabled(!canSave)
             }
         }
-        .padding(20)
-        .frame(minWidth: 450, minHeight: 250)
+        .padding(22)
+        .frame(minWidth: 460, minHeight: 280)
         .task {
             await store.send(.task).finish()
         }
