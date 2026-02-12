@@ -11,6 +11,7 @@ struct ObjectivesFeature {
         var secondary2: String = ""
         var isLoading: Bool = false
         var isSaving: Bool = false
+        var savedSuccessfully: Bool = false
     }
 
     enum Action: BindableAction {
@@ -32,6 +33,7 @@ struct ObjectivesFeature {
         Reduce { state, action in
             switch action {
             case .binding:
+                state.savedSuccessfully = false
                 return .none
 
             case .task:
@@ -84,9 +86,8 @@ struct ObjectivesFeature {
 
             case .saved:
                 state.isSaving = false
-                return .run { _ in
-                    await dismiss()
-                }
+                state.savedSuccessfully = true
+                return .none
 
             case .saveFailed:
                 state.isSaving = false

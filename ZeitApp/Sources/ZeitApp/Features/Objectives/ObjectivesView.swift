@@ -86,12 +86,19 @@ struct ObjectivesView: View {
 
             // Buttons
             HStack {
-                Button("Cancel") {
+                Button("Close") {
                     store.send(.cancel)
                 }
                 .keyboardShortcut(.escape)
 
                 Spacer()
+
+                if store.savedSuccessfully {
+                    Label("Saved", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .font(.subheadline)
+                        .transition(.opacity)
+                }
 
                 Button {
                     store.send(.save)
