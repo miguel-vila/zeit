@@ -1,27 +1,17 @@
 [
   {
-    "id": "basic-ui-enhancements",
-    "description": "Enhance the UI with better layout and styling. Hover effects on buttons, improved spacing, and a more modern look. This will involve updating the SwiftUI views and possibly adding new components for a better user experience.",
+    "id": "keep-onboarding-window-open",
+    "description": "Keep the onboarding window open until the user has completed all the steps. This means that after the user grants permissions, the onboarding window should not close immediately. Instead, it should wait until the user has completed all the necessary steps to set up the app.",
     "implemented": true
   },
   {
-    "id": "present-all-activity-types",
-    "description": "The menubar should present activity percentage for all activity types, not just the top ones",
+    "id": "objectives-window-stays-open-until-closed-by-user",
+    "description": "The objectives window should remain open until the user decides to close it. This means that after the user sets their objectives, the window should not automatically close. Instead, it should stay open, allowing the user to review or modify their objectives as needed, until they choose to close it themselves.",
     "implemented": true
   },
   {
-    "id": "replace-close-button-with-xmark",
-    "description": "Replace the close button in the menubar with an 'xmark' icon for a more intuitive user experience. This will involve updating the SwiftUI view that contains the close button to use the appropriate SF Symbol and ensuring that it maintains its functionality.",
-    "implemented": true
-  },
-  {
-    "id": "refresh-permissions-checking",
-    "description": "Implement a mechanism to refresh the permissions checking in the app. Instead of making the user click a button to check permissions, the app should automatically refresh the permissions status at regular intervals or when certain events occur (e.g., app launch, returning from background). This will improve the user experience by providing up-to-date information without requiring manual intervention.",
-    "implemented": true
-  },
-  {
-    "id": "include-day-objectives-in-menubar",
-    "description": "Include the day's objectives in the menubar, if they are set. They should be displayed prominently, perhaps at the top of the menubar, to remind users of their goals for the day. This will involve updating the data model to include objectives and modifying the SwiftUI view to display them appropriately.",
+    "id": "left-click-on-menu-bar-to-quit",
+    "description": "When left clicking on the menu bar icon, it should show a menu with the option to quit the app.",
     "implemented": true
   }
 ]
