@@ -55,11 +55,16 @@ enum ActiveWindow {
 
     /// Get which screen number (1-based) contains the active window
     static func getActiveScreenNumber() -> Int {
+        let screens = NSScreen.screens
+
+        // Single monitor — no need for AppleScript detection
+        if screens.count <= 1 {
+            return 1
+        }
+
         guard let windowBounds = getFrontmostWindowBounds() else {
             return 1  // Default to primary screen
         }
-
-        let screens = NSScreen.screens
 
         // Check which screen contains the window's top-left corner
         for (index, screen) in screens.enumerated() {

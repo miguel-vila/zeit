@@ -142,6 +142,7 @@ class ActivityIdentifier:
                     prompt=prompt,
                     images=encoded_images,
                     options={"temperature": 0, "timeout": 30},
+                    think=True,
                 )
 
             opik_ctx = get_opik_context()
@@ -241,9 +242,12 @@ class ActivityIdentifier:
             logger.info(f"Captured {len(screenshot_paths)} screen(s)")
 
             # Try to get the active screen number from the native API
-            active_screen = get_active_screen_number()
-            if active_screen:
+            active_screen: int | None = None
+            try:
+                active_screen = get_active_screen_number()
                 logger.debug(f"Active screen detected: {active_screen}")
+            except RuntimeError:
+                logger.warning("Could not detect active screen, defaulting to None")
 
             start_describe = time()
             description = self._describe_images(screenshot_paths, active_screen_hint=active_screen)

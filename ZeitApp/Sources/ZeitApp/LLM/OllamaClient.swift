@@ -156,10 +156,9 @@ final class OllamaClient: LLMProvider, VisionLLMProvider, @unchecked Sendable {
             bodyDict["format"] = format.value
         }
 
-        // Enable thinking mode for Qwen3 models
-        if think {
-            bodyDict["think"] = true
-        }
+        // Explicitly set thinking mode — must always be sent so that
+        // thinking models like qwen3-vl don't think by default
+        bodyDict["think"] = think
 
         request.httpBody = try JSONSerialization.data(withJSONObject: bodyDict)
 

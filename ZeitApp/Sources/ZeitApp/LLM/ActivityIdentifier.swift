@@ -45,19 +45,19 @@ final class ActivityIdentifier: @unchecked Sendable {
             screenCount: screenshots.count
         )
 
-        // Send all images, prompt indicates which screen is active
-        let descriptionResponse = try await visionClient.generateWithVision(
+        // Send all images with thinking enabled so qwen3-vl separates
+        // thinking tokens from the actual description
+        let visionResponse = try await visionClient.generateWithVisionThinking(
             prompt: descriptionPrompt,
             images: base64Images,
-            temperature: 0,
-            jsonMode: false
+            temperature: 0
         )
 
-        // Use the raw text description
+        // Use the clean response (thinking is separated out)
         let description = DescriptionResponse(
-            thinking: nil,
+            thinking: visionResponse.thinking,
             primaryScreen: activeScreen,
-            mainActivityDescription: descriptionResponse.trimmingCharacters(in: .whitespacesAndNewlines),
+            mainActivityDescription: visionResponse.response.trimmingCharacters(in: .whitespacesAndNewlines),
             secondaryContext: nil
         )
 

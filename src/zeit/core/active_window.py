@@ -141,10 +141,6 @@ def get_active_screen_number() -> int:
     Raises:
         RuntimeError: If unable to detect active screen
     """
-    # Get frontmost window bounds
-    window = get_frontmost_window_bounds()
-    logger.info(f"Active window bounds: {window}")
-
     # Get mss monitors (this is what MultiScreenCapture uses)
     mss_monitors = get_mss_monitors()
     logger.debug(f"MSS monitors: {mss_monitors}")
@@ -155,6 +151,10 @@ def get_active_screen_number() -> int:
     if len(mss_monitors) == 1:
         # Only one monitor, no need to detect
         return 1
+
+    # Get frontmost window bounds (only needed for multi-monitor)
+    window = get_frontmost_window_bounds()
+    logger.info(f"Active window bounds: {window}")
 
     # Find which monitor contains the window
     monitor_idx = _find_display_for_window(window, mss_monitors)
