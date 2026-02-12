@@ -120,7 +120,7 @@ struct MenubarView: View {
 
             // Activity breakdown
             VStack(spacing: 2) {
-                ForEach(store.todayStats.prefix(5)) { stat in
+                ForEach(store.todayStats) { stat in
                     HStack(spacing: 8) {
                         Circle()
                             .fill(stat.activity.isWork ? Color.green : Color.blue)
@@ -143,12 +143,6 @@ struct MenubarView: View {
                 }
             }
 
-            if store.todayStats.count > 5 {
-                Text("+ \(store.todayStats.count - 5) more...")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .padding(.horizontal, 14)
-            }
         }
         .padding(.vertical, 8)
     }
