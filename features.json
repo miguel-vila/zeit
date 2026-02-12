@@ -1,44 +1,27 @@
 [
   {
-    "id": "activity-condensation",
-    "description": "Implement activity condensation/grouping logic that groups consecutive identical activities into time ranges. This includes: (1) a function to group consecutive same-activity entries (excluding idle) into ActivityGroup structs with start/end times, duration, and collected reasonings, and (2) a function to build a CondensedActivitySummary that groups consecutive activities and computes percentage breakdown (excluding idle). This is a prerequisite for day summarization. Create a new Swift file (e.g., ActivitySummarization.swift) in the processing/models area following the Python patterns.",
-    "pythonEquivalent": [
-      "src/zeit/processing/activity_summarization.py"
-    ],
-    "implemented": true
+    "id": "basic-ui-enhancements",
+    "description": "Enhance the UI with better layout and styling. Hover effects on buttons, improved spacing, and a more modern look. This will involve updating the SwiftUI views and possibly adding new components for a better user experience.",
+    "implemented": false
   },
   {
-    "id": "day-summarization",
-    "description": "Implement the day summarization feature that uses an LLM to generate a qualitative summary of a day's activities. This includes: (1) a DaySummarizer class that takes condensed activity groups and optional day objectives, formats them into a prompt, calls the text LLM, and returns a DaySummary with summary text, percentages, and time range, (2) wiring up the existing 'zeit view summarize [date]' CLI command (currently a placeholder in ViewCommand.swift printing 'not yet implemented') to actually call the summarizer. The prompt template already exists in Prompts.daySummary(). Support an optional --model flag to override the LLM model (format: 'provider:model'). This feature depends on activity-condensation being implemented first.",
-    "pythonEquivalent": [
-      "src/zeit/processing/day_summarizer.py",
-      "src/zeit/cli/view_data.py"
-    ],
-    "implemented": true
+    "id": "present-all-activity-types",
+    "description": "The menubar should present activity percentage for all activity types, not just the top ones",
+    "implemented": false
   },
   {
-    "id": "model-config-from-yaml",
-    "description": "Load LLM model configuration (vision model name, text model name, text provider) from the conf.yml config file instead of hardcoding defaults in ActivityIdentifier.swift. The Python version reads 'models.vision', 'models.text.provider', and 'models.text.model' from conf.yml. The Swift TrackingClient already loads conf.yml for work hours -- extend or extract the config loading to also parse model settings, and pass them to ActivityIdentifier. The ActivityIdentifier constructor already accepts these as parameters, they just need to be loaded from config instead of using hardcoded defaults.",
-    "pythonEquivalent": [
-      "src/zeit/core/config.py",
-      "src/zeit/core/activity_id.py"
-    ],
-    "implemented": true
+    "id": "replace-close-button-with-xmark",
+    "description": "Replace the close button in the menubar with an 'xmark' icon for a more intuitive user experience. This will involve updating the SwiftUI view that contains the close button to use the appropriate SF Symbol and ensuring that it maintains its functionality.",
+    "implemented": false
   },
   {
-    "id": "auto-create-config",
-    "description": "On first run, if ~/.local/share/zeit/conf.yml does not exist, automatically create it with sensible defaults. The Python version copies a bundled default conf.yml to the user data directory. In the Swift version, either embed a default YAML string or generate the file programmatically with default values for work_hours (start_hour: 9, end_hour: 18), models (vision: qwen3-vl:4b, text provider: ollama, text model: qwen3:8b), and paths. This should happen early in app startup (both CLI and GUI paths). Also ensure the data directory ~/.local/share/zeit/ is created if it doesn't exist.",
-    "pythonEquivalent": [
-      "src/zeit/core/config.py"
-    ],
-    "implemented": true
+    "id": "refresh-permissions-checking",
+    "description": "Implement a mechanism to refresh the permissions checking in the app. Instead of making the user click a button to check permissions, the app should automatically refresh the permissions status at regular intervals or when certain events occur (e.g., app launch, returning from background). This will improve the user experience by providing up-to-date information without requiring manual intervention.",
+    "implemented": false
   },
   {
-    "id": "richer-details-view",
-    "description": "Enhance the DetailsView.swift to show a richer activity breakdown similar to the Python version. Currently it's minimal. Add: (1) colored progress bars for each activity (use green/teal for work activities, purple/pink for personal), (2) percentage labels and minute counts next to each bar, (3) exclude idle from the display, (4) show total tracked time. Reference the Python DetailsWindow which uses colored QProgressBar widgets with percentage and minute labels.",
-    "pythonEquivalent": [
-      "src/zeit/ui/details_window.py"
-    ],
-    "implemented": true
+    "id": "include-day-objectives-in-menubar",
+    "description": "Include the day's objectives in the menubar, if they are set. They should be displayed prominently, perhaps at the top of the menubar, to remind users of their goals for the day. This will involve updating the data model to include objectives and modifying the SwiftUI view to display them appropriately.",
+    "implemented": false
   }
 ]
