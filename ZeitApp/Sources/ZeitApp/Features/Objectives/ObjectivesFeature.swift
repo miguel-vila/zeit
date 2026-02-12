@@ -87,7 +87,9 @@ struct ObjectivesFeature {
             case .saved:
                 state.isSaving = false
                 state.savedSuccessfully = true
-                return .none
+                return .run { _ in
+                    await dismiss()
+                }
 
             case .saveFailed:
                 state.isSaving = false

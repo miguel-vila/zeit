@@ -49,16 +49,22 @@ struct MenubarView: View {
             .padding(.vertical, 4)
         }
         .frame(minWidth: 300)
-        .task {
-            await store.send(.task).finish()
-        }
-        .sheet(item: $store.scope(state: \.details, action: \.details)) { detailsStore in
+        .floatingPanel(
+            item: $store.scope(state: \.details, action: \.details),
+            title: "Activity Summary"
+        ) { detailsStore in
             DetailsView(store: detailsStore)
         }
-        .sheet(item: $store.scope(state: \.objectives, action: \.objectives)) { objectivesStore in
+        .floatingPanel(
+            item: $store.scope(state: \.objectives, action: \.objectives),
+            title: "Day Objectives"
+        ) { objectivesStore in
             ObjectivesView(store: objectivesStore)
         }
-        .sheet(item: $store.scope(state: \.onboarding, action: \.onboarding)) { onboardingStore in
+        .floatingPanel(
+            item: $store.scope(state: \.onboarding, action: \.onboarding),
+            title: "Welcome to Zeit"
+        ) { onboardingStore in
             OnboardingView(store: onboardingStore)
         }
     }
@@ -158,12 +164,11 @@ struct MenubarView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Image(systemName: "target")
-                    .font(.caption)
+                    .font(.subheadline)
                     .foregroundStyle(.orange)
                 Text("Today's Objectives")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.secondary)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
             }
 
             HStack(alignment: .top, spacing: 6) {
