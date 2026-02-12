@@ -48,21 +48,21 @@ while [ "$idx" -lt "$total" ]; do
     echo "Python reference: $python_equiv"
     echo ""
 
-    prompt="You are implementing the Swift version of a feature that is present in the Python implementation of the Zeit app. The feature is: $description ." \
-      " The Swift code lives under ZeitApp/Sources/ZeitApp/." \
-      " You can find Python reference code at $python_equiv ." \
-      " Read the relevant Python files first, then read the relevant Swift files to understand the existing patterns, and implement the feature in Swift following the existing Swift conventions." \
-      " Make sure the code compiles by checking existing types, imports, and patterns." \
-      " Commit your changes. Only return either <DONE> or an error/description of why it wasn't possible."
+    prompt="You are implementing the Swift version of a feature that is present in the Python implementation of the Zeit app. The feature is: $description ."
+    prompt+=" The Swift code lives under ZeitApp/Sources/ZeitApp/."
+    prompt+=" You can find Python reference code at $python_equiv ."
+    prompt+=" Read the relevant Python files first, then read the relevant Swift files to understand the existing patterns, and implement the feature in Swift following the existing Swift conventions."
+    prompt+=" Make sure the code compiles by checking existing types, imports, and patterns."
+    prompt+=" Commit your changes. Only return either <DONE> or an error/description of why it wasn't possible."
   else
     echo ""
 
-    prompt="You are implementing the Swift version of a feature for the Zeit app. The feature is: $description ." \
-      " The Swift code lives under ZeitApp/Sources/ZeitApp/." \
-      " No Python reference is provided; infer behavior from the feature description and existing Swift patterns." \
-      " Read the relevant Swift files to understand the existing patterns, and implement the feature in Swift following those conventions." \
-      " Make sure the code compiles by checking existing types, imports, and patterns." \
-      " Commit your changes. Only return either <DONE> or an error/description of why it wasn't possible."
+    prompt="You are implementing the Swift version of a feature for the Zeit app. The feature is: $description ."
+    prompt+=" The Swift code lives under ZeitApp/Sources/ZeitApp/."
+    prompt+=" No Python reference is provided; infer behavior from the feature description and existing Swift patterns."
+    prompt+=" Read the relevant Swift files to understand the existing patterns, and implement the feature in Swift following those conventions."
+    prompt+=" Make sure the code compiles by checking existing types, imports, and patterns."
+    prompt+=" Commit your changes. Only return either <DONE> or an error/description of why it wasn't possible."
   fi
 
   log_file="$LOG_DIR/${id}.log"
