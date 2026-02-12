@@ -58,8 +58,8 @@ struct MenubarView: View {
         .sheet(item: $store.scope(state: \.objectives, action: \.objectives)) { objectivesStore in
             ObjectivesView(store: objectivesStore)
         }
-        .sheet(item: $store.scope(state: \.permissions, action: \.permissions)) { permissionsStore in
-            PermissionsView(store: permissionsStore)
+        .sheet(item: $store.scope(state: \.onboarding, action: \.onboarding)) { onboardingStore in
+            OnboardingView(store: onboardingStore)
         }
     }
 

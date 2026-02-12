@@ -141,6 +141,11 @@ struct SetupView: View {
                     .buttonStyle(.borderedProminent)
                 } else {
                     Spacer()
+
+                    Button("Done") {
+                        store.send(.close)
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
             }
         }

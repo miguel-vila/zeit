@@ -26,8 +26,6 @@ struct SetupFeature {
         case close
     }
 
-    @Dependency(\.dismiss) var dismiss
-
     var body: some ReducerOf<Self> {
         Reduce { state, action in
             switch action {
@@ -61,14 +59,12 @@ struct SetupFeature {
                 return .none
 
             case .skip:
-                return .run { _ in
-                    await dismiss()
-                }
+                // Parent handles dismissal
+                return .none
 
             case .close:
-                return .run { _ in
-                    await dismiss()
-                }
+                // Parent handles dismissal
+                return .none
             }
         }
     }

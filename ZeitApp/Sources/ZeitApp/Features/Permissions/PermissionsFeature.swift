@@ -27,7 +27,6 @@ struct PermissionsFeature {
 
     @Dependency(\.permissionsClient) var permissions
     @Dependency(\.continuousClock) var clock
-    @Dependency(\.dismiss) var dismiss
 
     private enum CancelID { case appObserver, refreshTimer }
 
@@ -75,21 +74,17 @@ struct PermissionsFeature {
                 }
 
             case .skip:
+                // Parent handles navigation/dismissal
                 return .merge(
                     .cancel(id: CancelID.appObserver),
-                    .cancel(id: CancelID.refreshTimer),
-                    .run { _ in
-                        await dismiss()
-                    }
+                    .cancel(id: CancelID.refreshTimer)
                 )
 
             case .continuePressed:
+                // Parent handles navigation/dismissal
                 return .merge(
                     .cancel(id: CancelID.appObserver),
-                    .cancel(id: CancelID.refreshTimer),
-                    .run { _ in
-                        await dismiss()
-                    }
+                    .cancel(id: CancelID.refreshTimer)
                 )
 
             case .allPermissionsGranted:

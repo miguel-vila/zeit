@@ -15,7 +15,7 @@ struct MenubarFeature {
         // Child feature states
         @Presents var details: DetailsFeature.State?
         @Presents var objectives: ObjectivesFeature.State?
-        @Presents var permissions: PermissionsFeature.State?
+        @Presents var onboarding: OnboardingFeature.State?
 
         // Settings
         var launchAtLogin: Bool = false
@@ -46,7 +46,7 @@ struct MenubarFeature {
         // Child feature actions
         case details(PresentationAction<DetailsFeature.Action>)
         case objectives(PresentationAction<ObjectivesFeature.Action>)
-        case permissions(PresentationAction<PermissionsFeature.Action>)
+        case onboarding(PresentationAction<OnboardingFeature.Action>)
     }
 
     @Dependency(\.databaseClient) var database
@@ -66,9 +66,9 @@ struct MenubarFeature {
                 state.todayDate = todayString()
                 state.launchAtLogin = launchAgent.isMenubarServiceLoaded()
 
-                // Check permissions on launch
+                // Show onboarding if permissions aren't granted
                 if !permissions.allPermissionsGranted() {
-                    state.permissions = PermissionsFeature.State()
+                    state.onboarding = OnboardingFeature.State()
                 }
 
                 return .merge(
@@ -226,11 +226,11 @@ struct MenubarFeature {
             case .objectives:
                 return .none
 
-            case .permissions(.presented(.allPermissionsGranted)):
-                state.permissions = nil
+            case .onboarding(.presented(.completed)):
+                state.onboarding = nil
                 return .none
 
-            case .permissions:
+            case .onboarding:
                 return .none
             }
         }
@@ -240,8 +240,8 @@ struct MenubarFeature {
         .ifLet(\.$objectives, action: \.objectives) {
             ObjectivesFeature()
         }
-        .ifLet(\.$permissions, action: \.permissions) {
-            PermissionsFeature()
+        .ifLet(\.$onboarding, action: \.onboarding) {
+            OnboardingFeature()
         }
     }
 
