@@ -61,12 +61,8 @@ struct MenubarView: View {
         ) { objectivesStore in
             ObjectivesView(store: objectivesStore)
         }
-        .floatingPanel(
-            item: $store.scope(state: \.onboarding, action: \.onboarding),
-            title: "Welcome to Zeit"
-        ) { onboardingStore in
-            OnboardingView(store: onboardingStore)
-        }
+        // Note: onboarding panel is managed by ZeitAppDelegate directly,
+        // since the popover's view isn't active on app launch.
     }
 
     // MARK: - Sections

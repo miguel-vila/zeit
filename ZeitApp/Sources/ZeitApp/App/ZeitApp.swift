@@ -20,6 +20,12 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
 
+    // Onboarding panel — managed here (not in the popover's SwiftUI view)
+    // because the popover isn't shown on launch, so its .onChange never fires.
+    private var onboardingPanel: NSPanel?
+    private var onboardingPanelWindowDelegate: OnboardingPanelWindowDelegate?
+    private var onboardingStore: StoreOf<OnboardingFeature>?
+
     let store = Store(initialState: MenubarFeature.State()) {
         MenubarFeature()
     }
@@ -28,6 +34,7 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         setupStatusItem()
         startIconObservation()
         store.send(.task)
+        presentOnboardingIfNeeded()
     }
 
     // MARK: - Status Item
@@ -108,5 +115,83 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self?.startIconObservation()
             }
         }
+    }
+
+    // MARK: - Onboarding Panel
+
+    private func presentOnboardingIfNeeded() {
+        guard store.onboarding != nil, onboardingPanel == nil else { return }
+
+        // Standalone store — actions within the panel (skip, continue,
+        // permissions granted) set isCompleted which we observe below.
+        let childStore = Store(initialState: OnboardingFeature.State()) {
+            OnboardingFeature()
+        }
+
+        let windowDelegate = OnboardingPanelWindowDelegate()
+        windowDelegate.onClose = { [weak self] in
+            self?.cleanupOnboarding()
+        }
+
+        let panel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 400),
+            styleMask: [.titled, .closable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        panel.title = "Welcome to Zeit"
+        panel.contentView = NSHostingView(rootView: OnboardingView(store: childStore))
+        panel.center()
+        panel.delegate = windowDelegate
+        panel.isReleasedWhenClosed = false
+        panel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+
+        onboardingPanel = panel
+        onboardingPanelWindowDelegate = windowDelegate
+        onboardingStore = childStore
+
+        observeOnboardingCompletion()
+    }
+
+    private func observeOnboardingCompletion() {
+        guard let childStore = onboardingStore else { return }
+
+        withObservationTracking {
+            _ = childStore.isCompleted
+        } onChange: {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if childStore.isCompleted {
+                    self.onboardingPanelWindowDelegate?.onClose = nil
+                    self.onboardingPanel?.close()
+                    self.cleanupOnboarding()
+                } else {
+                    self.observeOnboardingCompletion()
+                }
+            }
+        }
+    }
+
+    private func cleanupOnboarding() {
+        onboardingPanel = nil
+        onboardingPanelWindowDelegate = nil
+        onboardingStore = nil
+        // Clear the main store's onboarding state
+        if store.onboarding != nil {
+            store.send(.onboarding(.dismiss))
+        }
+    }
+}
+
+// MARK: - Onboarding Panel Window Delegate
+
+private final class OnboardingPanelWindowDelegate: NSObject, NSWindowDelegate {
+    var onClose: (() -> Void)?
+
+    func windowWillClose(_: Notification) {
+        let callback = onClose
+        onClose = nil
+        callback?()
     }
 }

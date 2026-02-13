@@ -7,6 +7,7 @@ struct OnboardingFeature {
     @ObservableState
     struct State: Equatable {
         var permissions: PermissionsFeature.State = .init()
+        var isCompleted: Bool = false
     }
 
     enum Action {
@@ -34,7 +35,7 @@ struct OnboardingFeature {
                 return .none
 
             case .completed:
-                // Parent handles dismissal
+                state.isCompleted = true
                 return .none
             }
         }
