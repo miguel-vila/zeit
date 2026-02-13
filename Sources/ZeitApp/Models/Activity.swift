@@ -1,7 +1,6 @@
 import Foundation
 
 /// Activity categories detected by the tracker.
-/// Maps to Python's ExtendedActivity enum.
 enum Activity: String, Codable, CaseIterable, Sendable {
     // Personal activities
     case personalBrowsing = "personal_browsing"

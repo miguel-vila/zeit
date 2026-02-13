@@ -38,32 +38,18 @@ while [ "$idx" -lt "$total" ]; do
 
   # Found the next unimplemented feature
   description=$(jq -r ".[$idx].description" "$FEATURES_FILE")
-  python_equiv=$(jq -r '.['$idx'].pythonEquivalent // [] | join(", ")' "$FEATURES_FILE")
-
   echo "────────────────────────────────────────"
   echo "[$((idx + 1))/$total] Implementing: $id"
   echo "────────────────────────────────────────"
   echo "Description: $description"
-  if [ -n "$python_equiv" ]; then
-    echo "Python reference: $python_equiv"
-    echo ""
+  echo ""
 
-    prompt="You are implementing the Swift version of a feature that is present in the Python implementation of the Zeit app. The feature is: $description ."
-    prompt+=" The Swift code lives under ZeitApp/Sources/ZeitApp/."
-    prompt+=" You can find Python reference code at $python_equiv ."
-    prompt+=" Read the relevant Python files first, then read the relevant Swift files to understand the existing patterns, and implement the feature in Swift following the existing Swift conventions."
-    prompt+=" Make sure the code compiles by checking existing types, imports, and patterns."
-    prompt+=" Commit your changes. Only return either <DONE> or an error/description of why it wasn't possible."
-  else
-    echo ""
-
-    prompt="You are implementing the Swift version of a feature for the Zeit app. The feature is: $description ."
-    prompt+=" The Swift code lives under ZeitApp/Sources/ZeitApp/."
-    prompt+=" No Python reference is provided; infer behavior from the feature description and existing Swift patterns."
-    prompt+=" Read the relevant Swift files to understand the existing patterns, and implement the feature in Swift following those conventions."
-    prompt+=" Make sure the code compiles by checking existing types, imports, and patterns."
-    prompt+=" Commit your changes. Only return either <DONE> or an error/description of why it wasn't possible."
-  fi
+  prompt="You are implementing a feature for the Zeit app. The feature is: $description ."
+  prompt+=" The Swift code lives under Sources/ZeitApp/."
+  prompt+=" Take into account that there might be a concurrent agent working on this code base but I made an effort for it to not interfere with the feature you are implementing, so you can ignore any recent changes in the codebase that are not related to the feature description."
+  prompt+=" Read the relevant Swift files to understand the existing patterns, and implement the feature following those conventions."
+  prompt+=" Make sure the code compiles by checking existing types, imports, and patterns."
+  prompt+=" Commit your changes. Only return either <DONE> or an error/description of why it wasn't possible."
 
   log_file="$LOG_DIR/${id}.log"
   echo "Running claude... (log: $log_file)"

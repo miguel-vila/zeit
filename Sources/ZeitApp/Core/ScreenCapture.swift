@@ -75,7 +75,7 @@ enum ScreenCapture {
 
     /// Load image as base64 string for LLM, downscaled to reduce payload size
     /// CGDisplayCreateImage captures at retina resolution (2x-3x), but we want
-    /// ~1920px max dimension like Python's mss library
+    /// ~1280px max dimension to reduce payload size
     static func loadAsBase64(url: URL, maxDimension: Int = 1280) throws -> String {
         let data = try Data(contentsOf: url)
 

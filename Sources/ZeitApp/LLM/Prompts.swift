@@ -2,7 +2,7 @@ import Foundation
 
 /// LLM prompt templates for activity identification
 enum Prompts {
-    /// Prompt for vision model to describe what's on screen (matches Python behavior)
+    /// Prompt for vision model to describe what's on screen
     static func visionDescription(activeScreen: Int, screenCount: Int) -> String {
         if screenCount > 1 {
             // Multi-screen: indicate which screen is active

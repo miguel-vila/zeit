@@ -33,7 +33,7 @@ final class OllamaClient: LLMProvider, VisionLLMProvider, @unchecked Sendable {
         return response.response
     }
 
-    /// Generate with full JSON schema for structured output (matches Python behavior)
+    /// Generate with full JSON schema for structured output
     func generateStructured(
         prompt: String,
         schema: [String: Any],
@@ -131,7 +131,7 @@ final class OllamaClient: LLMProvider, VisionLLMProvider, @unchecked Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 300  // 5 minutes for multi-image vision requests
 
-        // Build options dict matching Python: {"temperature": 0, "timeout": 30}
+        // Build options dict
         var optionsDict: [String: Any] = ["timeout": 30]
         if let temp = temperature {
             optionsDict["temperature"] = temp
@@ -139,7 +139,7 @@ final class OllamaClient: LLMProvider, VisionLLMProvider, @unchecked Sendable {
             optionsDict["temperature"] = 0
         }
 
-        // Build request body matching Python ollama library
+        // Build request body
         var bodyDict: [String: Any] = [
             "model": model,
             "prompt": prompt,

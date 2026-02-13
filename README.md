@@ -1,71 +1,65 @@
 # zeit
 
-Logs what you are doing in your computer and summarizes it using local models:
+macOS activity tracker: periodic screenshots → LLM vision model → activity classification → SQLite storage. Single Swift executable runs as both menubar app and CLI.
 
-- `qwen3-vl` for image captioning
-- `qwen2` to infer the activity based on the captions
+## Features
 
-## Configs
+- **Activity tracking**: Screenshots → vision model → activity classification every 60 seconds
+- **Multiple LLM providers**: MLX (on-device, default), Ollama, OpenAI
+- **Menubar app**: Live tracking state, activity stats, objectives
+- **CLI**: View history, statistics, day summaries, service management
+- **LaunchAgent scheduling**: Automatic tracking during work hours
 
-- **Work hours and days**: Edit `run_tracker.sh` to set `WORK_START_HOUR` and `WORK_END_HOUR`
-- **Idle threshold**: Set `IDLE_THRESHOLD_SECONDS` environment variable in `.env` file (default: 300 seconds / 5 minutes)
-- **Activities enumeration**: Defined in `activity_id.py` as `Activity` enum
+## Requirements
 
-## TODOs
+- macOS 14 (Sonoma) or later
+- Apple Silicon (for MLX on-device inference) or Ollama/OpenAI as alternative
 
-- ~~build this as an executable (py2app?)~~ (see Build section below)
-- handle permissions better (maybe building this as an app helps?)
-  - Assistive access
-  - Screen recording
-- add last half an hour summary in the menubar app
-- collect only necessary data
-- day summary report at the end of the day
-- select which monitor to capture from according to user focus? or just take it from all monitors?
-- user gives a general description of what their main objective is during the day, with specifics (e.g., working on project X, writing report Y)
-  and the model uses that to better classify activities and to generate an objective-aligned summary at the end of the day
-- use playing audio as a signal of activity (e.g., when watching videos and multitasking)
-- idle should not be counted
-- preconfigure ollama models to download
-- do main screen identification using macos APIs ()
-- test single screen
-
-## Building as a macOS App
-
-You can build Zeit as a standalone macOS `.app` bundle using py2app:
+## Building
 
 ```bash
-# Build the app (creates dist/Zeit.app)
-python setup.py py2app
+# Debug build
+./build.sh
 
-# For development/testing (faster, uses symlinks)
-python setup.py py2app -A
+# Release build and install to /Applications
+./build.sh --release --install
+
+# Signed release with DMG
+./build.sh --release --sign --dmg
 ```
 
-### Code Signing
+See [docs/BUILD.md](docs/BUILD.md) for signing and notarization details.
 
-For proper permission handling, sign the app after building:
-
-```bash
-# Self-sign for local use
-codesign --force --deep --sign - dist/Zeit.app
-
-# Or with Apple Developer ID for distribution
-codesign --force --deep --sign "Developer ID Application: Your Name" \
-    --entitlements entitlements.plist dist/Zeit.app
-```
-
-### Running the App
+## Usage
 
 ```bash
-# Run directly
+# GUI mode (menubar app)
 open dist/Zeit.app
 
-# Or from terminal to see logs
-./dist/Zeit.app/Contents/MacOS/Zeit
+# CLI
+./dist/Zeit.app/Contents/MacOS/ZeitApp view today
+./dist/Zeit.app/Contents/MacOS/ZeitApp stats
+./dist/Zeit.app/Contents/MacOS/ZeitApp track --force
+./dist/Zeit.app/Contents/MacOS/ZeitApp --help
 ```
 
-### Clean Build
+## Configuration
 
-```bash
-rm -rf build dist .eggs
+Edit `~/.local/share/zeit/conf.yml`:
+
+```yaml
+work_hours:
+  start_hour: 9
+  end_hour: 18
+
+models:
+  vision: 'qwen3-vl:4b'
+  text:
+    provider: 'mlx'     # 'mlx', 'ollama', or 'openai'
+    model: 'qwen3:8b'
 ```
+
+## Permissions
+
+- **Screen Recording** — for screenshot capture
+- **Automation/AppleScript** — for active window detection

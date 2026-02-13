@@ -130,9 +130,9 @@ final class ActivityIdentifier: @unchecked Sendable {
         )
     }
 
-    // MARK: - JSON Schemas (matching Python Pydantic models)
+    // MARK: - JSON Schemas
 
-    /// JSON Schema for ClassificationResponse (matches Python ActivitiesResponse)
+    /// JSON Schema for ClassificationResponse
     private static let classificationSchema: [String: Any] = [
         "type": "object",
         "properties": [

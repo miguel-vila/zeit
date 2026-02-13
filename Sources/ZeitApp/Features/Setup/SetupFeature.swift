@@ -2,8 +2,6 @@ import ComposableArchitecture
 import Foundation
 
 /// First-run setup feature for installing CLI and LaunchAgents.
-/// Note: This is a placeholder - the full implementation will invoke
-/// the bundled Python CLI for setup operations.
 @Reducer
 struct SetupFeature {
     @ObservableState
