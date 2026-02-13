@@ -30,6 +30,10 @@ let package = Package(
             url: "https://github.com/ml-explore/mlx-swift-lm",
             .upToNextMinor(from: "2.29.1")
         ),
+        .package(
+            url: "https://github.com/huggingface/swift-transformers",
+            .upToNextMinor(from: "1.1.6")
+        ),
     ],
     targets: [
         .executableTarget(
@@ -42,6 +46,7 @@ let package = Package(
                 .product(name: "MLXLLM", package: "mlx-swift-lm"),
                 .product(name: "MLXVLM", package: "mlx-swift-lm"),
                 .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
+                .product(name: "Hub", package: "swift-transformers"),
             ],
             path: "Sources/ZeitApp",
             resources: [

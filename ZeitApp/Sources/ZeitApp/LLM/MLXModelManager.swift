@@ -1,4 +1,5 @@
 import Foundation
+import Hub
 import MLXLMCommon
 import MLXLLM
 import MLXVLM
@@ -86,35 +87,26 @@ actor MLXModelManager {
 
     // MARK: - Download
 
-    /// Download a model from Hugging Face with progress reporting.
-    /// The model weights are cached locally by the HubApi.
+    /// Download a model's files from Hugging Face without loading into memory.
+    /// Uses HubApi.snapshot() to fetch weights to disk only.
     func downloadModel(
         _ model: MLXModelInfo,
         progressHandler: @Sendable @escaping (Double) -> Void
     ) async throws {
         logger.info("Starting download: \(model.huggingFaceID)")
 
-        let config = ModelConfiguration(id: model.huggingFaceID)
+        let hub = HubApi()
+        let repo = Hub.Repo(id: model.huggingFaceID)
 
-        if model.isVision {
-            let _ = try await VLMModelFactory.shared.loadContainer(
-                configuration: config,
-                progressHandler: { progress in
-                    let fraction = progress.fractionCompleted
-                    progressHandler(fraction)
-                    logger.debug("Download progress for \(model.huggingFaceID): \(fraction * 100)%")
-                }
-            )
-        } else {
-            let _ = try await LLMModelFactory.shared.loadContainer(
-                configuration: config,
-                progressHandler: { progress in
-                    let fraction = progress.fractionCompleted
-                    progressHandler(fraction)
-                    logger.debug("Download progress for \(model.huggingFaceID): \(fraction * 100)%")
-                }
-            )
-        }
+        try await hub.snapshot(
+            from: repo,
+            matching: ["*.safetensors", "*.json"],
+            progressHandler: { progress in
+                let fraction = progress.fractionCompleted
+                progressHandler(fraction)
+                logger.debug("Download progress for \(model.huggingFaceID): \(fraction * 100)%")
+            }
+        )
 
         logger.info("Download complete: \(model.huggingFaceID)")
     }
