@@ -1,27 +1,18 @@
-# Python-generated files
-__pycache__/
-*.py[oc]
+# Build artifacts
+.build/
 build/
 dist/
-wheels/
-*.egg-info
 
-# Virtual environments
-.venv
-
-# Type checking
-.mypy_cache/
-
+# Runtime data
 screenshots/
 logs/
 data/
 *.log
 *.db
+
+# Environment
 .env
 .env.signing
 
 # Implementation logs
 implementation-logs/
-
-# Swift files
-ZeitApp/.build
