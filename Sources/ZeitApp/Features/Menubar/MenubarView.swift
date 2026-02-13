@@ -252,6 +252,13 @@ struct MenubarView: View {
                     action: { store.send(.forceTrack) }
                 )
                 .disabled(store.isForceTracking)
+
+                MenubarActionButton(
+                    icon: "trash",
+                    label: store.isClearingTodayData ? "Clearing..." : "Clear Today's Data",
+                    action: { store.send(.clearTodayData) }
+                )
+                .disabled(store.isClearingTodayData)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)

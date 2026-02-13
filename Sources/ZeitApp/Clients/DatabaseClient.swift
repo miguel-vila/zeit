@@ -25,6 +25,9 @@ struct DatabaseClient: Sendable {
 
     /// Delete objectives for a specific date
     var deleteDayObjectives: @Sendable (_ date: String) async throws -> Bool
+
+    /// Delete activities for a specific date
+    var deleteDayActivities: @Sendable (_ date: String) async throws -> Bool
 }
 
 // MARK: - Dependency Registration
@@ -57,6 +60,9 @@ extension DatabaseClient: DependencyKey {
             },
             deleteDayObjectives: { date in
                 try await actor.deleteDayObjectives(date: date)
+            },
+            deleteDayActivities: { date in
+                try await actor.deleteDayActivities(date: date)
             }
         )
     }()
@@ -195,6 +201,18 @@ private actor DatabaseActor {
         return try await db.write { db in
             try db.execute(
                 sql: "DELETE FROM day_objectives WHERE date = ?",
+                arguments: [date]
+            )
+            return db.changesCount > 0
+        }
+    }
+
+    func deleteDayActivities(date: String) async throws -> Bool {
+        let db = try getDatabase()
+
+        return try await db.write { db in
+            try db.execute(
+                sql: "DELETE FROM daily_activities WHERE date = ?",
                 arguments: [date]
             )
             return db.changesCount > 0

@@ -30,6 +30,9 @@ struct MenubarFeature {
         // Force track
         var isForceTracking: Bool = false
 
+        // Clear today's data
+        var isClearingTodayData: Bool = false
+
         // Loading state
         var isLoading: Bool = false
     }
@@ -55,6 +58,8 @@ struct MenubarFeature {
         case showSettings
         case forceTrack
         case forceTrackCompleted(Result<ForceTrackInfo, Error>)
+        case clearTodayData
+        case clearTodayDataCompleted(Result<Void, Error>)
         case debugModeChanged(Bool)
         case quitApp
 
@@ -256,6 +261,43 @@ struct MenubarFeature {
                     await notification.show(
                         "Zeit Error",
                         "Force Track Failed",
+                        error.localizedDescription
+                    )
+                }
+
+            case .clearTodayData:
+                guard !state.isClearingTodayData else { return .none }
+                state.isClearingTodayData = true
+                let today = todayString()
+
+                return .run { send in
+                    do {
+                        _ = try await database.deleteDayActivities(today)
+                        await send(.clearTodayDataCompleted(.success(())))
+                    } catch {
+                        await send(.clearTodayDataCompleted(.failure(error)))
+                    }
+                }
+
+            case .clearTodayDataCompleted(.success):
+                state.isClearingTodayData = false
+                return .merge(
+                    .send(.refreshData),
+                    .run { _ in
+                        await notification.show(
+                            "Zeit",
+                            "Data Cleared",
+                            "Today's activity data has been cleared"
+                        )
+                    }
+                )
+
+            case .clearTodayDataCompleted(.failure(let error)):
+                state.isClearingTodayData = false
+                return .run { _ in
+                    await notification.show(
+                        "Zeit Error",
+                        "Clear Failed",
                         error.localizedDescription
                     )
                 }
