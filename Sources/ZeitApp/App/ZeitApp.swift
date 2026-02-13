@@ -23,8 +23,13 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // Onboarding panel — managed here (not in the popover's SwiftUI view)
     // because the popover isn't shown on launch, so its .onChange never fires.
     private var onboardingPanel: NSPanel?
-    private var onboardingPanelWindowDelegate: OnboardingPanelWindowDelegate?
+    private var onboardingPanelWindowDelegate: PanelWindowDelegate?
     private var onboardingStore: StoreOf<OnboardingFeature>?
+
+    // Settings panel — also managed here for the same reason as onboarding.
+    private var settingsPanel: NSPanel?
+    private var settingsPanelWindowDelegate: PanelWindowDelegate?
+    private var settingsStore: StoreOf<SettingsFeature>?
 
     let store = Store(initialState: MenubarFeature.State()) {
         MenubarFeature()
@@ -34,6 +39,7 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         setupStatusItem()
         startIconObservation()
         startOnboardingObservation()
+        startSettingsObservation()
         store.send(.task)
         presentOnboardingIfNeeded()
     }
@@ -140,7 +146,7 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             OnboardingFeature()
         }
 
-        let windowDelegate = OnboardingPanelWindowDelegate()
+        let windowDelegate = PanelWindowDelegate()
         windowDelegate.onClose = { [weak self] in
             self?.cleanupOnboarding()
         }
@@ -195,11 +201,87 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             store.send(.onboarding(.dismiss))
         }
     }
+
+    // MARK: - Settings Panel
+
+    private func startSettingsObservation() {
+        withObservationTracking {
+            _ = store.settings
+        } onChange: {
+            Task { @MainActor [weak self] in
+                self?.presentSettingsIfNeeded()
+                self?.startSettingsObservation()
+            }
+        }
+    }
+
+    private func presentSettingsIfNeeded() {
+        guard store.settings != nil, settingsPanel == nil else { return }
+
+        let childStore = Store(initialState: SettingsFeature.State()) {
+            SettingsFeature()
+        }
+
+        let windowDelegate = PanelWindowDelegate()
+        windowDelegate.onClose = { [weak self] in
+            self?.cleanupSettings()
+        }
+
+        let panel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 600, height: 400),
+            styleMask: [.titled, .closable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        panel.title = "Zeit Settings"
+        panel.contentView = NSHostingView(rootView: SettingsView(store: childStore))
+        panel.center()
+        panel.delegate = windowDelegate
+        panel.isReleasedWhenClosed = false
+        panel.hidesOnDeactivate = false
+        panel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+
+        settingsPanel = panel
+        settingsPanelWindowDelegate = windowDelegate
+        settingsStore = childStore
+
+        observeSettingsCompletion()
+    }
+
+    private func observeSettingsCompletion() {
+        guard let childStore = settingsStore else { return }
+
+        withObservationTracking {
+            _ = childStore.isCompleted
+        } onChange: {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if childStore.isCompleted {
+                    self.settingsPanelWindowDelegate?.onClose = nil
+                    self.settingsPanel?.close()
+                    self.cleanupSettings()
+                } else {
+                    self.observeSettingsCompletion()
+                }
+            }
+        }
+    }
+
+    private func cleanupSettings() {
+        settingsPanel = nil
+        settingsPanelWindowDelegate = nil
+        settingsStore = nil
+        // Clear the main store's settings state
+        if store.settings != nil {
+            store.send(.settings(.dismiss))
+        }
+    }
 }
 
-// MARK: - Onboarding Panel Window Delegate
+// MARK: - Panel Window Delegate
 
-private final class OnboardingPanelWindowDelegate: NSObject, NSWindowDelegate {
+private final class PanelWindowDelegate: NSObject, NSWindowDelegate {
     var onClose: (() -> Void)?
 
     func windowWillClose(_: Notification) {
