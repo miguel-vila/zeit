@@ -2,11 +2,11 @@
   {
     "id": "add-settings-button",
     "description": "Add a settings button to the menubar. At the moment it should open the onboarding window, but in the future it could contain more settings",
-    "implemented": false
+    "implemented": true
   },
   {
     "id": "add-force-track-debug-button",
     "description": "Add a 'Force Track' button in the app's debug menu. First, add a new section to the settings (in addition to the existing 'Permissions' section) called 'Other settings'. For now, it will only have a single toggle called 'Debug mode'. Then, create a new button called 'Force track, in the menubar (this should only appear when debug mode is enabled), that will perform a force track action (similar to the cli's 'zeit track --force').",
-    "implemented": false
+    "implemented": true
   }
 ]
