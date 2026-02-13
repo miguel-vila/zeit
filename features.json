@@ -1,5 +1,10 @@
 [
   {
+    "id": "keep-onboarding-permissions-window-open-until-user-grants-or-denies-all-permissions",
+    "description": "When the user needs to grant permissions, and they click on the button to grant one of them, the onboarding window should stay open until the user has granted or denied all the required permissions. Currently, if the user clicks on the button to grant a permission, the onboarding window closes, which can be confusing if they have more permissions to grant. The expected behavior is that the onboarding window should only close after the user has made a decision (grant or deny) for all the permissions that are required.",
+    "implemented": false
+  },
+  {
     "id": "remove-ollama-dependency",
     "description": "Refactor the code to remove the direct dependency on the Ollama CLI. Instead, implement something that downloads the models. You can find some information about this at @features-docs/qwen-on-device-integration.md . You will have to implement a new model management feature, as part of the app onboarding (which has its UI already for permissions, we can add a new section for the models setup), because the user will need to download the models before using the app. This is a more complex feature that will require changes in multiple areas of the codebase, including the CLI, the ActivityIdentifier, and possibly the config management. The goal is to have the app manage its own models without relying on an external CLI tool. Should support downloading the following models: visual model qwen3-vl:4b and text model qwen3:8b. Search for all the places where you will need to update this. The doctor logic will need updating, in addition to the actual models invocations.",
     "implemented": false
