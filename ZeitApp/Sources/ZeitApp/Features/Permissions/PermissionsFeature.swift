@@ -20,7 +20,6 @@ struct PermissionsFeature {
         case appBecameActive
         case openScreenRecordingSettings
         case openAccessibilitySettings
-        case skip
         case continuePressed
         case allPermissionsGranted
     }
@@ -72,13 +71,6 @@ struct PermissionsFeature {
                 return .run { _ in
                     await permissions.openAccessibilitySettings()
                 }
-
-            case .skip:
-                // Parent handles navigation/dismissal
-                return .merge(
-                    .cancel(id: CancelID.appObserver),
-                    .cancel(id: CancelID.refreshTimer)
-                )
 
             case .continuePressed:
                 // Parent handles navigation/dismissal

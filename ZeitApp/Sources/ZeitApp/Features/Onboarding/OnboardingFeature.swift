@@ -50,11 +50,6 @@ struct OnboardingFeature {
                 // Don't auto-advance — let the user click "Continue"
                 return .none
 
-            case .permissions(.skip):
-                // Skip permissions, move to model download
-                state.step = .modelDownload
-                return .none
-
             case .permissions(.continuePressed):
                 // Permissions done, move to model download
                 state.step = .modelDownload
@@ -67,10 +62,6 @@ struct OnboardingFeature {
 
             case .modelDownload(.allModelsReady):
                 // Don't auto-close — let the user click "Continue"
-                return .none
-
-            case .modelDownload(.skip):
-                state.step = .otherSettings
                 return .none
 
             case .modelDownload(.continuePressed):

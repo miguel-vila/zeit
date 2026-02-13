@@ -21,16 +21,6 @@ struct PermissionsView: View {
                 }
 
                 Spacer()
-
-                Button {
-                    store.send(.skip)
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.tertiary)
-                        .font(.title2)
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.escape)
             }
 
             Text(
@@ -70,10 +60,6 @@ struct PermissionsView: View {
                     .foregroundStyle(.tertiary)
 
                 Spacer()
-
-                Button("Skip for Now") {
-                    store.send(.skip)
-                }
 
                 Button("Continue") {
                     store.send(.continuePressed)

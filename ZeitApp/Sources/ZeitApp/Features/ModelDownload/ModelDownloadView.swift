@@ -21,16 +21,6 @@ struct ModelDownloadView: View {
                 }
 
                 Spacer()
-
-                Button {
-                    store.send(.skip)
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.tertiary)
-                        .font(.title2)
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.escape)
             }
 
             Text(
@@ -63,10 +53,6 @@ struct ModelDownloadView: View {
                 }
 
                 Spacer()
-
-                Button("Skip for Now") {
-                    store.send(.skip)
-                }
 
                 Button("Continue") {
                     store.send(.continuePressed)

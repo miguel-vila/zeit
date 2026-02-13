@@ -52,7 +52,6 @@ struct ModelDownloadFeature {
         case downloadProgress(configName: String, progress: Double)
         case downloadCompleted(configName: String)
         case downloadFailed(configName: String, error: String)
-        case skip
         case continuePressed
         case allModelsReady
     }
@@ -150,9 +149,6 @@ struct ModelDownloadFeature {
                     state.models[index].status = .error(error)
                     state.models[index].progress = 0
                 }
-                return .none
-
-            case .skip:
                 return .none
 
             case .continuePressed:

@@ -19,16 +19,6 @@ struct OtherSettingsView: View {
                 }
 
                 Spacer()
-
-                Button {
-                    store.send(.skip)
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.tertiary)
-                        .font(.title2)
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.escape)
             }
 
             Divider()

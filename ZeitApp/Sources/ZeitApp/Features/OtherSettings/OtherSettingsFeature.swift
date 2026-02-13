@@ -12,7 +12,6 @@ struct OtherSettingsFeature {
     enum Action {
         case toggleDebugMode
         case done
-        case skip
     }
 
     var body: some ReducerOf<Self> {
@@ -25,9 +24,6 @@ struct OtherSettingsFeature {
 
             case .done:
                 return .none
-
-            case .skip:
-                return .send(.done)
             }
         }
     }
