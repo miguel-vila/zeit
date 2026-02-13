@@ -1,6 +1,11 @@
 import ComposableArchitecture
 import Foundation
 
+struct ForceTrackInfo: Equatable {
+    let activityName: String
+    let description: String
+}
+
 @Reducer
 struct MenubarFeature {
     @ObservableState
@@ -16,6 +21,7 @@ struct MenubarFeature {
         @Presents var details: DetailsFeature.State?
         @Presents var objectives: ObjectivesFeature.State?
         @Presents var onboarding: OnboardingFeature.State?
+        @Presents var settings: SettingsFeature.State?
 
         // Settings
         var launchAtLogin: Bool = false
@@ -48,7 +54,7 @@ struct MenubarFeature {
         case launchAtLoginToggled(Bool)
         case showSettings
         case forceTrack
-        case forceTrackCompleted(Result<String, Error>)
+        case forceTrackCompleted(Result<ForceTrackInfo, Error>)
         case debugModeChanged(Bool)
         case quitApp
 
@@ -56,6 +62,7 @@ struct MenubarFeature {
         case details(PresentationAction<DetailsFeature.Action>)
         case objectives(PresentationAction<ObjectivesFeature.Action>)
         case onboarding(PresentationAction<OnboardingFeature.Action>)
+        case settings(PresentationAction<SettingsFeature.Action>)
     }
 
     @Dependency(\.databaseClient) var database
@@ -200,7 +207,7 @@ struct MenubarFeature {
                 return .none
 
             case .showSettings:
-                state.onboarding = OnboardingFeature.State()
+                state.settings = SettingsFeature.State()
                 return .none
 
             case .forceTrack:
@@ -219,21 +226,26 @@ struct MenubarFeature {
                         let entry = result.toActivityEntry()
                         let db = try DatabaseHelper()
                         try await db.insertActivity(entry)
-                        await send(.forceTrackCompleted(.success(result.activity.displayName)))
+                        await send(.forceTrackCompleted(.success(
+                            ForceTrackInfo(
+                                activityName: result.activity.displayName,
+                                description: result.description
+                            )
+                        )))
                     } catch {
                         await send(.forceTrackCompleted(.failure(error)))
                     }
                 }
 
-            case .forceTrackCompleted(.success(let activityName)):
+            case .forceTrackCompleted(.success(let info)):
                 state.isForceTracking = false
                 return .merge(
                     .send(.refreshData),
                     .run { _ in
                         await notification.show(
                             "Zeit",
-                            "Force Tracked",
-                            "Activity: \(activityName)"
+                            info.activityName,
+                            info.description
                         )
                     }
                 )
@@ -309,7 +321,26 @@ struct MenubarFeature {
                 state.debugModeEnabled = UserDefaults.standard.bool(forKey: "debugModeEnabled")
                 return .none
 
+            case .onboarding(.dismiss):
+                // Sync debug mode even if the user dismissed without clicking Done
+                state.debugModeEnabled = UserDefaults.standard.bool(forKey: "debugModeEnabled")
+                return .none
+
             case .onboarding:
+                return .none
+
+            case .settings(.presented(.closeSettings)):
+                state.settings = nil
+                // Sync debug mode in case it was changed in settings
+                state.debugModeEnabled = UserDefaults.standard.bool(forKey: "debugModeEnabled")
+                return .none
+
+            case .settings(.dismiss):
+                // Sync debug mode even if the user dismissed without clicking Close
+                state.debugModeEnabled = UserDefaults.standard.bool(forKey: "debugModeEnabled")
+                return .none
+
+            case .settings:
                 return .none
             }
         }
@@ -321,6 +352,9 @@ struct MenubarFeature {
         }
         .ifLet(\.$onboarding, action: \.onboarding) {
             OnboardingFeature()
+        }
+        .ifLet(\.$settings, action: \.settings) {
+            SettingsFeature()
         }
     }
 
