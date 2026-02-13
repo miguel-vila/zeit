@@ -39,6 +39,8 @@ struct SettingsView: View {
             settingsPermissionsTab
         case .models:
             settingsModelsTab
+        case .workHours:
+            settingsWorkHoursTab
         case .debug:
             settingsDebugTab
         case .about:
@@ -104,6 +106,130 @@ struct SettingsView: View {
             Spacer()
         }
         .padding(22)
+    }
+
+    // MARK: - Work Hours Tab
+
+    private var settingsWorkHoursTab: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Work Hours")
+                .font(.title2)
+                .fontWeight(.bold)
+
+            Text("Set your typical work schedule. Tracking only runs during these hours.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            Divider()
+
+            VStack(spacing: 12) {
+                // Start hour picker
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.blue.opacity(0.1))
+                            .frame(width: 36, height: 36)
+
+                        Image(systemName: "sunrise.fill")
+                            .foregroundStyle(.blue)
+                            .font(.body)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Start Hour")
+                            .fontWeight(.semibold)
+
+                        Text("When your work day begins")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Picker("", selection: Binding(
+                        get: { store.workHours.startHour },
+                        set: { store.send(.setStartHour($0)) }
+                    )) {
+                        ForEach(0..<24) { hour in
+                            Text(formatHour(hour)).tag(hour)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 100)
+                }
+                .padding(10)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.primary.opacity(0.015))
+                )
+
+                // End hour picker
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.orange.opacity(0.1))
+                            .frame(width: 36, height: 36)
+
+                        Image(systemName: "sunset.fill")
+                            .foregroundStyle(.orange)
+                            .font(.body)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("End Hour")
+                            .fontWeight(.semibold)
+
+                        Text("When your work day ends")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Picker("", selection: Binding(
+                        get: { store.workHours.endHour },
+                        set: { store.send(.setEndHour($0)) }
+                    )) {
+                        ForEach(0..<24) { hour in
+                            Text(formatHour(hour)).tag(hour)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 100)
+                }
+                .padding(10)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.primary.opacity(0.015))
+                )
+            }
+
+            if let error = store.workHours.saveError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+
+            HStack {
+                Spacer()
+                Button("Save") {
+                    store.send(.saveWorkHours)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+
+            Spacer()
+        }
+        .padding(22)
+    }
+
+    private func formatHour(_ hour: Int) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h a"
+        var components = DateComponents()
+        components.hour = hour
+        let date = Calendar.current.date(from: components) ?? Date()
+        return formatter.string(from: date)
     }
 
     // MARK: - Debug Tab

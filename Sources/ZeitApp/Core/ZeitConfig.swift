@@ -155,4 +155,31 @@ struct ZeitConfig: Sendable {
         guard let hourStr = parts.first, let hour = Int(hourStr) else { return nil }
         return hour
     }
+
+    // MARK: - Saving
+
+    /// Update work hours in the config file, preserving all other settings.
+    static func saveWorkHours(startHour: Int, endHour: Int) throws {
+        ensureSetup()
+
+        let path = configPath
+
+        // Load existing YAML as a dictionary so we preserve other keys
+        var yaml: [String: Any] = [:]
+        if FileManager.default.fileExists(atPath: path.path),
+           let contents = try? String(contentsOf: path, encoding: .utf8),
+           let parsed = try? Yams.load(yaml: contents) as? [String: Any]
+        {
+            yaml = parsed
+        }
+
+        // Update work_hours section
+        yaml["work_hours"] = [
+            "start_hour": startHour,
+            "end_hour": endHour,
+        ]
+
+        let output = try Yams.dump(object: yaml)
+        try output.write(to: path, atomically: true, encoding: .utf8)
+    }
 }

@@ -2,7 +2,7 @@ import ComposableArchitecture
 import Foundation
 
 /// Settings window feature with tabbed navigation.
-/// Tabs: Permissions, Models, Debug, About.
+/// Tabs: Permissions, Models, Work Hours, Debug, About.
 @Reducer
 struct SettingsFeature {
     @ObservableState
@@ -10,12 +10,14 @@ struct SettingsFeature {
         var selectedTab: Tab = .permissions
         var permissions: SettingsPermissionsState = .init()
         var models: SettingsModelsState = .init()
+        var workHours: WorkHoursState = .init()
         var debugModeEnabled: Bool = UserDefaults.standard.bool(forKey: "debugModeEnabled")
         var isCompleted: Bool = false
 
         enum Tab: String, CaseIterable, Equatable {
             case permissions = "Permissions"
             case models = "Models"
+            case workHours = "Work Hours"
             case debug = "Debug"
             case about = "About"
 
@@ -23,6 +25,7 @@ struct SettingsFeature {
                 switch self {
                 case .permissions: return "lock.shield"
                 case .models: return "cpu"
+                case .workHours: return "clock.fill"
                 case .debug: return "ladybug.fill"
                 case .about: return "info.circle"
                 }
@@ -53,6 +56,14 @@ struct SettingsFeature {
         }
     }
 
+    // MARK: - Work Hours tab state
+
+    struct WorkHoursState: Equatable {
+        var startHour: Int = ZeitConfig.defaultWorkHours.startHour
+        var endHour: Int = ZeitConfig.defaultWorkHours.endHour
+        var saveError: String?
+    }
+
     enum Action {
         case task
         case selectTab(State.Tab)
@@ -62,6 +73,14 @@ struct SettingsFeature {
 
         // Models
         case modelStatusesLoaded([ModelProgress])
+
+        // Work Hours
+        case workHoursLoaded(startHour: Int, endHour: Int)
+        case setStartHour(Int)
+        case setEndHour(Int)
+        case saveWorkHours
+        case workHoursSaved
+        case workHoursSaveFailed(String)
 
         // Debug
         case toggleDebugMode
@@ -89,6 +108,13 @@ struct SettingsFeature {
                     .run { send in
                         let statuses = await modelClient.getModelStatuses()
                         await send(.modelStatusesLoaded(statuses))
+                    },
+                    .run { send in
+                        let config = ZeitConfig.load()
+                        await send(.workHoursLoaded(
+                            startHour: config.workHours.startHour,
+                            endHour: config.workHours.endHour
+                        ))
                     }
                 )
 
@@ -112,6 +138,41 @@ struct SettingsFeature {
                         isDownloaded: status?.status == .downloaded
                     )
                 }
+                return .none
+
+            case .workHoursLoaded(let startHour, let endHour):
+                state.workHours.startHour = startHour
+                state.workHours.endHour = endHour
+                return .none
+
+            case .setStartHour(let hour):
+                state.workHours.startHour = hour
+                state.workHours.saveError = nil
+                return .none
+
+            case .setEndHour(let hour):
+                state.workHours.endHour = hour
+                state.workHours.saveError = nil
+                return .none
+
+            case .saveWorkHours:
+                let startHour = state.workHours.startHour
+                let endHour = state.workHours.endHour
+                return .run { send in
+                    do {
+                        try ZeitConfig.saveWorkHours(startHour: startHour, endHour: endHour)
+                        await send(.workHoursSaved)
+                    } catch {
+                        await send(.workHoursSaveFailed(error.localizedDescription))
+                    }
+                }
+
+            case .workHoursSaved:
+                state.workHours.saveError = nil
+                return .none
+
+            case .workHoursSaveFailed(let error):
+                state.workHours.saveError = error
                 return .none
 
             case .toggleDebugMode:
