@@ -1,17 +1,7 @@
 [
   {
-    "id": "keep-onboarding-window-open",
-    "description": "Keep the onboarding window open until the user has completed all the steps. This means that after the user grants permissions, the onboarding window should not close immediately. Instead, it should wait until the user has completed all the necessary steps to set up the app.",
-    "implemented": true
-  },
-  {
-    "id": "objectives-window-stays-open-until-closed-by-user",
-    "description": "The objectives window should remain open until the user decides to close it. This means that after the user sets their objectives, the window should not automatically close. Instead, it should stay open, allowing the user to review or modify their objectives as needed, until they choose to close it themselves.",
-    "implemented": true
-  },
-  {
-    "id": "left-click-on-menu-bar-to-quit",
-    "description": "When left clicking on the menu bar icon, it should show a menu with the option to quit the app.",
-    "implemented": true
+    "id": "remove-ollama-dependency",
+    "description": "Refactor the code to remove the direct dependency on the Ollama CLI. Instead, implement something that downloads the models. You can find some information about this at @features-docs/qwen-on-device-integration.md . You will have to implement a new model management feature, as part of the app onboarding (which has its UI already for permissions, we can add a new section for the models setup), because the user will need to download the models before using the app. This is a more complex feature that will require changes in multiple areas of the codebase, including the CLI, the ActivityIdentifier, and possibly the config management. The goal is to have the app manage its own models without relying on an external CLI tool. Should support downloading the following models: visual model qwen3-vl:4b and text model qwen3:8b. Search for all the places where you will need to update this. The doctor logic will need updating, in addition to the actual models invocations.",
+    "implemented": false
   }
 ]
