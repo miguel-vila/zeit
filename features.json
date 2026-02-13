@@ -1,12 +1,17 @@
 [
   {
-    "id": "add-settings-button",
-    "description": "Add a settings button to the menubar. At the moment it should open the onboarding window, but in the future it could contain more settings",
-    "implemented": true
+    "id": "notify-on-downloaded-models",
+    "description": "Implement a notification system to inform users when their model downloads are complete. This will enhance the user experience by providing feedback on the status of their model downloads, especially since these can take some time. The notification should be triggered once the model download process is finished, and it should include relevant information such as the name of the downloaded model and any next steps the user might need to take.",
+    "implemented": false
   },
   {
-    "id": "add-force-track-debug-button",
-    "description": "Add a 'Force Track' button in the app's debug menu. First, add a new section to the settings (in addition to the existing 'Permissions' section) called 'Other settings'. For now, it will only have a single toggle called 'Debug mode'. Then, create a new button called 'Force track, in the menubar (this should only appear when debug mode is enabled), that will perform a force track action (similar to the cli's 'zeit track --force').",
-    "implemented": true
+    "id": "force-track-button-should-be-in-separate-debug-section",
+    "description": "Refactor the UI to move the 'Force Track' button into a separate debug section. This will help to declutter the main interface and make it clear that this button",
+    "implemented": false
+  },
+  {
+    "id": "settings-is-a-separate-window",
+    "description": "Refactor the settings button so it opens a separate window. Don't reuse the onboarding step by step, as it is at the moment. Instead It should open a single window, maybe with some tabs on the left. The tabs should be: permissions, models, debug and about tab. The permissions tab should show that the user has granted the permissions and should not be editable. The models tab should show the models that they have downloaded. The debug tab should allow enabling the debug mode.",
+    "implemented": false
   }
 ]
