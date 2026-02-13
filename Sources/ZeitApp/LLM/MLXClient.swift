@@ -6,14 +6,13 @@ import os
 
 private let logger = Logger(subsystem: "com.zeit", category: "MLXClient")
 
-/// Response from MLX model generation, mirroring OllamaResponse
+/// Response from MLX model generation
 struct MLXResponse {
     let response: String
     let thinking: String?
 }
 
 /// MLX-based LLM client for on-device model inference via Apple Silicon.
-/// Replaces OllamaClient for local inference without requiring Ollama.
 final class MLXClient: LLMProvider, VisionLLMProvider, @unchecked Sendable {
     let modelInfo: MLXModelInfo
 
@@ -80,7 +79,7 @@ final class MLXClient: LLMProvider, VisionLLMProvider, @unchecked Sendable {
         return response.response
     }
 
-    // MARK: - Extended Methods (matching OllamaClient patterns)
+    // MARK: - Extended Methods
 
     /// Generate structured output (JSON) — for text models
     func generateStructured(
@@ -90,7 +89,7 @@ final class MLXClient: LLMProvider, VisionLLMProvider, @unchecked Sendable {
         think: Bool = true
     ) async throws -> MLXResponse {
         // For structured output, we append the schema hint to the prompt
-        // since MLX doesn't have native JSON schema enforcement like Ollama
+        // since MLX doesn't have native JSON schema enforcement
         let enhancedPrompt: String
         if let schemaData = try? JSONSerialization.data(withJSONObject: schema),
            let schemaStr = String(data: schemaData, encoding: .utf8) {

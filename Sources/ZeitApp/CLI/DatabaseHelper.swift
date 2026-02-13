@@ -10,16 +10,39 @@ final class DatabaseHelper: @unchecked Sendable {
             .homeDirectoryForCurrentUser
             .appendingPathComponent(".local/share/zeit/zeit.db")
 
-        guard FileManager.default.fileExists(atPath: dbPath.path) else {
-            throw DatabaseHelperError.notFound(dbPath.path)
-        }
+        // Ensure the parent directory exists
+        let dir = dbPath.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
         self.dbQueue = try DatabaseQueue(path: dbPath.path)
+        try DatabaseHelper.createTablesIfNeeded(dbQueue)
     }
 
     /// Initialize with explicit path (for testing)
     init(path: String) throws {
         self.dbQueue = try DatabaseQueue(path: path)
+    }
+
+    private static func createTablesIfNeeded(_ dbQueue: DatabaseQueue) throws {
+        try dbQueue.write { db in
+            try db.execute(sql: """
+                CREATE TABLE IF NOT EXISTS daily_activities (
+                    date TEXT PRIMARY KEY,
+                    activities TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """)
+            try db.execute(sql: """
+                CREATE TABLE IF NOT EXISTS day_objectives (
+                    date TEXT PRIMARY KEY,
+                    main_objective TEXT NOT NULL,
+                    secondary_objectives TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """)
+        }
     }
 
     // MARK: - Activities

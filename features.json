@@ -1,17 +1,7 @@
 [
   {
-    "id": "add-clear-today-data-button-to-debug-menu",
-    "description": "Add a 'Clear Today's Data' button to the debug menu in the app. This button should clear all tracked data for the current day. This is part of the debug features and should only be visible when debug mode is enabled.",
-    "implemented": true
-  },
-  {
-    "id": "app-icon-should-be-work-percentage-when-tracking",
-    "description": "When the app is tracking activities, the app icon in the menu bar should display the percentage of work activities tracked. If paused show a pause icon, if not tracking show the default icon, if out of hours show a moon icon.",
-    "implemented": true
-  },
-  {
-    "id": "allow-setting-work-hours-in-settings",
-    "description": "Allow users to set their work hours in the app settings. Add a new tab in the settings view for 'Work Hours' where users can specify their typical work start and end times. First look where we are sourcing this information from and then add the UI to allow users to customize it. Also, add a `zeit set-work-hours` CLI command that allows users to set their work hours from the terminal. This command should accept start and end times as arguments and update the app's settings accordingly.",
-    "implemented": true
+    "id": "stop-background-tracking-on-exit",
+    "description": "Stop background tracking when exitting the menubar app, even if still during work hours",
+    "implemented": false
   }
 ]

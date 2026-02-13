@@ -75,7 +75,7 @@ struct SetupView: View {
             HStack(spacing: 6) {
                 Image(systemName: "lock.fill")
                     .font(.caption2)
-                Text("Your data stays local. Zeit uses Ollama for AI processing.")
+                Text("Your data stays local. Zeit uses on-device AI processing.")
                     .font(.caption)
             }
             .foregroundStyle(.tertiary)

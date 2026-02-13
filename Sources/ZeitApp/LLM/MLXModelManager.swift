@@ -9,7 +9,7 @@ private let logger = Logger(subsystem: "com.zeit", category: "MLXModelManager")
 
 /// Represents a model that Zeit can manage locally via MLX
 struct MLXModelInfo: Sendable, Equatable {
-    /// Ollama-style name used in config (e.g. "qwen3-vl:4b")
+    /// Config name (e.g. "qwen3-vl:4b")
     let configName: String
     /// Hugging Face model ID for MLX (e.g. "mlx-community/Qwen3-VL-4B-Instruct-4bit")
     let huggingFaceID: String
@@ -29,7 +29,7 @@ enum ModelDownloadStatus: Equatable, Sendable {
     case error(String)
 }
 
-/// Manages downloading and loading MLX models locally, removing the Ollama dependency.
+/// Manages downloading and loading MLX models locally.
 actor MLXModelManager {
     static let shared = MLXModelManager()
 

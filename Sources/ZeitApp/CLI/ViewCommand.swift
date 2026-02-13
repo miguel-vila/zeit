@@ -176,7 +176,7 @@ private func parseModelOverride(_ override: String) throws -> (provider: String,
     let provider = String(parts[0])
     let model = String(parts[1])
 
-    guard ["mlx", "ollama", "openai"].contains(provider) else {
+    guard ["mlx", "openai"].contains(provider) else {
         throw SummarizeError.unknownProvider(provider)
     }
     guard !model.isEmpty else {
@@ -195,7 +195,7 @@ enum SummarizeError: LocalizedError {
         case .invalidFormat(let value):
             return "Invalid format '\(value)'. Expected 'provider:model' (e.g., 'openai:gpt-4o-mini')"
         case .unknownProvider(let provider):
-            return "Unknown provider '\(provider)'. Supported: mlx, ollama, openai"
+            return "Unknown provider '\(provider)'. Supported: mlx, openai"
         case .emptyModel:
             return "Model name cannot be empty"
         }

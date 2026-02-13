@@ -82,14 +82,36 @@ private actor DatabaseActor {
             .homeDirectoryForCurrentUser
             .appendingPathComponent(".local/share/zeit/zeit.db")
 
-        // Check if database exists
-        guard FileManager.default.fileExists(atPath: dbPath.path) else {
-            throw DatabaseError.notFound(dbPath.path)
-        }
+        // Ensure the parent directory exists
+        let dir = dbPath.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
         let db = try DatabaseQueue(path: dbPath.path)
+        try createTablesIfNeeded(db)
         dbQueue = db
         return db
+    }
+
+    private func createTablesIfNeeded(_ db: DatabaseQueue) throws {
+        try db.write { db in
+            try db.execute(sql: """
+                CREATE TABLE IF NOT EXISTS daily_activities (
+                    date TEXT PRIMARY KEY,
+                    activities TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """)
+            try db.execute(sql: """
+                CREATE TABLE IF NOT EXISTS day_objectives (
+                    date TEXT PRIMARY KEY,
+                    main_objective TEXT NOT NULL,
+                    secondary_objectives TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """)
+        }
     }
 
     func getDayRecord(date: String) async throws -> DayRecord? {

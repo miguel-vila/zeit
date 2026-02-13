@@ -5,7 +5,7 @@ macOS activity tracker: periodic screenshots → LLM vision model → activity c
 ## Features
 
 - **Activity tracking**: Screenshots → vision model → activity classification every 60 seconds
-- **Multiple LLM providers**: MLX (on-device, default), Ollama, OpenAI
+- **Multiple LLM providers**: MLX (on-device, default), OpenAI
 - **Menubar app**: Live tracking state, activity stats, objectives
 - **CLI**: View history, statistics, day summaries, service management
 - **LaunchAgent scheduling**: Automatic tracking during work hours
@@ -13,7 +13,7 @@ macOS activity tracker: periodic screenshots → LLM vision model → activity c
 ## Requirements
 
 - macOS 14 (Sonoma) or later
-- Apple Silicon (for MLX on-device inference) or Ollama/OpenAI as alternative
+- Apple Silicon (for MLX on-device inference) or OpenAI as alternative
 
 ## Building
 
@@ -55,7 +55,7 @@ work_hours:
 models:
   vision: 'qwen3-vl:4b'
   text:
-    provider: 'mlx'     # 'mlx', 'ollama', or 'openai'
+    provider: 'mlx'     # 'mlx' (on-device) or 'openai'
     model: 'qwen3:8b'
 ```
 

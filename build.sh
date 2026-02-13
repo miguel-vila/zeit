@@ -119,6 +119,65 @@ mkdir -p "$APP_BUNDLE/Contents/Resources"
 # Copy binary
 cp "$BINARY_PATH" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
+# Compile MLX Metal shaders into metallib
+echo ""
+echo "Compiling MLX Metal shaders..."
+echo "----------------------------------------"
+
+MLX_METAL_DIR="$BUILD_DIR/checkouts/mlx-swift/Source/Cmlx/mlx-generated/metal"
+METAL_BUILD_DIR="$BUILD_DIR/metal-shaders"
+rm -rf "$METAL_BUILD_DIR"
+mkdir -p "$METAL_BUILD_DIR"
+
+# Metal compiler requires full Xcode (not just CommandLineTools)
+XCODE_DEV_DIR="/Applications/Xcode.app/Contents/Developer"
+if [ ! -d "$XCODE_DEV_DIR" ]; then
+    echo "Error: Xcode not found at /Applications/Xcode.app"
+    echo "Full Xcode installation is required to compile Metal shaders."
+    echo "Also run: xcodebuild -downloadComponent MetalToolchain"
+    exit 1
+fi
+
+METAL_FLAGS="-Wall -Wextra -fno-fast-math -Wno-c++17-extensions -mmacosx-version-min=14.0"
+METAL_INCLUDE="$MLX_METAL_DIR"
+# macOS 14 = Metal 3.1
+METAL_VERSION_INCLUDE="$MLX_METAL_DIR/metal_3_1"
+
+KERNEL_AIR_FILES=()
+for metal_file in $(find "$MLX_METAL_DIR" -name "*.metal"); do
+    kernel_name=$(basename "$metal_file" .metal)
+    air_file="$METAL_BUILD_DIR/${kernel_name}.air"
+    echo "  Compiling: $(basename "$metal_file")"
+    DEVELOPER_DIR="$XCODE_DEV_DIR" xcrun -sdk macosx metal $METAL_FLAGS \
+        -c "$metal_file" \
+        -I"$METAL_INCLUDE" \
+        -I"$METAL_VERSION_INCLUDE" \
+        -o "$air_file"
+    KERNEL_AIR_FILES+=("$air_file")
+done
+
+echo "  Linking ${#KERNEL_AIR_FILES[@]} kernels into mlx.metallib..."
+DEVELOPER_DIR="$XCODE_DEV_DIR" xcrun -sdk macosx metallib "${KERNEL_AIR_FILES[@]}" -o "$METAL_BUILD_DIR/mlx.metallib"
+
+# Place metallib next to the binary (MLX looks here first via current_binary_dir())
+cp "$METAL_BUILD_DIR/mlx.metallib" "$APP_BUNDLE/Contents/MacOS/mlx.metallib"
+echo "Metal shaders compiled and bundled"
+
+# Copy SPM resource bundles
+echo ""
+echo "Copying resource bundles..."
+if [ "$BUILD_TYPE" = "release" ]; then
+    BUNDLE_DIR="$BUILD_DIR/arm64-apple-macosx/release"
+else
+    BUNDLE_DIR="$BUILD_DIR/arm64-apple-macosx/debug"
+fi
+for bundle in "$BUNDLE_DIR"/*.bundle; do
+    if [ -d "$bundle" ]; then
+        echo "  $(basename "$bundle")"
+        cp -R "$bundle" "$APP_BUNDLE/Contents/Resources/"
+    fi
+done
+
 # Create Info.plist
 cat > "$APP_BUNDLE/Contents/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -191,12 +250,19 @@ if [ "$SIGN" = true ]; then
 EOF
 
     echo "Signing with Developer ID..."
+    # Sign the metallib before signing the main bundle
+    codesign --force --options runtime --sign "$DEVELOPER_ID" \
+        "$APP_BUNDLE/Contents/MacOS/mlx.metallib" 2>/dev/null || true
+    # Sign the main bundle
     codesign --force --options runtime \
         --sign "$DEVELOPER_ID" \
         --entitlements "$DIST_DIR/entitlements.plist" \
         "$APP_BUNDLE"
 else
     echo "Signing ad-hoc..."
+    # Sign the metallib before signing the main bundle
+    codesign --force --sign - "$APP_BUNDLE/Contents/MacOS/mlx.metallib" 2>/dev/null || true
+    # Sign the main bundle
     codesign --force --sign - "$APP_BUNDLE"
 fi
 

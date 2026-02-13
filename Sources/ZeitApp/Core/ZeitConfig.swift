@@ -50,7 +50,7 @@ struct ZeitConfig: Sendable {
         models:
           vision: 'qwen3-vl:4b'
           text:
-            provider: 'mlx'     # 'mlx' (on-device), 'ollama', or 'openai'
+            provider: 'mlx'     # 'mlx' (on-device) or 'openai'
             model: 'qwen3:8b'   # e.g., 'gpt-4o-mini' for openai
 
         paths:

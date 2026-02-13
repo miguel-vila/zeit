@@ -138,8 +138,8 @@ private struct PermissionsHelper: Sendable {
             task.waitUntilExit()
 
             // Parse JSON regardless of exit code — doctor exits 1 when any check
-            // fails (e.g. Ollama not running), but the JSON still contains valid
-            // per-check results we need for permission status.
+            // fails, but the JSON still contains valid per-check results we need
+            // for permission status.
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             return try JSONDecoder().decode(DoctorResult.self, from: data)
         } catch {

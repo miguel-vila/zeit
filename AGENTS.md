@@ -15,7 +15,7 @@ macOS activity tracker: periodic screenshots → LLM vision model → activity c
 - GRDB (SQLite database)
 - Yams (YAML config)
 - MLX Swift (on-device inference on Apple Silicon)
-- Ollama / OpenAI (alternative LLM providers)
+- OpenAI (alternative LLM provider)
 - Hugging Face Hub (model downloads)
 
 ## Structure
@@ -52,7 +52,6 @@ Sources/ZeitApp/
 │   ├── LLMProvider.swift          # Protocol for text + vision providers
 │   ├── ActivityIdentifier.swift   # Screenshot → description → classification
 │   ├── DaySummarizer.swift        # Activity grouping → summary generation
-│   ├── OllamaClient.swift         # Local Ollama HTTP API client
 │   ├── MLXClient.swift            # On-device MLX inference
 │   ├── MLXModelManager.swift      # MLX model loading & management
 │   ├── OpenAIClient.swift         # OpenAI API integration
@@ -189,12 +188,11 @@ Output: `dist/Zeit.app` (macOS app bundle)
 
 ## LLM Providers
 
-Three provider options configured via `conf.yml`:
+Two provider options configured via `conf.yml`:
 
 | Provider | Description | Config |
 |----------|-------------|--------|
 | **MLX** (default) | On-device Apple Silicon inference | `provider: 'mlx'` |
-| **Ollama** | Local HTTP API (localhost:11434) | `provider: 'ollama'` |
 | **OpenAI** | Remote API (requires `OPENAI_API_KEY`) | `provider: 'openai'` |
 
 **Vision pipeline**: screenshots → vision model (e.g. `qwen3-vl:4b`) → text description → text model (e.g. `qwen3:8b`) → activity classification (JSON)
@@ -228,7 +226,7 @@ work_hours:
 models:
   vision: 'qwen3-vl:4b'
   text:
-    provider: 'mlx'     # 'mlx' (on-device), 'ollama', or 'openai'
+    provider: 'mlx'     # 'mlx' (on-device) or 'openai'
     model: 'qwen3:8b'   # e.g., 'gpt-4o-mini' for openai
 ```
 
@@ -278,7 +276,7 @@ One binary serves both CLI and GUI. `main.swift` checks `CommandLine.arguments` 
 
 ### MLX as Default Provider
 
-MLX runs models natively on Apple Silicon — no Ollama server required. Falls back to Ollama for vision if MLX client unavailable.
+MLX runs models natively on Apple Silicon for fully on-device inference.
 
 ### GRDB Over Core Data
 

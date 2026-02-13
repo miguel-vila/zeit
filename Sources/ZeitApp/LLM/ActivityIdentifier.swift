@@ -9,7 +9,7 @@ final class ActivityIdentifier: @unchecked Sendable {
     init(
         visionModel: String = "qwen3-vl:4b",
         textModel: String = "qwen3:8b",
-        textProvider: String = "ollama"
+        textProvider: String = "mlx"
     ) {
         self.visionModel = visionModel
         self.textModel = textModel
@@ -46,17 +46,7 @@ final class ActivityIdentifier: @unchecked Sendable {
 
         let visionResponse: (response: String, thinking: String?)
 
-        if textProvider == "ollama" {
-            // Use Ollama HTTP API (legacy path, for when Ollama is available)
-            let visionClient = OllamaClient(model: visionModel)
-            let result = try await visionClient.generateWithVisionThinking(
-                prompt: descriptionPrompt,
-                images: base64Images,
-                temperature: 0
-            )
-            visionResponse = (result.response, result.thinking)
-        } else if let mlxClient = MLXClient(configName: visionModel) {
-            // Use on-device MLX inference
+        if let mlxClient = MLXClient(configName: visionModel) {
             let result = try await mlxClient.generateWithVisionThinking(
                 prompt: descriptionPrompt,
                 images: base64Images,
@@ -89,18 +79,7 @@ final class ActivityIdentifier: @unchecked Sendable {
 
         let classificationResponseText: String
 
-        if textProvider == "ollama" {
-            // Use Ollama HTTP API
-            let textClient = OllamaClient(model: textModel)
-            let ollamaResponse = try await textClient.generateStructured(
-                prompt: classificationPrompt,
-                schema: Self.classificationSchema,
-                temperature: 0,
-                think: true
-            )
-            classificationResponseText = ollamaResponse.response
-        } else if let mlxClient = MLXClient(configName: textModel) {
-            // Use on-device MLX inference
+        if let mlxClient = MLXClient(configName: textModel) {
             let mlxResponse = try await mlxClient.generateStructured(
                 prompt: classificationPrompt,
                 schema: Self.classificationSchema,
