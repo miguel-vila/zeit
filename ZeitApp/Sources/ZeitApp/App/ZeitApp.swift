@@ -33,6 +33,7 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationDidFinishLaunching(_: Notification) {
         setupStatusItem()
         startIconObservation()
+        startOnboardingObservation()
         store.send(.task)
         presentOnboardingIfNeeded()
     }
@@ -118,6 +119,17 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     // MARK: - Onboarding Panel
+
+    private func startOnboardingObservation() {
+        withObservationTracking {
+            _ = store.onboarding
+        } onChange: {
+            Task { @MainActor [weak self] in
+                self?.presentOnboardingIfNeeded()
+                self?.startOnboardingObservation()
+            }
+        }
+    }
 
     private func presentOnboardingIfNeeded() {
         guard store.onboarding != nil, onboardingPanel == nil else { return }

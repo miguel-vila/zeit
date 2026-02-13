@@ -230,21 +230,31 @@ struct MenubarView: View {
     }
 
     private var settingsSection: some View {
-        Toggle(isOn: Binding(
-            get: { store.launchAtLogin },
-            set: { _ in store.send(.toggleLaunchAtLogin) }
-        )) {
-            HStack(spacing: 8) {
-                Image(systemName: "gear")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 16)
-                Text("Launch at Login")
+        VStack(alignment: .leading, spacing: 2) {
+            Toggle(isOn: Binding(
+                get: { store.launchAtLogin },
+                set: { _ in store.send(.toggleLaunchAtLogin) }
+            )) {
+                HStack(spacing: 8) {
+                    Image(systemName: "gear")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 16)
+                    Text("Launch at Login")
+                }
             }
+            .toggleStyle(.checkbox)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+
+            MenubarActionButton(
+                icon: "gearshape",
+                label: "Settings",
+                action: { store.send(.showSettings) }
+            )
         }
-        .toggleStyle(.checkbox)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
     }
 
     // MARK: - Helpers

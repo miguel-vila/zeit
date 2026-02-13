@@ -42,6 +42,7 @@ struct MenubarFeature {
         case showObjectives
         case toggleLaunchAtLogin
         case launchAtLoginToggled(Bool)
+        case showSettings
         case quitApp
 
         // Child feature actions
@@ -189,6 +190,10 @@ struct MenubarFeature {
 
             case .showObjectives:
                 state.objectives = ObjectivesFeature.State(date: state.todayDate)
+                return .none
+
+            case .showSettings:
+                state.onboarding = OnboardingFeature.State()
                 return .none
 
             case .toggleLaunchAtLogin:
