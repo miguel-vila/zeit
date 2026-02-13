@@ -57,6 +57,7 @@ struct ModelDownloadFeature {
     }
 
     @Dependency(\.modelClient) var modelClient
+    @Dependency(\.notificationClient) var notificationClient
 
     var body: some ReducerOf<Self> {
         Reduce { state, action in
@@ -134,15 +135,31 @@ struct ModelDownloadFeature {
                 return .none
 
             case .downloadCompleted(let configName):
+                var displayName = configName
                 if let index = state.models.firstIndex(where: { $0.configName == configName }) {
                     state.models[index].status = .downloaded
                     state.models[index].progress = 1.0
+                    displayName = state.models[index].displayName
                 }
 
-                if state.allDownloaded {
-                    return .send(.allModelsReady)
+                let allReady = state.allDownloaded
+                let modelDisplayName = displayName
+                return .run { send in
+                    if allReady {
+                        await notificationClient.show(
+                            "All Models Ready",
+                            "Setup Complete",
+                            "All AI models have been downloaded. Zeit is ready to start tracking your activities."
+                        )
+                        await send(.allModelsReady)
+                    } else {
+                        await notificationClient.show(
+                            "Model Downloaded",
+                            modelDisplayName,
+                            "\(modelDisplayName) is ready. Remaining models are still downloading."
+                        )
+                    }
                 }
-                return .none
 
             case .downloadFailed(let configName, let error):
                 if let index = state.models.firstIndex(where: { $0.configName == configName }) {
