@@ -33,6 +33,9 @@ struct LaunchAgentClient: Sendable {
 
     /// Load the tracker service via launchctl bootstrap
     var loadTrackerService: @Sendable () async throws -> Void
+
+    /// Reload the tracker service (bootout + bootstrap) to reset launchd throttle
+    var reloadTrackerService: @Sendable () async throws -> Void
 }
 
 // MARK: - Dependency Registration
@@ -75,6 +78,11 @@ extension LaunchAgentClient: DependencyKey {
             },
             loadTrackerService: {
                 let serviceHelper = ServiceHelper()
+                try serviceHelper.loadService(label: ServiceHelper.trackerLabel)
+            },
+            reloadTrackerService: {
+                let serviceHelper = ServiceHelper()
+                try? serviceHelper.unloadService(label: ServiceHelper.trackerLabel)
                 try serviceHelper.loadService(label: ServiceHelper.trackerLabel)
             }
         )

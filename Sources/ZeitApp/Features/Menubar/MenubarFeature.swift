@@ -99,6 +99,10 @@ struct MenubarFeature {
                     .run { send in
                         let allDownloaded = await modelClient.allModelsDownloaded()
                         await send(.modelsCheckCompleted(allDownloaded: allDownloaded))
+                    },
+                    // Reload tracker service to reset any launchd throttle from prior failures
+                    .run { _ in
+                        try? await launchAgent.reloadTrackerService()
                     }
                 )
 
