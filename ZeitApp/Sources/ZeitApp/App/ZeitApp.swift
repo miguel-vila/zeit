@@ -144,6 +144,7 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         panel.center()
         panel.delegate = windowDelegate
         panel.isReleasedWhenClosed = false
+        panel.hidesOnDeactivate = false
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 

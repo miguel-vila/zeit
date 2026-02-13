@@ -23,7 +23,10 @@ struct OnboardingFeature {
         Reduce { state, action in
             switch action {
             case .permissions(.allPermissionsGranted):
-                return .send(.completed)
+                // Don't auto-close — let the user see that all permissions are granted
+                // and click "Continue" explicitly. This keeps the window open until
+                // the user has addressed all permissions.
+                return .none
 
             case .permissions(.skip):
                 return .send(.completed)
