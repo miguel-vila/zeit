@@ -27,6 +27,12 @@ struct LaunchAgentClient: Sendable {
 
     /// Restart the tracker service
     var restartTrackerService: @Sendable () async throws -> Void
+
+    /// Install both tracker and menubar LaunchAgent plists
+    var installServices: @Sendable () async throws -> Void
+
+    /// Load the tracker service via launchctl bootstrap
+    var loadTrackerService: @Sendable () async throws -> Void
 }
 
 // MARK: - Dependency Registration
@@ -59,6 +65,17 @@ extension LaunchAgentClient: DependencyKey {
             },
             restartTrackerService: {
                 try await helper.restartService(ServiceIdentifier.tracker)
+            },
+            installServices: {
+                let serviceHelper = ServiceHelper()
+                let cliPath = Bundle.main.executablePath ?? ""
+                let appPath = Bundle.main.bundlePath
+                try serviceHelper.installTrackerService(cliPath: cliPath)
+                try serviceHelper.installMenubarService(appPath: appPath)
+            },
+            loadTrackerService: {
+                let serviceHelper = ServiceHelper()
+                try serviceHelper.loadService(label: ServiceHelper.trackerLabel)
             }
         )
     }()

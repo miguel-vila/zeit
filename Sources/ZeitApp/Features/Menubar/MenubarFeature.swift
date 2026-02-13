@@ -361,7 +361,18 @@ struct MenubarFeature {
                 state.onboarding = nil
                 // Sync debug mode in case it was changed in settings
                 state.debugModeEnabled = UserDefaults.standard.bool(forKey: "debugModeEnabled")
-                return .none
+                return .run { _ in
+                    do {
+                        try await launchAgent.installServices()
+                        try await launchAgent.loadTrackerService()
+                    } catch {
+                        await notification.show(
+                            "Zeit",
+                            "Service Setup",
+                            "Could not start tracker service: \(error.localizedDescription)"
+                        )
+                    }
+                }
 
             case .onboarding(.dismiss):
                 // Sync debug mode even if the user dismissed without clicking Done
