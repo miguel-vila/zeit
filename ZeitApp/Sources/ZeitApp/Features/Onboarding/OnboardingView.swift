@@ -5,8 +5,15 @@ struct OnboardingView: View {
     let store: StoreOf<OnboardingFeature>
 
     var body: some View {
-        PermissionsView(
-            store: store.scope(state: \.permissions, action: \.permissions)
-        )
+        switch store.step {
+        case .permissions:
+            PermissionsView(
+                store: store.scope(state: \.permissions, action: \.permissions)
+            )
+        case .modelDownload:
+            ModelDownloadView(
+                store: store.scope(state: \.modelDownload, action: \.modelDownload)
+            )
+        }
     }
 }

@@ -36,11 +36,17 @@ protocol VisionLLMProvider: Sendable {
 enum LLMProviderFactory {
     /// Create an LLM provider based on the provider type
     /// - Parameters:
-    ///   - provider: Provider type ("ollama" or "openai")
-    ///   - model: Model name to use
+    ///   - provider: Provider type ("mlx", "ollama", or "openai")
+    ///   - model: Model name to use (config name like "qwen3:8b" for mlx)
     /// - Returns: An LLM provider instance
     static func create(provider: String, model: String) throws -> LLMProvider {
         switch provider.lowercased() {
+        case "mlx":
+            guard let client = MLXClient(configName: model) else {
+                throw LLMError.unknownProvider("MLX model not found: \(model)")
+            }
+            return client
+
         case "ollama":
             return OllamaClient(model: model)
 
@@ -55,11 +61,15 @@ enum LLMProviderFactory {
         }
     }
 
-    /// Create a vision-capable LLM provider (currently only Ollama)
-    /// - Parameter model: Vision model name to use
+    /// Create a vision-capable LLM provider
+    /// - Parameter model: Vision model config name
     /// - Returns: A vision LLM provider instance
     static func createVision(model: String) -> VisionLLMProvider {
-        OllamaClient(model: model)
+        if let mlxClient = MLXClient(configName: model) {
+            return mlxClient
+        }
+        // Fallback to Ollama for backward compatibility
+        return OllamaClient(model: model)
     }
 }
 

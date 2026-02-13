@@ -14,11 +14,9 @@ struct DoctorCommand: AsyncParsableCommand {
     func run() async throws {
         var checks: [Check] = []
 
-        // Ollama checks
-        checks.append(checkOllamaInstalled())
-        checks.append(await checkOllamaRunning())
-        checks.append(await checkModel(name: "qwen3-vl:4b"))
-        checks.append(await checkModel(name: "qwen3:8b"))
+        // Model checks (on-device MLX models)
+        checks.append(await checkLocalModel(MLXModelManager.visionModel))
+        checks.append(await checkLocalModel(MLXModelManager.textModel))
 
         // Permission checks
         checks.append(checkScreenRecordingPermission())
@@ -71,64 +69,15 @@ struct DoctorCommand: AsyncParsableCommand {
 
     // MARK: - Check Functions
 
-    private func checkOllamaInstalled() -> Check {
-        let ollamaPath = "/usr/local/bin/ollama"
-        let exists = FileManager.default.fileExists(atPath: ollamaPath)
+    private func checkLocalModel(_ model: MLXModelInfo) async -> Check {
+        let isDownloaded = await MLXModelManager.shared.isModelDownloaded(model: model)
         return Check(
-            name: "Ollama installed",
-            passed: exists,
-            details: exists ? ollamaPath : "Not found"
+            name: "Model: \(model.displayName)",
+            passed: isDownloaded,
+            details: isDownloaded
+                ? "Downloaded (\(model.huggingFaceID))"
+                : "Not downloaded - use the app's onboarding or download via the menubar"
         )
-    }
-
-    private func checkOllamaRunning() async -> Check {
-        do {
-            let url = URL(string: "http://localhost:11434/api/tags")!
-            let (_, response) = try await URLSession.shared.data(from: url)
-            let httpResponse = response as? HTTPURLResponse
-            let isRunning = httpResponse?.statusCode == 200
-            return Check(
-                name: "Ollama running",
-                passed: isRunning,
-                details: isRunning ? "Responding on localhost:11434" : "Not responding"
-            )
-        } catch {
-            return Check(
-                name: "Ollama running",
-                passed: false,
-                details: "Not responding"
-            )
-        }
-    }
-
-    private func checkModel(name: String) async -> Check {
-        do {
-            let url = URL(string: "http://localhost:11434/api/tags")!
-            let (data, _) = try await URLSession.shared.data(from: url)
-
-            struct TagsResponse: Decodable {
-                let models: [Model]
-
-                struct Model: Decodable {
-                    let name: String
-                }
-            }
-
-            let response = try JSONDecoder().decode(TagsResponse.self, from: data)
-            let hasModel = response.models.contains { $0.name == name || $0.name.hasPrefix(name) }
-
-            return Check(
-                name: "Model: \(name)",
-                passed: hasModel,
-                details: hasModel ? "Available" : "Not found - run: ollama pull \(name)"
-            )
-        } catch {
-            return Check(
-                name: "Model: \(name)",
-                passed: false,
-                details: "Could not check (Ollama not running?)"
-            )
-        }
     }
 
     private func checkScreenRecordingPermission() -> Check {

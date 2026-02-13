@@ -29,6 +29,7 @@ struct MenubarFeature {
         case task
         case refreshTick
         case refreshData
+        case modelsCheckCompleted(allDownloaded: Bool)
 
         // Data responses
         case dataLoaded(DayRecord?, DayObjectives?)
@@ -54,6 +55,7 @@ struct MenubarFeature {
     @Dependency(\.launchAgentClient) var launchAgent
     @Dependency(\.notificationClient) var notification
     @Dependency(\.permissionsClient) var permissions
+    @Dependency(\.modelClient) var modelClient
     @Dependency(\.continuousClock) var clock
 
     private enum CancelID { case timer }
@@ -73,8 +75,22 @@ struct MenubarFeature {
 
                 return .merge(
                     .send(.refreshData),
-                    startRefreshTimer()
+                    startRefreshTimer(),
+                    .run { send in
+                        let allDownloaded = await modelClient.allModelsDownloaded()
+                        await send(.modelsCheckCompleted(allDownloaded: allDownloaded))
+                    }
                 )
+
+            case .modelsCheckCompleted(let allDownloaded):
+                // If models aren't downloaded and onboarding isn't already showing,
+                // show onboarding starting at the model download step
+                if !allDownloaded && state.onboarding == nil {
+                    var onboardingState = OnboardingFeature.State()
+                    onboardingState.step = .modelDownload
+                    state.onboarding = onboardingState
+                }
+                return .none
 
             case .refreshTick:
                 // Update tracking state and refresh data periodically

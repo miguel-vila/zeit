@@ -39,19 +39,40 @@ final class ActivityIdentifier: @unchecked Sendable {
         }
 
         // 4. Call vision model to describe the screens
-        let visionClient = OllamaClient(model: visionModel)
         let descriptionPrompt = Prompts.visionDescription(
             activeScreen: activeScreen,
             screenCount: screenshots.count
         )
 
-        // Send all images with thinking enabled so qwen3-vl separates
-        // thinking tokens from the actual description
-        let visionResponse = try await visionClient.generateWithVisionThinking(
-            prompt: descriptionPrompt,
-            images: base64Images,
-            temperature: 0
-        )
+        let visionResponse: (response: String, thinking: String?)
+
+        if textProvider == "ollama" {
+            // Use Ollama HTTP API (legacy path, for when Ollama is available)
+            let visionClient = OllamaClient(model: visionModel)
+            let result = try await visionClient.generateWithVisionThinking(
+                prompt: descriptionPrompt,
+                images: base64Images,
+                temperature: 0
+            )
+            visionResponse = (result.response, result.thinking)
+        } else if let mlxClient = MLXClient(configName: visionModel) {
+            // Use on-device MLX inference
+            let result = try await mlxClient.generateWithVisionThinking(
+                prompt: descriptionPrompt,
+                images: base64Images,
+                temperature: 0
+            )
+            visionResponse = (result.response, result.thinking)
+        } else {
+            // Fallback: try MLX with the vision model info directly
+            let mlxClient = MLXClient(modelInfo: MLXModelManager.visionModel)
+            let result = try await mlxClient.generateWithVisionThinking(
+                prompt: descriptionPrompt,
+                images: base64Images,
+                temperature: 0
+            )
+            visionResponse = (result.response, result.thinking)
+        }
 
         // Use the clean response (thinking is separated out)
         let description = DescriptionResponse(
@@ -66,16 +87,40 @@ final class ActivityIdentifier: @unchecked Sendable {
             description: description.mainActivityDescription
         )
 
-        // Use structured output with full JSON schema (matching Python behavior)
-        let textClient = OllamaClient(model: textModel)
-        let ollamaResponse = try await textClient.generateStructured(
-            prompt: classificationPrompt,
-            schema: Self.classificationSchema,
-            temperature: 0,
-            think: true
-        )
+        let classificationResponseText: String
 
-        let classification = try parseClassificationResponse(ollamaResponse.response)
+        if textProvider == "ollama" {
+            // Use Ollama HTTP API
+            let textClient = OllamaClient(model: textModel)
+            let ollamaResponse = try await textClient.generateStructured(
+                prompt: classificationPrompt,
+                schema: Self.classificationSchema,
+                temperature: 0,
+                think: true
+            )
+            classificationResponseText = ollamaResponse.response
+        } else if let mlxClient = MLXClient(configName: textModel) {
+            // Use on-device MLX inference
+            let mlxResponse = try await mlxClient.generateStructured(
+                prompt: classificationPrompt,
+                schema: Self.classificationSchema,
+                temperature: 0,
+                think: true
+            )
+            classificationResponseText = mlxResponse.response
+        } else {
+            // Fallback: try MLX with the text model info directly
+            let mlxClient = MLXClient(modelInfo: MLXModelManager.textModel)
+            let mlxResponse = try await mlxClient.generateStructured(
+                prompt: classificationPrompt,
+                schema: Self.classificationSchema,
+                temperature: 0,
+                think: true
+            )
+            classificationResponseText = mlxResponse.response
+        }
+
+        let classification = try parseClassificationResponse(classificationResponseText)
 
         return IdentificationResult(
             activity: classification.activity,

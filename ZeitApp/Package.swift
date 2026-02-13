@@ -26,6 +26,10 @@ let package = Package(
             url: "https://github.com/apple/swift-argument-parser",
             from: "1.3.0"
         ),
+        .package(
+            url: "https://github.com/ml-explore/mlx-swift-lm",
+            .upToNextMinor(from: "2.29.1")
+        ),
     ],
     targets: [
         .executableTarget(
@@ -35,6 +39,9 @@ let package = Package(
                 .product(name: "GRDB", package: "GRDB.swift"),
                 .product(name: "Yams", package: "Yams"),
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .product(name: "MLXLLM", package: "mlx-swift-lm"),
+                .product(name: "MLXVLM", package: "mlx-swift-lm"),
+                .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
             ],
             path: "Sources/ZeitApp",
             resources: [

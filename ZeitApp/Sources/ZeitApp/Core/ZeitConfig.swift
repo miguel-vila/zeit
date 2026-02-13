@@ -27,7 +27,7 @@ struct ZeitConfig: Sendable {
 
     static let defaultModels = ModelsConfig(
         vision: "qwen3-vl:4b",
-        text: .init(provider: "ollama", model: "qwen3:8b")
+        text: .init(provider: "mlx", model: "qwen3:8b")
     )
 
     // MARK: - Paths
@@ -50,7 +50,7 @@ struct ZeitConfig: Sendable {
         models:
           vision: 'qwen3-vl:4b'
           text:
-            provider: 'ollama'  # 'ollama' or 'openai'
+            provider: 'mlx'     # 'mlx' (on-device), 'ollama', or 'openai'
             model: 'qwen3:8b'   # e.g., 'gpt-4o-mini' for openai
 
         paths:

@@ -1,17 +1,27 @@
 import ComposableArchitecture
 import Foundation
 
-/// Onboarding feature that shows the permissions window on first launch.
+/// Onboarding feature that guides through permissions and model download.
+/// Step 1: Permissions (Screen Recording + Accessibility)
+/// Step 2: Model Download (Vision + Text models)
 @Reducer
 struct OnboardingFeature {
     @ObservableState
     struct State: Equatable {
+        var step: Step = .permissions
         var permissions: PermissionsFeature.State = .init()
+        var modelDownload: ModelDownloadFeature.State = .init()
         var isCompleted: Bool = false
+
+        enum Step: Equatable {
+            case permissions
+            case modelDownload
+        }
     }
 
     enum Action {
         case permissions(PermissionsFeature.Action)
+        case modelDownload(ModelDownloadFeature.Action)
         case completed
     }
 
@@ -20,22 +30,47 @@ struct OnboardingFeature {
             PermissionsFeature()
         }
 
+        Scope(state: \.modelDownload, action: \.modelDownload) {
+            ModelDownloadFeature()
+        }
+
         Reduce { state, action in
             switch action {
+            // MARK: - Permissions step
+
             case .permissions(.allPermissionsGranted):
-                // Don't auto-close — let the user see that all permissions are granted
-                // and click "Continue" explicitly. This keeps the window open until
-                // the user has addressed all permissions.
+                // Don't auto-advance — let the user click "Continue"
                 return .none
 
             case .permissions(.skip):
-                return .send(.completed)
+                // Skip permissions, move to model download
+                state.step = .modelDownload
+                return .none
 
             case .permissions(.continuePressed):
-                return .send(.completed)
+                // Permissions done, move to model download
+                state.step = .modelDownload
+                return .none
 
             case .permissions:
                 return .none
+
+            // MARK: - Model download step
+
+            case .modelDownload(.allModelsReady):
+                // Don't auto-close — let the user click "Continue"
+                return .none
+
+            case .modelDownload(.skip):
+                return .send(.completed)
+
+            case .modelDownload(.continuePressed):
+                return .send(.completed)
+
+            case .modelDownload:
+                return .none
+
+            // MARK: - Completion
 
             case .completed:
                 state.isCompleted = true

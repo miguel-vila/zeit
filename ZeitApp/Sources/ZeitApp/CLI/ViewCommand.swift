@@ -123,8 +123,9 @@ struct ViewSummarizeCommand: AsyncParsableCommand {
         if let override = model {
             (providerName, modelName) = try parseModelOverride(override)
         } else {
-            providerName = "ollama"
-            modelName = "qwen3:8b"
+            let config = ZeitConfig.load()
+            providerName = config.models.text.provider
+            modelName = config.models.text.model
         }
 
         let llmProvider = try LLMProviderFactory.create(provider: providerName, model: modelName)
@@ -175,7 +176,7 @@ private func parseModelOverride(_ override: String) throws -> (provider: String,
     let provider = String(parts[0])
     let model = String(parts[1])
 
-    guard ["ollama", "openai"].contains(provider) else {
+    guard ["mlx", "ollama", "openai"].contains(provider) else {
         throw SummarizeError.unknownProvider(provider)
     }
     guard !model.isEmpty else {
@@ -194,7 +195,7 @@ enum SummarizeError: LocalizedError {
         case .invalidFormat(let value):
             return "Invalid format '\(value)'. Expected 'provider:model' (e.g., 'openai:gpt-4o-mini')"
         case .unknownProvider(let provider):
-            return "Unknown provider '\(provider)'. Supported: ollama, openai"
+            return "Unknown provider '\(provider)'. Supported: mlx, ollama, openai"
         case .emptyModel:
             return "Model name cannot be empty"
         }
