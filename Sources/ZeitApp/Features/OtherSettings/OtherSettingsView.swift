@@ -44,7 +44,7 @@ struct OtherSettingsView: View {
                         Text("Debug Mode")
                             .fontWeight(.semibold)
 
-                        Text("Shows additional controls like Force Track in the menubar")
+                        Text("Shows a debug section with Force Track in the menubar")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
