@@ -47,13 +47,10 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: - Status Item
 
     private func setupStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = statusItem.button {
-            button.image = NSImage(
-                systemSymbolName: store.trackingState.iconName,
-                accessibilityDescription: "Zeit"
-            )
+            updateStatusItemIcon(trackingState: store.trackingState, workPercentage: store.workPercentage)
             button.action = #selector(statusItemClicked(_:))
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
             button.target = self
@@ -112,16 +109,59 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func startIconObservation() {
         withObservationTracking {
-            let iconName = store.trackingState.iconName
-            statusItem.button?.image = NSImage(
-                systemSymbolName: iconName,
-                accessibilityDescription: "Zeit"
-            )
+            let trackingState = store.trackingState
+            let workPercentage = store.workPercentage
+            updateStatusItemIcon(trackingState: trackingState, workPercentage: workPercentage)
         } onChange: {
             Task { @MainActor [weak self] in
                 self?.startIconObservation()
             }
         }
+    }
+
+    private func updateStatusItemIcon(trackingState: TrackingState, workPercentage: Double) {
+        guard let button = statusItem.button else { return }
+
+        switch trackingState {
+        case .active:
+            let percentage = Int(workPercentage)
+            button.image = renderPercentageIcon(percentage: percentage)
+        case .pausedManual:
+            button.image = NSImage(
+                systemSymbolName: "pause.fill",
+                accessibilityDescription: "Zeit - Paused"
+            )
+        case .outsideWorkHours:
+            button.image = NSImage(
+                systemSymbolName: "moon.fill",
+                accessibilityDescription: "Zeit - Outside Work Hours"
+            )
+        }
+    }
+
+    private func renderPercentageIcon(percentage: Int) -> NSImage {
+        let text = "\(percentage)%"
+        let height: CGFloat = 16
+        let font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .semibold)
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.headerTextColor,
+        ]
+        let textSize = (text as NSString).size(withAttributes: attributes)
+        let width = max(textSize.width + 4, height)
+
+        let image = NSImage(size: NSSize(width: width, height: height), flipped: false) { rect in
+            let textRect = NSRect(
+                x: (rect.width - textSize.width) / 2,
+                y: (rect.height - textSize.height) / 2,
+                width: textSize.width,
+                height: textSize.height
+            )
+            (text as NSString).draw(in: textRect, withAttributes: attributes)
+            return true
+        }
+        image.isTemplate = true
+        return image
     }
 
     // MARK: - Onboarding Panel
