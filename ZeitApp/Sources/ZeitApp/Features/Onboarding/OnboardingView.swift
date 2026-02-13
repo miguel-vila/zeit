@@ -14,6 +14,10 @@ struct OnboardingView: View {
             ModelDownloadView(
                 store: store.scope(state: \.modelDownload, action: \.modelDownload)
             )
+        case .otherSettings:
+            OtherSettingsView(
+                store: store.scope(state: \.otherSettings, action: \.otherSettings)
+            )
         }
     }
 }

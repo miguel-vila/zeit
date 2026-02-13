@@ -4,6 +4,7 @@ import Foundation
 /// Onboarding feature that guides through permissions and model download.
 /// Step 1: Permissions (Screen Recording + Accessibility)
 /// Step 2: Model Download (Vision + Text models)
+/// Step 3: Other Settings (Debug mode toggle, etc.)
 @Reducer
 struct OnboardingFeature {
     @ObservableState
@@ -11,17 +12,20 @@ struct OnboardingFeature {
         var step: Step = .permissions
         var permissions: PermissionsFeature.State = .init()
         var modelDownload: ModelDownloadFeature.State = .init()
+        var otherSettings: OtherSettingsFeature.State = .init()
         var isCompleted: Bool = false
 
         enum Step: Equatable {
             case permissions
             case modelDownload
+            case otherSettings
         }
     }
 
     enum Action {
         case permissions(PermissionsFeature.Action)
         case modelDownload(ModelDownloadFeature.Action)
+        case otherSettings(OtherSettingsFeature.Action)
         case completed
     }
 
@@ -32,6 +36,10 @@ struct OnboardingFeature {
 
         Scope(state: \.modelDownload, action: \.modelDownload) {
             ModelDownloadFeature()
+        }
+
+        Scope(state: \.otherSettings, action: \.otherSettings) {
+            OtherSettingsFeature()
         }
 
         Reduce { state, action in
@@ -62,12 +70,22 @@ struct OnboardingFeature {
                 return .none
 
             case .modelDownload(.skip):
-                return .send(.completed)
+                state.step = .otherSettings
+                return .none
 
             case .modelDownload(.continuePressed):
-                return .send(.completed)
+                state.step = .otherSettings
+                return .none
 
             case .modelDownload:
+                return .none
+
+            // MARK: - Other settings step
+
+            case .otherSettings(.done):
+                return .send(.completed)
+
+            case .otherSettings:
                 return .none
 
             // MARK: - Completion

@@ -224,6 +224,15 @@ struct MenubarView: View {
                 label: "Set Day Objectives",
                 action: { store.send(.showObjectives) }
             )
+
+            if store.debugModeEnabled {
+                MenubarActionButton(
+                    icon: "bolt.fill",
+                    label: store.isForceTracking ? "Tracking..." : "Force Track",
+                    action: { store.send(.forceTrack) }
+                )
+                .disabled(store.isForceTracking)
+            }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)

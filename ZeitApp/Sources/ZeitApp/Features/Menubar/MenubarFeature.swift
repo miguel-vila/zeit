@@ -19,6 +19,10 @@ struct MenubarFeature {
 
         // Settings
         var launchAtLogin: Bool = false
+        var debugModeEnabled: Bool = UserDefaults.standard.bool(forKey: "debugModeEnabled")
+
+        // Force track
+        var isForceTracking: Bool = false
 
         // Loading state
         var isLoading: Bool = false
@@ -43,6 +47,9 @@ struct MenubarFeature {
         case toggleLaunchAtLogin
         case launchAtLoginToggled(Bool)
         case showSettings
+        case forceTrack
+        case forceTrackCompleted(Result<String, Error>)
+        case debugModeChanged(Bool)
         case quitApp
 
         // Child feature actions
@@ -196,6 +203,55 @@ struct MenubarFeature {
                 state.onboarding = OnboardingFeature.State()
                 return .none
 
+            case .forceTrack:
+                guard !state.isForceTracking else { return .none }
+                state.isForceTracking = true
+
+                return .run { send in
+                    do {
+                        let config = ZeitConfig.load()
+                        let identifier = ActivityIdentifier(
+                            visionModel: config.models.vision,
+                            textModel: config.models.text.model,
+                            textProvider: config.models.text.provider
+                        )
+                        let result = try await identifier.identifyCurrentActivity()
+                        let entry = result.toActivityEntry()
+                        let db = try DatabaseHelper()
+                        try await db.insertActivity(entry)
+                        await send(.forceTrackCompleted(.success(result.activity.displayName)))
+                    } catch {
+                        await send(.forceTrackCompleted(.failure(error)))
+                    }
+                }
+
+            case .forceTrackCompleted(.success(let activityName)):
+                state.isForceTracking = false
+                return .merge(
+                    .send(.refreshData),
+                    .run { _ in
+                        await notification.show(
+                            "Zeit",
+                            "Force Tracked",
+                            "Activity: \(activityName)"
+                        )
+                    }
+                )
+
+            case .forceTrackCompleted(.failure(let error)):
+                state.isForceTracking = false
+                return .run { _ in
+                    await notification.show(
+                        "Zeit Error",
+                        "Force Track Failed",
+                        error.localizedDescription
+                    )
+                }
+
+            case .debugModeChanged(let enabled):
+                state.debugModeEnabled = enabled
+                return .none
+
             case .toggleLaunchAtLogin:
                 let currentlyEnabled = state.launchAtLogin
 
@@ -249,6 +305,8 @@ struct MenubarFeature {
 
             case .onboarding(.presented(.completed)):
                 state.onboarding = nil
+                // Sync debug mode in case it was changed in settings
+                state.debugModeEnabled = UserDefaults.standard.bool(forKey: "debugModeEnabled")
                 return .none
 
             case .onboarding:
