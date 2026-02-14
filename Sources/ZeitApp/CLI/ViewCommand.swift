@@ -346,7 +346,11 @@ enum ViewHelpers {
             }
 
             let icon = entry.activity.isWork ? "💼" : (entry.activity == .idle ? "😴" : "🏠")
-            print("\(timeStr) \(icon) \(entry.activity.displayName)")
+            if let description = entry.description {
+                print("\(timeStr) \(icon) \(entry.activity.displayName) — \(description)")
+            } else {
+                print("\(timeStr) \(icon) \(entry.activity.displayName)")
+            }
         }
 
         print("")

@@ -189,7 +189,8 @@ struct IdentificationResult {
         ActivityEntry(
             timestamp: ISO8601DateFormatter().string(from: Date()),
             activity: activity,
-            reasoning: reasoning
+            reasoning: reasoning,
+            description: description
         )
     }
 }

@@ -48,6 +48,7 @@ struct ActivityEntry: Codable, Equatable, Sendable {
     let timestamp: String  // ISO format
     let activity: Activity
     let reasoning: String?
+    let description: String?
 
     /// Parse the timestamp as a Date
     var date: Date? {
