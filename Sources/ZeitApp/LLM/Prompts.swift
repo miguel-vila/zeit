@@ -3,13 +3,15 @@ import Foundation
 /// LLM prompt templates for activity identification
 enum Prompts {
     /// Prompt for vision model to describe what's on screen
-    static func visionDescription(activeScreen: Int, screenCount: Int) -> String {
+    static func visionDescription(activeScreen: Int, screenCount: Int, frontmostApp: String? = nil) -> String {
+        let frontmostAppHint = frontmostApp.map { "\nThe frontmost application detected was: \($0)." } ?? ""
+
         if screenCount > 1 {
             // Multi-screen: indicate which screen is active
             return """
             You are viewing screenshots from the user's multiple monitors. The images are provided in order: Screen 1, Screen 2, etc.
 
-            IMPORTANT: Based on system information, Screen \(activeScreen) currently contains the focused/active window. Use this as a strong hint for identifying the PRIMARY screen.
+            IMPORTANT: Based on system information, Screen \(activeScreen) currently contains the focused/active window. Use this as a strong hint for identifying the PRIMARY screen.\(frontmostAppHint)
 
             Verify the PRIMARY screen by also looking for visual cues:
             - Mouse cursor position
@@ -23,34 +25,11 @@ enum Prompts {
         } else {
             // Single screen: simple description
             return """
-            A brief description of the user's activities based on the screenshot.
-            Describe enough things to understand what is the main activity the user is engaged in.
+            You are viewing a screenshot from the user's single monitor.\(frontmostAppHint)
+            Describe the user's main activity in 1-2 sentences.
+            Focus on what application is in use and what specific task the user appears to be doing.
             """
         }
-    }
-
-    /// Prompt for vision model to describe what's on screen (JSON format)
-    static func multiScreenDescription(activeScreen: Int, screenCount: Int) -> String {
-        """
-        You are analyzing screenshots from a user's computer to help track their work activity.
-
-        The user has \(screenCount) monitor(s). Screen \(activeScreen) is the currently active screen (has the focused window).
-
-        Analyze the screenshot(s) and respond with a JSON object containing:
-        {
-            "thinking": "Your reasoning about what you see",
-            "primary_screen": \(activeScreen),
-            "main_activity_description": "A concise description of the main activity the user is doing",
-            "secondary_context": "Any additional relevant context from other screens (optional)"
-        }
-
-        Focus on:
-        - What application is in use
-        - What specific task the user appears to be doing
-        - Any visible project names, document titles, or URLs that give context
-
-        Be specific but concise. Focus on the activity, not describing every UI element.
-        """
     }
 
     /// Prompt for text model to classify activity into category

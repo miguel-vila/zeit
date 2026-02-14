@@ -119,49 +119,70 @@ mkdir -p "$APP_BUNDLE/Contents/Resources"
 # Copy binary
 cp "$BINARY_PATH" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
-# Compile MLX Metal shaders into metallib
+# Compile MLX Metal shaders into metallib (with caching)
 echo ""
 echo "Compiling MLX Metal shaders..."
 echo "----------------------------------------"
 
 MLX_METAL_DIR="$BUILD_DIR/checkouts/mlx-swift/Source/Cmlx/mlx-generated/metal"
 METAL_BUILD_DIR="$BUILD_DIR/metal-shaders"
-rm -rf "$METAL_BUILD_DIR"
-mkdir -p "$METAL_BUILD_DIR"
+METALLIB_CACHE="$METAL_BUILD_DIR/mlx.metallib"
+METALLIB_HASH_FILE="$METAL_BUILD_DIR/.metal_sources_hash"
 
-# Metal compiler requires full Xcode (not just CommandLineTools)
-XCODE_DEV_DIR="/Applications/Xcode.app/Contents/Developer"
-if [ ! -d "$XCODE_DEV_DIR" ]; then
-    echo "Error: Xcode not found at /Applications/Xcode.app"
-    echo "Full Xcode installation is required to compile Metal shaders."
-    echo "Also run: xcodebuild -downloadComponent MetalToolchain"
-    exit 1
+# Compute hash of all .metal source files
+CURRENT_HASH=$(find "$MLX_METAL_DIR" -name "*.metal" -exec shasum {} \; | sort | shasum | awk '{print $1}')
+
+METAL_CACHED=false
+if [ -f "$METALLIB_CACHE" ] && [ -f "$METALLIB_HASH_FILE" ]; then
+    CACHED_HASH=$(cat "$METALLIB_HASH_FILE")
+    if [ "$CURRENT_HASH" = "$CACHED_HASH" ]; then
+        echo "  Metal shaders unchanged, using cached mlx.metallib"
+        METAL_CACHED=true
+    fi
 fi
 
-METAL_FLAGS="-Wall -Wextra -fno-fast-math -Wno-c++17-extensions -mmacosx-version-min=14.0"
-METAL_INCLUDE="$MLX_METAL_DIR"
-# macOS 14 = Metal 3.1
-METAL_VERSION_INCLUDE="$MLX_METAL_DIR/metal_3_1"
+if [ "$METAL_CACHED" = false ]; then
+    rm -rf "$METAL_BUILD_DIR"
+    mkdir -p "$METAL_BUILD_DIR"
 
-KERNEL_AIR_FILES=()
-for metal_file in $(find "$MLX_METAL_DIR" -name "*.metal"); do
-    kernel_name=$(basename "$metal_file" .metal)
-    air_file="$METAL_BUILD_DIR/${kernel_name}.air"
-    echo "  Compiling: $(basename "$metal_file")"
-    DEVELOPER_DIR="$XCODE_DEV_DIR" xcrun -sdk macosx metal $METAL_FLAGS \
-        -c "$metal_file" \
-        -I"$METAL_INCLUDE" \
-        -I"$METAL_VERSION_INCLUDE" \
-        -o "$air_file"
-    KERNEL_AIR_FILES+=("$air_file")
-done
+    # Metal compiler requires full Xcode (not just CommandLineTools)
+    XCODE_DEV_DIR="/Applications/Xcode.app/Contents/Developer"
+    if [ ! -d "$XCODE_DEV_DIR" ]; then
+        echo "Error: Xcode not found at /Applications/Xcode.app"
+        echo "Full Xcode installation is required to compile Metal shaders."
+        echo "Also run: xcodebuild -downloadComponent MetalToolchain"
+        exit 1
+    fi
 
-echo "  Linking ${#KERNEL_AIR_FILES[@]} kernels into mlx.metallib..."
-DEVELOPER_DIR="$XCODE_DEV_DIR" xcrun -sdk macosx metallib "${KERNEL_AIR_FILES[@]}" -o "$METAL_BUILD_DIR/mlx.metallib"
+    METAL_FLAGS="-Wall -Wextra -fno-fast-math -Wno-c++17-extensions -mmacosx-version-min=14.0"
+    METAL_INCLUDE="$MLX_METAL_DIR"
+    # macOS 14 = Metal 3.1
+    METAL_VERSION_INCLUDE="$MLX_METAL_DIR/metal_3_1"
+
+    KERNEL_AIR_FILES=()
+    for metal_file in $(find "$MLX_METAL_DIR" -name "*.metal"); do
+        kernel_name=$(basename "$metal_file" .metal)
+        air_file="$METAL_BUILD_DIR/${kernel_name}.air"
+        echo "  Compiling: $(basename "$metal_file")"
+        DEVELOPER_DIR="$XCODE_DEV_DIR" xcrun -sdk macosx metal $METAL_FLAGS \
+            -c "$metal_file" \
+            -I"$METAL_INCLUDE" \
+            -I"$METAL_VERSION_INCLUDE" \
+            -o "$air_file"
+        KERNEL_AIR_FILES+=("$air_file")
+    done
+
+    echo "  Linking ${#KERNEL_AIR_FILES[@]} kernels into mlx.metallib..."
+    DEVELOPER_DIR="$XCODE_DEV_DIR" xcrun -sdk macosx metallib "${KERNEL_AIR_FILES[@]}" -o "$METALLIB_CACHE"
+
+    # Save hash for next build
+    echo "$CURRENT_HASH" > "$METALLIB_HASH_FILE"
+    echo "Metal shaders compiled"
+fi
 
 # Place metallib next to the binary (MLX looks here first via current_binary_dir())
-cp "$METAL_BUILD_DIR/mlx.metallib" "$APP_BUNDLE/Contents/MacOS/mlx.metallib"
-echo "Metal shaders compiled and bundled"
+cp "$METALLIB_CACHE" "$APP_BUNDLE/Contents/MacOS/mlx.metallib"
+echo "Metal shaders bundled"
 
 # Copy SPM resource bundles
 echo ""

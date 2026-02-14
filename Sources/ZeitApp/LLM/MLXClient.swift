@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 import MLXLMCommon
 import MLXLLM
 import MLXVLM
@@ -13,7 +14,7 @@ struct MLXResponse {
 }
 
 /// MLX-based LLM client for on-device model inference via Apple Silicon.
-final class MLXClient: LLMProvider, VisionLLMProvider, @unchecked Sendable {
+final class MLXClient: LLMProvider, @unchecked Sendable {
     let modelInfo: MLXModelInfo
 
     init(modelInfo: MLXModelInfo) {
@@ -61,22 +62,6 @@ final class MLXClient: LLMProvider, VisionLLMProvider, @unchecked Sendable {
 
         let cleaned = Self.stripChatTemplateTokens(result)
         return cleaned
-    }
-
-    // MARK: - VisionLLMProvider
-
-    func generateWithVision(
-        prompt: String,
-        images: [String],
-        temperature: Double? = nil,
-        jsonMode: Bool = false
-    ) async throws -> String {
-        let response = try await generateWithVisionFull(
-            prompt: prompt,
-            images: images,
-            temperature: temperature
-        )
-        return response.response
     }
 
     // MARK: - Extended Methods
@@ -132,51 +117,22 @@ final class MLXClient: LLMProvider, VisionLLMProvider, @unchecked Sendable {
     /// Generate with vision and thinking enabled (for vision models)
     func generateWithVisionThinking(
         prompt: String,
-        images: [String],
+        imageURLs: [URL],
         temperature: Double? = nil
     ) async throws -> MLXResponse {
-        try await generateWithVisionFull(
-            prompt: prompt,
-            images: images,
-            temperature: temperature
-        )
-    }
-
-    // MARK: - Internal
-
-    private func generateWithVisionFull(
-        prompt: String,
-        images: [String],
-        temperature: Double?
-    ) async throws -> MLXResponse {
         let container = try await MLXModelManager.shared.loadModel(modelInfo)
-
-        // Convert base64 images to UserInput.Image
-        let userImages: [UserInput.Image] = try images.compactMap { base64String in
-            guard let data = Data(base64Encoded: base64String) else {
-                logger.warning("Failed to decode base64 image")
-                return nil
-            }
-
-            // Write to a temp file so we can use URL-based input
-            let tempDir = FileManager.default.temporaryDirectory
-            let tempFile = tempDir.appendingPathComponent(UUID().uuidString + ".jpg")
-            try data.write(to: tempFile)
-            return .url(tempFile)
-        }
+        let userImages = imageURLs.map { UserInput.Image.url($0) }
+        let resizeSize = Self.proportionalResize(for: imageURLs)
 
         let result = try await container.perform { context in
-            let processing = UserInput.Processing(resize: CGSize(width: 1280, height: 1280))
             let input = UserInput(
-                prompt: .chat([.user(prompt, images: userImages, videos: [])]),
-                images: userImages,
-                processing: processing
+                chat: [.user(prompt, images: userImages, videos: [])],
+                processing: .init(resize: resizeSize)
             )
             let lmInput = try await context.processor.prepare(input: input)
 
             let params = GenerateParameters(
-                maxTokens: 2048,
-                temperature: Float(temperature ?? 0)
+                temperature: Float(temperature ?? 0.7)
             )
 
             let genResult = try MLXLMCommon.generate(
@@ -190,17 +146,29 @@ final class MLXClient: LLMProvider, VisionLLMProvider, @unchecked Sendable {
             return genResult.output
         }
 
-        // Clean up temp files
-        for image in userImages {
-            if case .url(let url) = image {
-                try? FileManager.default.removeItem(at: url)
-            }
-        }
-
         let cleaned = Self.stripChatTemplateTokens(result)
         let (thinking, response) = Self.separateThinking(from: cleaned)
 
         return MLXResponse(response: response, thinking: thinking)
+    }
+
+    // MARK: - Image Helpers
+
+    /// Compute a proportional resize target from the first image's dimensions (max 1280px longest side).
+    private static func proportionalResize(
+        for urls: [URL],
+        maxDimension: CGFloat = 1280
+    ) -> CGSize? {
+        guard let firstURL = urls.first,
+              let source = CGImageSourceCreateWithURL(firstURL as CFURL, nil),
+              let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let w = props[kCGImagePropertyPixelWidth] as? CGFloat,
+              let h = props[kCGImagePropertyPixelHeight] as? CGFloat,
+              max(w, h) > maxDimension else {
+            return nil
+        }
+        let scale = maxDimension / max(w, h)
+        return CGSize(width: round(w * scale), height: round(h * scale))
     }
 
     // MARK: - Text Cleanup

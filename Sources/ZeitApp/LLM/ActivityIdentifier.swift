@@ -17,31 +17,33 @@ final class ActivityIdentifier: @unchecked Sendable {
     }
 
     /// Capture screenshots and identify the current activity
-    func identifyCurrentActivity() async throws -> IdentificationResult {
+    /// - Parameter keepScreenshots: If true, don't delete screenshots after processing
+    func identifyCurrentActivity(keepScreenshots: Bool = false, debug: Bool = false) async throws -> IdentificationResult {
         // 1. Capture screenshots from all monitors
         let screenshots = try ScreenCapture.captureAllMonitors()
-        defer { ScreenCapture.cleanup(screenshots: screenshots) }
-
-        // 2. Determine active screen
-        let activeScreen = ActiveWindow.getActiveScreenNumber()
-
-        // 3. Load images as base64
-        var base64Images: [String] = []
-        for screenNum in screenshots.keys.sorted() {
-            if let url = screenshots[screenNum] {
-                let base64 = try ScreenCapture.loadAsBase64(url: url)
-                base64Images.append(base64)
+        defer {
+            if !keepScreenshots {
+                ScreenCapture.cleanup(screenshots: screenshots)
             }
         }
 
-        guard !base64Images.isEmpty else {
+        // 2. Determine active screen and frontmost app
+        let screenDebugInfo = debug ? ActiveWindow.getScreenDebugInfo() : nil
+        let activeScreen = try ActiveWindow.getActiveScreenNumber()
+        let frontmostApp = ActiveWindow.getFrontmostAppName()
+
+        // 3. Collect screenshot URLs in screen order
+        let imageURLs = screenshots.keys.sorted().compactMap { screenshots[$0] }
+
+        guard !imageURLs.isEmpty else {
             throw ActivityIdentifierError.noScreenshotsCaptured
         }
 
         // 4. Call vision model to describe the screens
         let descriptionPrompt = Prompts.visionDescription(
             activeScreen: activeScreen,
-            screenCount: screenshots.count
+            screenCount: screenshots.count,
+            frontmostApp: frontmostApp
         )
 
         let visionResponse: (response: String, thinking: String?)
@@ -49,7 +51,7 @@ final class ActivityIdentifier: @unchecked Sendable {
         if let mlxClient = MLXClient(configName: visionModel) {
             let result = try await mlxClient.generateWithVisionThinking(
                 prompt: descriptionPrompt,
-                images: base64Images,
+                imageURLs: imageURLs,
                 temperature: 0
             )
             visionResponse = (result.response, result.thinking)
@@ -58,7 +60,7 @@ final class ActivityIdentifier: @unchecked Sendable {
             let mlxClient = MLXClient(modelInfo: MLXModelManager.visionModel)
             let result = try await mlxClient.generateWithVisionThinking(
                 prompt: descriptionPrompt,
-                images: base64Images,
+                imageURLs: imageURLs,
                 temperature: 0
             )
             visionResponse = (result.response, result.thinking)
@@ -105,7 +107,9 @@ final class ActivityIdentifier: @unchecked Sendable {
             activity: classification.activity,
             reasoning: classification.reasoning,
             description: description.mainActivityDescription,
-            activeScreen: activeScreen
+            activeScreen: activeScreen,
+            screenshotPaths: keepScreenshots ? screenshots.keys.sorted().compactMap { screenshots[$0] } : nil,
+            screenDebugInfo: screenDebugInfo
         )
     }
 
@@ -183,6 +187,8 @@ struct IdentificationResult {
     let reasoning: String?
     let description: String
     let activeScreen: Int
+    let screenshotPaths: [URL]?
+    let screenDebugInfo: String?
 
     /// Convert to ActivityEntry for database storage
     func toActivityEntry() -> ActivityEntry {

@@ -14,6 +14,9 @@ struct TrackCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Ignore work hours and stop flag")
     var force: Bool = false
 
+    @Flag(name: .long, help: "Keep screenshots in /tmp and print their paths")
+    var debug: Bool = false
+
     func run() async throws {
         // 1. Check work hours (unless --force)
         if !force {
@@ -52,10 +55,22 @@ struct TrackCommand: AsyncParsableCommand {
                 textModel: config.models.text.model,
                 textProvider: config.models.text.provider
             )
-            let result = try await identifier.identifyCurrentActivity()
+            let result = try await identifier.identifyCurrentActivity(keepScreenshots: debug, debug: debug)
 
             print("Activity: \(result.activity.displayName)")
             print("Reasoning: \(result.reasoning ?? "N/A")")
+
+            if debug, let debugInfo = result.screenDebugInfo {
+                print(debugInfo)
+            }
+
+            if debug, let paths = result.screenshotPaths {
+                for (index, path) in paths.enumerated() {
+                    let screenNumber = index + 1
+                    let marker = screenNumber == result.activeScreen ? " (active)" : ""
+                    print("Screenshot \(screenNumber)\(marker): \(path.path)")
+                }
+            }
 
             // Save to database
             let entry = result.toActivityEntry()

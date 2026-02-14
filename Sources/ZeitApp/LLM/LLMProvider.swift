@@ -15,23 +15,6 @@ protocol LLMProvider: Sendable {
     ) async throws -> String
 }
 
-/// Protocol for vision-capable LLM providers
-protocol VisionLLMProvider: Sendable {
-    /// Generate a response for the given prompt with images
-    /// - Parameters:
-    ///   - prompt: The prompt to send to the model
-    ///   - images: Base64-encoded images to include
-    ///   - temperature: Optional temperature for response randomness
-    ///   - jsonMode: Whether to request JSON-formatted output
-    /// - Returns: The generated text response
-    func generateWithVision(
-        prompt: String,
-        images: [String],
-        temperature: Double?,
-        jsonMode: Bool
-    ) async throws -> String
-}
-
 /// Factory for creating LLM providers based on configuration
 enum LLMProviderFactory {
     /// Create an LLM provider based on the provider type
@@ -56,16 +39,6 @@ enum LLMProviderFactory {
         default:
             throw LLMError.unknownProvider(provider)
         }
-    }
-
-    /// Create a vision-capable LLM provider
-    /// - Parameter model: Vision model config name
-    /// - Returns: A vision LLM provider instance
-    static func createVision(model: String) throws -> VisionLLMProvider {
-        guard let mlxClient = MLXClient(configName: model) else {
-            throw LLMError.unknownProvider("MLX vision model not found: \(model)")
-        }
-        return mlxClient
     }
 }
 
