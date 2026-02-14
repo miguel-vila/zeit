@@ -28,7 +28,7 @@ struct MenubarFeatureTests {
     func toggleTracking_outsideWorkHours_showsNotification() async {
         let store = await TestStore(
             initialState: MenubarFeature.State(
-                trackingState: .outsideWorkHours(message: "After work hours")
+                trackingState: .afterWorkHours(message: "After work hours")
             )
         ) {
             MenubarFeature()

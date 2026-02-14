@@ -122,24 +122,28 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func updateStatusItemIcon(trackingState: TrackingState, workPercentage: Double) {
         guard let button = statusItem.button else { return }
 
+        let percentage = Int(workPercentage)
+
         switch trackingState {
-        case .active:
-            let percentage = Int(workPercentage)
-            button.image = renderPercentageIcon(percentage: percentage)
-        case .pausedManual:
+        case .beforeWorkHours:
             button.image = NSImage(
-                systemSymbolName: "pause.fill",
-                accessibilityDescription: "Zeit - Paused"
+                systemSymbolName: "sun.max.fill",
+                accessibilityDescription: "Zeit - Before Work Hours"
             )
-        case .outsideWorkHours:
-            button.image = NSImage(
-                systemSymbolName: "moon.fill",
-                accessibilityDescription: "Zeit - Outside Work Hours"
+        case .active:
+            button.image = renderPercentageWithDot(percentage: percentage, dotColor: .systemGreen)
+        case .pausedManual:
+            button.image = renderPercentageWithDot(percentage: percentage, dotColor: .systemOrange)
+        case .afterWorkHours:
+            button.image = renderPercentageWithSymbol(
+                percentage: percentage,
+                symbolName: "moon.fill"
             )
         }
     }
 
-    private func renderPercentageIcon(percentage: Int) -> NSImage {
+    /// Renders a percentage text with a small colored dot indicator.
+    private func renderPercentageWithDot(percentage: Int, dotColor: NSColor) -> NSImage {
         let text = "\(percentage)%"
         let height: CGFloat = 16
         let font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .semibold)
@@ -148,16 +152,77 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             .foregroundColor: NSColor.headerTextColor,
         ]
         let textSize = (text as NSString).size(withAttributes: attributes)
-        let width = max(textSize.width + 4, height)
+        let dotDiameter: CGFloat = 5
+        let dotSpacing: CGFloat = 3
+        let width = textSize.width + dotSpacing + dotDiameter + 2
 
         let image = NSImage(size: NSSize(width: width, height: height), flipped: false) { rect in
+            // Draw percentage text
             let textRect = NSRect(
-                x: (rect.width - textSize.width) / 2,
+                x: 0,
                 y: (rect.height - textSize.height) / 2,
                 width: textSize.width,
                 height: textSize.height
             )
             (text as NSString).draw(in: textRect, withAttributes: attributes)
+
+            // Draw colored dot
+            let dotRect = NSRect(
+                x: textSize.width + dotSpacing,
+                y: (rect.height - dotDiameter) / 2,
+                width: dotDiameter,
+                height: dotDiameter
+            )
+            dotColor.setFill()
+            NSBezierPath(ovalIn: dotRect).fill()
+
+            return true
+        }
+        // Not template — we need the colored dot to render in color
+        image.isTemplate = false
+        return image
+    }
+
+    /// Renders a percentage text with an SF Symbol next to it.
+    private func renderPercentageWithSymbol(percentage: Int, symbolName: String) -> NSImage {
+        let text = "\(percentage)%"
+        let height: CGFloat = 16
+        let font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .semibold)
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.headerTextColor,
+        ]
+        let textSize = (text as NSString).size(withAttributes: attributes)
+
+        let symbolConfig = NSImage.SymbolConfiguration(pointSize: 10, weight: .medium)
+        let symbolImage = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)?
+            .withSymbolConfiguration(symbolConfig)
+
+        let symbolSize = symbolImage?.size ?? NSSize(width: 12, height: 12)
+        let symbolSpacing: CGFloat = 3
+        let width = textSize.width + symbolSpacing + symbolSize.width + 2
+
+        let image = NSImage(size: NSSize(width: width, height: height), flipped: false) { rect in
+            // Draw percentage text
+            let textRect = NSRect(
+                x: 0,
+                y: (rect.height - textSize.height) / 2,
+                width: textSize.width,
+                height: textSize.height
+            )
+            (text as NSString).draw(in: textRect, withAttributes: attributes)
+
+            // Draw symbol
+            if let symbolImage {
+                let symbolRect = NSRect(
+                    x: textSize.width + symbolSpacing,
+                    y: (rect.height - symbolSize.height) / 2,
+                    width: symbolSize.width,
+                    height: symbolSize.height
+                )
+                symbolImage.draw(in: symbolRect)
+            }
+
             return true
         }
         image.isTemplate = true

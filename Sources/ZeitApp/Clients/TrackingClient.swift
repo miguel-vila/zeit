@@ -136,7 +136,12 @@ private struct TrackingHelper: Sendable {
         let manuallyStopped = !isTrackingActive()
 
         if !withinWorkHours {
-            return .outsideWorkHours(message: getWorkHoursMessage())
+            let message = getWorkHoursMessage()
+            if isBeforeWorkHours() {
+                return .beforeWorkHours(message: message)
+            } else {
+                return .afterWorkHours(message: message)
+            }
         }
 
         if manuallyStopped {
@@ -144,6 +149,18 @@ private struct TrackingHelper: Sendable {
         }
 
         return .active
+    }
+
+    /// Whether the current time is before work hours start (on a weekday)
+    func isBeforeWorkHours() -> Bool {
+        let config = loadConfig()
+        let calendar = Calendar.current
+        let now = Date()
+        let hour = calendar.component(.hour, from: now)
+        let weekday = calendar.component(.weekday, from: now)
+        let isWeekday = (2...6).contains(weekday)
+
+        return isWeekday && hour < config.startHour
     }
 
     // MARK: - Config Loading
