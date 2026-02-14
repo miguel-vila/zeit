@@ -36,12 +36,39 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationDidFinishLaunching(_: Notification) {
+        // Resume tracking on launch (clear any stop flag left by a previous quit)
+        resumeTrackingOnLaunch()
+
         setupStatusItem()
         startIconObservation()
         startOnboardingObservation()
         startSettingsObservation()
         store.send(.task)
         presentOnboardingIfNeeded()
+    }
+
+    func applicationWillTerminate(_: Notification) {
+        // Stop background tracking when the menubar app exits
+        stopTrackingOnQuit()
+    }
+
+    // MARK: - Tracking Lifecycle
+
+    private static let stopFlagPath: URL = FileManager.default
+        .homeDirectoryForCurrentUser
+        .appendingPathComponent(".local/share/zeit/.zeit_stop")
+
+    /// Creates the stop flag so the launchd tracker skips captures while the app is not running.
+    private func stopTrackingOnQuit() {
+        FileManager.default.createFile(atPath: Self.stopFlagPath.path, contents: nil)
+    }
+
+    /// Removes the stop flag so tracking resumes when the app starts.
+    private func resumeTrackingOnLaunch() {
+        let path = Self.stopFlagPath.path
+        if FileManager.default.fileExists(atPath: path) {
+            try? FileManager.default.removeItem(atPath: path)
+        }
     }
 
     // MARK: - Status Item
