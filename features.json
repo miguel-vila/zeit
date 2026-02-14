@@ -2,11 +2,16 @@
   {
     "id": "better-menubar-icon",
     "description": "The menubar icon should behave like this: if it's before work hours, it should be a morning/sun/day icon. If it's during work hours: if tracking is not paused, then it should show the work percentage with a green dot. If its paused it should show the work percentage with an orange dot. If it's after work hours, it should show the work percentage AND a moon/night icon.",
-    "implemented": false
+    "implemented": true
   },
   {
     "id": "stop-background-tracking-on-exit",
     "description": "Stop background tracking when exitting the menubar app, even if still during work hours",
-    "implemented": false
+    "implemented": true
+  },
+  {
+    "id": "extend-view-day-output",
+    "description": "When running `zeit view <day>`, in addition to the activity types, also show the described activity.",
+    "implemented": true
   }
 ]
