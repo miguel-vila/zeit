@@ -18,11 +18,11 @@ struct DetailsView: View {
     }
 
     private var workStats: [ActivityStat] {
-        store.stats.filter { $0.activity.isWork }
+        store.stats.filter { $0.isWork }
     }
 
     private var personalStats: [ActivityStat] {
-        store.stats.filter { !$0.activity.isWork }
+        store.stats.filter { !$0.isWork }
     }
 
     var body: some View {

@@ -41,6 +41,8 @@ struct SettingsView: View {
             settingsModelsTab
         case .workHours:
             settingsWorkHoursTab
+        case .activityTypes:
+            settingsActivityTypesTab
         case .debug:
             settingsDebugTab
         case .about:
@@ -154,6 +156,23 @@ struct SettingsView: View {
             Spacer()
         }
         .padding(22)
+    }
+
+    // MARK: - Activity Types Tab
+
+    private var settingsActivityTypesTab: some View {
+        ActivityTypesView(
+            store: store.scope(state: \.activityTypes, action: \.activityTypes),
+            showDoneButton: false
+        )
+        .overlay(alignment: .bottomTrailing) {
+            Button("Save") {
+                store.send(.activityTypes(.done))
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(!store.activityTypes.isValid)
+            .padding(22)
+        }
     }
 
     // MARK: - Debug Tab

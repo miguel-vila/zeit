@@ -31,7 +31,8 @@ struct StatsCommand: AsyncParsableCommand {
         }
 
         let activities = includeIdle ? record.activities : record.nonIdleActivities
-        let stats = computeActivityBreakdown(from: activities)
+        let activityTypes = try await db.getActivityTypes()
+        let stats = computeActivityBreakdown(from: activities, activityTypes: activityTypes)
 
         if json {
             try printStatsJSON(date: targetDate, stats: stats, total: activities.count)

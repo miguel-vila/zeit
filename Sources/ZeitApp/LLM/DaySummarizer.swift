@@ -27,7 +27,8 @@ struct DaySummarizer: Sendable {
     /// - Returns: A `DaySummary`, or `nil` if there are no non-idle activities.
     func summarize(
         activities: [ActivityEntry],
-        objectives: DayObjectives? = nil
+        objectives: DayObjectives? = nil,
+        activityTypes: [ActivityType] = ActivityType.defaultTypes
     ) async throws -> DaySummary? {
         let nonIdle = activities.filter { $0.activity != .idle }
 
@@ -38,7 +39,7 @@ struct DaySummarizer: Sendable {
         logger.info("Starting summarization with \(nonIdle.count) non-idle activities")
 
         // Build condensed summary with grouped activities
-        let condensed = buildCondensedSummary(from: activities)
+        let condensed = buildCondensedSummary(from: activities, activityTypes: activityTypes)
 
         logger.info(
             "Condensed \(condensed.originalEntryCount) activities into \(condensed.condensedEntryCount) groups"

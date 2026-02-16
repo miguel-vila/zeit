@@ -32,31 +32,31 @@ enum Prompts {
         }
     }
 
-    /// Prompt for text model to classify activity into category
-    static func activityClassification(description: String) -> String {
-        """
+    /// Prompt for text model to classify activity into category.
+    ///
+    /// Dynamically builds the category list from user-configured activity types.
+    static func activityClassification(
+        description: String,
+        activityTypes: [ActivityType] = ActivityType.defaultTypes
+    ) -> String {
+        let personalTypes = activityTypes.filter { !$0.isWork }
+        let workTypes = activityTypes.filter { $0.isWork }
+
+        var personalSection = "PERSONAL ACTIVITIES:\n"
+        for type in personalTypes {
+            personalSection += "- \(type.id): \(type.description)\n"
+        }
+
+        var workSection = "WORK ACTIVITIES:\n"
+        for type in workTypes {
+            workSection += "- \(type.id): \(type.description)\n"
+        }
+
+        return """
         Based on the following description of a user's screen activity, classify it into one of these categories:
 
-        PERSONAL ACTIVITIES:
-        - personal_browsing: General web browsing not related to work
-        - social_media: Facebook, Twitter/X, Instagram, TikTok, etc.
-        - youtube_entertainment: Watching YouTube for entertainment
-        - personal_email: Personal email (Gmail, etc.)
-        - personal_ai_use: Using AI tools for personal projects
-        - personal_finances: Banking, budgeting, crypto, investments
-        - professional_development: Learning, courses, tutorials
-        - online_shopping: Amazon, eBay, other shopping sites
-        - personal_calendar: Personal calendar/scheduling
-        - entertainment: Games, movies, music, streaming
-
-        WORK ACTIVITIES:
-        - slack: Using Slack for work communication
-        - work_email: Work email (Outlook, company email)
-        - zoom_meeting: Video calls, meetings
-        - work_coding: Writing code, using IDE
-        - work_browsing: Work-related web browsing, documentation
-        - work_calendar: Work calendar/scheduling
-
+        \(personalSection)
+        \(workSection)
         Activity description:
         \(description)
 

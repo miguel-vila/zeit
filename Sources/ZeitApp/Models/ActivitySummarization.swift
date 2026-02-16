@@ -52,12 +52,17 @@ func groupConsecutiveActivities(from entries: [ActivityEntry]) -> [ActivityGroup
 ///
 /// - Parameter entries: List of `ActivityEntry`.
 /// - Returns: `CondensedActivitySummary` with grouped activities and percentages.
-func buildCondensedSummary(from entries: [ActivityEntry]) -> CondensedActivitySummary {
+func buildCondensedSummary(
+    from entries: [ActivityEntry],
+    activityTypes: [ActivityType] = ActivityType.defaultTypes
+) -> CondensedActivitySummary {
     let nonIdle = entries.filter { $0.activity != .idle }
     let groups = groupConsecutiveActivities(from: entries)
     logger.info("Grouped \(nonIdle.count) activities into \(groups.count) groups")
 
-    let percentageBreakdown = computeActivityBreakdown(from: entries, includeIdle: false)
+    let percentageBreakdown = computeActivityBreakdown(
+        from: entries, activityTypes: activityTypes, includeIdle: false
+    )
 
     return CondensedActivitySummary(
         groups: groups,

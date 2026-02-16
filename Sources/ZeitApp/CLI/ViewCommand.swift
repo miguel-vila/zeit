@@ -336,6 +336,8 @@ enum ViewHelpers {
         timeFormatter.dateFormat = "HH:mm"
 
         let isoFormatter = ISO8601DateFormatter()
+        let activityTypes = try await db.getActivityTypes()
+        let workIDs = Set(activityTypes.filter(\.isWork).map(\.id))
 
         for entry in record.activities {
             let timeStr: String
@@ -345,7 +347,7 @@ enum ViewHelpers {
                 timeStr = "??:??"
             }
 
-            let icon = entry.activity.isWork ? "💼" : (entry.activity == .idle ? "😴" : "🏠")
+            let icon = workIDs.contains(entry.activity.rawValue) ? "💼" : (entry.activity == .idle ? "😴" : "🏠")
             if let description = entry.description {
                 print("\(timeStr) \(icon) \(entry.activity.displayName) — \(description)")
             } else {
@@ -357,7 +359,7 @@ enum ViewHelpers {
         print("Total: \(record.count) activities")
 
         // Calculate breakdown
-        let stats = computeActivityBreakdown(from: record.activities)
+        let stats = computeActivityBreakdown(from: record.activities, activityTypes: activityTypes)
         let workPct = stats.filter { $0.category == "work" }.reduce(0.0) { $0 + $1.percentage }
         let personalPct = stats.filter { $0.category == "personal" }.reduce(0.0) { $0 + $1.percentage }
         let idlePct = stats.filter { $0.category == "system" }.reduce(0.0) { $0 + $1.percentage }

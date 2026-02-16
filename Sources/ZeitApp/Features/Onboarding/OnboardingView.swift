@@ -14,6 +14,11 @@ struct OnboardingView: View {
             ModelDownloadView(
                 store: store.scope(state: \.modelDownload, action: \.modelDownload)
             )
+        case .activityTypes:
+            ActivityTypesView(
+                store: store.scope(state: \.activityTypes, action: \.activityTypes),
+                showDoneButton: true
+            )
         case .otherSettings:
             OtherSettingsView(
                 store: store.scope(state: \.otherSettings, action: \.otherSettings)

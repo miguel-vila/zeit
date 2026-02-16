@@ -1,10 +1,11 @@
 import ComposableArchitecture
 import Foundation
 
-/// Onboarding feature that guides through permissions and model download.
+/// Onboarding feature that guides through permissions, model download, activity types, and settings.
 /// Step 1: Permissions (Screen Recording + Accessibility)
 /// Step 2: Model Download (Vision + Text models)
-/// Step 3: Other Settings (Debug mode toggle, etc.)
+/// Step 3: Activity Types (Customize tracked activity categories)
+/// Step 4: Other Settings (Debug mode toggle, etc.)
 @Reducer
 struct OnboardingFeature {
     @ObservableState
@@ -12,12 +13,14 @@ struct OnboardingFeature {
         var step: Step = .permissions
         var permissions: PermissionsFeature.State = .init()
         var modelDownload: ModelDownloadFeature.State = .init()
+        var activityTypes: ActivityTypesFeature.State = .init()
         var otherSettings: OtherSettingsFeature.State = .init()
         var isCompleted: Bool = false
 
         enum Step: Equatable {
             case permissions
             case modelDownload
+            case activityTypes
             case otherSettings
         }
     }
@@ -25,6 +28,7 @@ struct OnboardingFeature {
     enum Action {
         case permissions(PermissionsFeature.Action)
         case modelDownload(ModelDownloadFeature.Action)
+        case activityTypes(ActivityTypesFeature.Action)
         case otherSettings(OtherSettingsFeature.Action)
         case completed
     }
@@ -36,6 +40,10 @@ struct OnboardingFeature {
 
         Scope(state: \.modelDownload, action: \.modelDownload) {
             ModelDownloadFeature()
+        }
+
+        Scope(state: \.activityTypes, action: \.activityTypes) {
+            ActivityTypesFeature()
         }
 
         Scope(state: \.otherSettings, action: \.otherSettings) {
@@ -65,10 +73,19 @@ struct OnboardingFeature {
                 return .none
 
             case .modelDownload(.continuePressed):
-                state.step = .otherSettings
+                state.step = .activityTypes
                 return .none
 
             case .modelDownload:
+                return .none
+
+            // MARK: - Activity types step
+
+            case .activityTypes(.saveCompleted(.success)):
+                state.step = .otherSettings
+                return .none
+
+            case .activityTypes:
                 return .none
 
             // MARK: - Other settings step

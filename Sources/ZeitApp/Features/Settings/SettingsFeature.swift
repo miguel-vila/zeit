@@ -11,6 +11,7 @@ struct SettingsFeature {
         var permissions: SettingsPermissionsState = .init()
         var models: SettingsModelsState = .init()
         var workHours: WorkHoursState = .init()
+        var activityTypes: ActivityTypesFeature.State = .init()
         var debugModeEnabled: Bool = UserDefaults.standard.bool(forKey: "debugModeEnabled")
         var isCompleted: Bool = false
 
@@ -18,6 +19,7 @@ struct SettingsFeature {
             case permissions = "Permissions"
             case models = "Models"
             case workHours = "Work Hours"
+            case activityTypes = "Activity Types"
             case debug = "Debug"
             case about = "About"
 
@@ -26,6 +28,7 @@ struct SettingsFeature {
                 case .permissions: return "lock.shield"
                 case .models: return "cpu"
                 case .workHours: return "clock.fill"
+                case .activityTypes: return "list.bullet.rectangle"
                 case .debug: return "ladybug.fill"
                 case .about: return "info.circle"
                 }
@@ -88,6 +91,9 @@ struct SettingsFeature {
         case workHoursSaved
         case workHoursSaveFailed(String)
 
+        // Activity Types
+        case activityTypes(ActivityTypesFeature.Action)
+
         // Debug
         case toggleDebugMode
 
@@ -99,6 +105,10 @@ struct SettingsFeature {
     @Dependency(\.modelClient) var modelClient
 
     var body: some ReducerOf<Self> {
+        Scope(state: \.activityTypes, action: \.activityTypes) {
+            ActivityTypesFeature()
+        }
+
         Reduce { state, action in
             switch action {
             case .task:
@@ -208,6 +218,9 @@ struct SettingsFeature {
 
             case .workHoursSaveFailed(let error):
                 state.workHours.saveError = error
+                return .none
+
+            case .activityTypes:
                 return .none
 
             case .toggleDebugMode:

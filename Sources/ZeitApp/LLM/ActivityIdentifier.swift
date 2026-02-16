@@ -74,17 +74,24 @@ final class ActivityIdentifier: @unchecked Sendable {
             secondaryContext: nil
         )
 
-        // 5. Call text model to classify the activity with structured output
+        // 5. Fetch activity types from DB for dynamic classification
+        let db = try DatabaseHelper()
+        let activityTypes = try await db.getActivityTypes()
+
+        // 6. Call text model to classify the activity with structured output
         let classificationPrompt = Prompts.activityClassification(
-            description: description.mainActivityDescription
+            description: description.mainActivityDescription,
+            activityTypes: activityTypes
         )
+
+        let schema = Self.classificationSchema(for: activityTypes)
 
         let classificationResponseText: String
 
         if let mlxClient = MLXClient(configName: textModel) {
             let mlxResponse = try await mlxClient.generateStructured(
                 prompt: classificationPrompt,
-                schema: Self.classificationSchema,
+                schema: schema,
                 temperature: 0,
                 think: true
             )
@@ -94,14 +101,14 @@ final class ActivityIdentifier: @unchecked Sendable {
             let mlxClient = MLXClient(modelInfo: MLXModelManager.textModel)
             let mlxResponse = try await mlxClient.generateStructured(
                 prompt: classificationPrompt,
-                schema: Self.classificationSchema,
+                schema: schema,
                 temperature: 0,
                 think: true
             )
             classificationResponseText = mlxResponse.response
         }
 
-        let classification = try parseClassificationResponse(classificationResponseText)
+        let classification = try parseClassificationResponse(classificationResponseText, activityTypes: activityTypes)
 
         return IdentificationResult(
             activity: classification.activity,
@@ -115,30 +122,33 @@ final class ActivityIdentifier: @unchecked Sendable {
 
     // MARK: - JSON Schemas
 
-    /// JSON Schema for ClassificationResponse
-    private static let classificationSchema: [String: Any] = [
-        "type": "object",
-        "properties": [
-            "main_activity": [
-                "type": "string",
-                "description": "Main detected activity from the screenshot",
-                "enum": Activity.allCases.map { $0.rawValue }
+    /// Build a JSON schema dynamically from the configured activity types.
+    private static func classificationSchema(for types: [ActivityType]) -> [String: Any] {
+        let validActivities = types.map(\.id) + ["idle"]
+        return [
+            "type": "object",
+            "properties": [
+                "main_activity": [
+                    "type": "string",
+                    "description": "Main detected activity from the screenshot",
+                    "enum": validActivities
+                ],
+                "reasoning": [
+                    "type": "string",
+                    "description": "The reasoning behind the selection of the main activity"
+                ],
+                "secondary_context": [
+                    "type": ["string", "null"],
+                    "description": "Brief description of activities visible on secondary screens"
+                ]
             ],
-            "reasoning": [
-                "type": "string",
-                "description": "The reasoning behind the selection of the main activity"
-            ],
-            "secondary_context": [
-                "type": ["string", "null"],
-                "description": "Brief description of activities visible on secondary screens"
-            ]
-        ],
-        "required": ["main_activity", "reasoning"]
-    ]
+            "required": ["main_activity", "reasoning"]
+        ]
+    }
 
     // MARK: - Response Parsing
 
-    private func parseClassificationResponse(_ response: String) throws -> ClassificationResponse {
+    private func parseClassificationResponse(_ response: String, activityTypes: [ActivityType]) throws -> ClassificationResponse {
         let trimmed = response.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let data = trimmed.data(using: .utf8) else {
             throw ActivityIdentifierError.invalidResponse("Could not encode response as UTF-8")
@@ -169,7 +179,7 @@ private struct ClassificationResponse: Decodable {
     let secondaryContext: String?
 
     var activity: Activity {
-        Activity(rawValue: mainActivity) ?? .personalBrowsing
+        Activity(rawValue: mainActivity)
     }
 
     enum CodingKeys: String, CodingKey {

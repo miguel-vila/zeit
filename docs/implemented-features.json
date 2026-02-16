@@ -94,5 +94,9 @@
   {
     "id": "allow-setting-work-hours",
     "description": "Allow configuring work hours in hours and minutes, and selecting the work days of the week. By default it should be set to 9:00 AM to 5:30 PM, Monday to Friday. This should affect both the onboarding and the settings screens."
+  },
+  {
+    "id": "custom-activity-types",
+    "description": "Make activity types user-configurable instead of hardcoded. Activity types are stored in a new activity_types SQLite table, editable via onboarding, settings, and CLI. The Activity enum was converted to a string-wrapper struct for backward compatibility. LLM prompts and classification schemas are built dynamically from the configured types. Includes validation (name/description length, uniqueness, max 30 types, reserved 'idle' protection). CLI commands: 'zeit list-activity-types' and 'zeit set-activity-types --work \"...\" --personal \"...\"'. Spec: large-features-specs/custom-activity-types.md"
   }
 ]
