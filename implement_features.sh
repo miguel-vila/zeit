@@ -91,3 +91,5 @@ echo "Implemented: $implemented_count / $total"
 echo "Failed:      $failed_count / $total"
 echo "Remaining:   $remaining / $total"
 echo "Logs at:     $LOG_DIR/"
+echo "Flushing implemented features to docs/implemented-features.json..."
+./flush-features.sh

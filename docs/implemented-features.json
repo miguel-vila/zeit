@@ -90,5 +90,9 @@
   {
     "id": "extend-view-day-output",
     "description": "When running `zeit view <day>`, in addition to the activity types, also show the described activity."
+  },
+  {
+    "id": "allow-setting-work-hours",
+    "description": "Allow configuring work hours in hours and minutes, and selecting the work days of the week. By default it should be set to 9:00 AM to 5:30 PM, Monday to Friday."
   }
 ]
