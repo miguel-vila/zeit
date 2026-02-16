@@ -8,7 +8,50 @@ struct ZeitConfig: Sendable {
 
     struct WorkHoursConfig: Sendable {
         let startHour: Int
+        let startMinute: Int
         let endHour: Int
+        let endMinute: Int
+        let workDays: Set<Weekday>
+    }
+
+    /// Days of the week, matching Calendar.component(.weekday) values.
+    /// Sunday=1, Monday=2, ..., Saturday=7
+    enum Weekday: Int, Sendable, CaseIterable, Comparable, Codable {
+        case sunday = 1
+        case monday = 2
+        case tuesday = 3
+        case wednesday = 4
+        case thursday = 5
+        case friday = 6
+        case saturday = 7
+
+        var shortName: String {
+            switch self {
+            case .sunday: return "Sun"
+            case .monday: return "Mon"
+            case .tuesday: return "Tue"
+            case .wednesday: return "Wed"
+            case .thursday: return "Thu"
+            case .friday: return "Fri"
+            case .saturday: return "Sat"
+            }
+        }
+
+        var fullName: String {
+            switch self {
+            case .sunday: return "Sunday"
+            case .monday: return "Monday"
+            case .tuesday: return "Tuesday"
+            case .wednesday: return "Wednesday"
+            case .thursday: return "Thursday"
+            case .friday: return "Friday"
+            case .saturday: return "Saturday"
+            }
+        }
+
+        static func < (lhs: Weekday, rhs: Weekday) -> Bool {
+            lhs.rawValue < rhs.rawValue
+        }
     }
 
     struct ModelsConfig: Sendable {
@@ -23,7 +66,13 @@ struct ZeitConfig: Sendable {
 
     // MARK: - Defaults
 
-    static let defaultWorkHours = WorkHoursConfig(startHour: 9, endHour: 18)
+    static let defaultWorkDays: Set<Weekday> = [.monday, .tuesday, .wednesday, .thursday, .friday]
+
+    static let defaultWorkHours = WorkHoursConfig(
+        startHour: 9, startMinute: 0,
+        endHour: 17, endMinute: 30,
+        workDays: defaultWorkDays
+    )
 
     static let defaultModels = ModelsConfig(
         vision: "qwen3-vl:4b",
@@ -45,7 +94,10 @@ struct ZeitConfig: Sendable {
     private static let defaultConfigYAML = """
         work_hours:
           start_hour: 9
-          end_hour: 18
+          start_minute: 0
+          end_hour: 17
+          end_minute: 30
+          work_days: ['mon', 'tue', 'wed', 'thu', 'fri']
 
         models:
           vision: 'qwen3-vl:4b'
@@ -108,26 +160,40 @@ struct ZeitConfig: Sendable {
 
         // Support both integer "start_hour" and string "work_start_hour: '09:00'" formats
         let startHour: Int
+        let startMinute: Int
         if let hour = workHours["start_hour"] as? Int {
             startHour = hour
+            startMinute = workHours["start_minute"] as? Int ?? defaultWorkHours.startMinute
         } else if let hourStr = workHours["work_start_hour"] as? String,
-                  let hour = parseHourFromTimeString(hourStr) {
-            startHour = hour
+                  let parsed = parseTimeString(hourStr) {
+            startHour = parsed.hour
+            startMinute = parsed.minute
         } else {
             startHour = defaultWorkHours.startHour
+            startMinute = defaultWorkHours.startMinute
         }
 
         let endHour: Int
+        let endMinute: Int
         if let hour = workHours["end_hour"] as? Int {
             endHour = hour
+            endMinute = workHours["end_minute"] as? Int ?? defaultWorkHours.endMinute
         } else if let hourStr = workHours["work_end_hour"] as? String,
-                  let hour = parseHourFromTimeString(hourStr) {
-            endHour = hour
+                  let parsed = parseTimeString(hourStr) {
+            endHour = parsed.hour
+            endMinute = parsed.minute
         } else {
             endHour = defaultWorkHours.endHour
+            endMinute = defaultWorkHours.endMinute
         }
 
-        return WorkHoursConfig(startHour: startHour, endHour: endHour)
+        let workDays = parseWorkDays(from: workHours)
+
+        return WorkHoursConfig(
+            startHour: startHour, startMinute: startMinute,
+            endHour: endHour, endMinute: endMinute,
+            workDays: workDays
+        )
     }
 
     private static func parseModels(from yaml: [String: Any]) -> ModelsConfig {
@@ -149,17 +215,54 @@ struct ZeitConfig: Sendable {
         return ModelsConfig(vision: vision, text: textConfig)
     }
 
-    /// Parse hour from "HH:MM" format string
-    private static func parseHourFromTimeString(_ timeStr: String) -> Int? {
+    /// Parse hour and minute from "HH:MM" format string
+    private static func parseTimeString(_ timeStr: String) -> (hour: Int, minute: Int)? {
         let parts = timeStr.split(separator: ":")
         guard let hourStr = parts.first, let hour = Int(hourStr) else { return nil }
-        return hour
+        let minute = parts.count > 1 ? (Int(parts[1]) ?? 0) : 0
+        return (hour, minute)
+    }
+
+    /// Parse work days from the work_hours YAML section
+    private static func parseWorkDays(from workHours: [String: Any]) -> Set<Weekday> {
+        guard let daysList = workHours["work_days"] as? [Any] else {
+            return defaultWorkDays
+        }
+
+        var days = Set<Weekday>()
+        for day in daysList {
+            if let dayStr = day as? String, let weekday = weekdayFromString(dayStr) {
+                days.insert(weekday)
+            } else if let dayInt = day as? Int, let weekday = Weekday(rawValue: dayInt) {
+                days.insert(weekday)
+            }
+        }
+
+        return days.isEmpty ? defaultWorkDays : days
+    }
+
+    /// Convert short day name to Weekday
+    private static func weekdayFromString(_ str: String) -> Weekday? {
+        switch str.lowercased() {
+        case "sun", "sunday": return .sunday
+        case "mon", "monday": return .monday
+        case "tue", "tuesday": return .tuesday
+        case "wed", "wednesday": return .wednesday
+        case "thu", "thursday": return .thursday
+        case "fri", "friday": return .friday
+        case "sat", "saturday": return .saturday
+        default: return nil
+        }
     }
 
     // MARK: - Saving
 
     /// Update work hours in the config file, preserving all other settings.
-    static func saveWorkHours(startHour: Int, endHour: Int) throws {
+    static func saveWorkHours(
+        startHour: Int, startMinute: Int,
+        endHour: Int, endMinute: Int,
+        workDays: Set<Weekday>
+    ) throws {
         ensureSetup()
 
         let path = configPath
@@ -173,10 +276,16 @@ struct ZeitConfig: Sendable {
             yaml = parsed
         }
 
+        // Sort days by rawValue for consistent output
+        let sortedDays = workDays.sorted().map { $0.shortName.lowercased() }
+
         // Update work_hours section
         yaml["work_hours"] = [
             "start_hour": startHour,
+            "start_minute": startMinute,
             "end_hour": endHour,
+            "end_minute": endMinute,
+            "work_days": sortedDays,
         ]
 
         let output = try Yams.dump(object: yaml)

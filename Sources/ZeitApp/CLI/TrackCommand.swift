@@ -100,17 +100,24 @@ struct CLITrackingHelper {
     }
 
     func isWithinWorkHours() -> Bool {
+        let config = ZeitConfig.load().workHours
+
         let calendar = Calendar.current
         let now = Date()
         let hour = calendar.component(.hour, from: now)
+        let minute = calendar.component(.minute, from: now)
         let weekday = calendar.component(.weekday, from: now)
 
-        // Check if it's a weekday (Monday=2 through Friday=6)
-        let isWeekday = (2...6).contains(weekday)
-        guard isWeekday else { return false }
+        // Check if today is a configured work day
+        guard let day = ZeitConfig.Weekday(rawValue: weekday),
+              config.workDays.contains(day) else {
+            return false
+        }
 
-        // Default work hours: 9-18
-        // TODO: Load from config
-        return hour >= 9 && hour < 18
+        let currentMinutes = hour * 60 + minute
+        let startMinutes = config.startHour * 60 + config.startMinute
+        let endMinutes = config.endHour * 60 + config.endMinute
+
+        return currentMinutes >= startMinutes && currentMinutes < endMinutes
     }
 }

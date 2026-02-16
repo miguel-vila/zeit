@@ -60,7 +60,10 @@ struct SettingsFeature {
 
     struct WorkHoursState: Equatable {
         var startHour: Int = ZeitConfig.defaultWorkHours.startHour
+        var startMinute: Int = ZeitConfig.defaultWorkHours.startMinute
         var endHour: Int = ZeitConfig.defaultWorkHours.endHour
+        var endMinute: Int = ZeitConfig.defaultWorkHours.endMinute
+        var workDays: Set<ZeitConfig.Weekday> = ZeitConfig.defaultWorkDays
         var saveError: String?
     }
 
@@ -75,9 +78,12 @@ struct SettingsFeature {
         case modelStatusesLoaded([ModelProgress])
 
         // Work Hours
-        case workHoursLoaded(startHour: Int, endHour: Int)
+        case workHoursLoaded(ZeitConfig.WorkHoursConfig)
         case setStartHour(Int)
+        case setStartMinute(Int)
         case setEndHour(Int)
+        case setEndMinute(Int)
+        case toggleWorkDay(ZeitConfig.Weekday)
         case saveWorkHours
         case workHoursSaved
         case workHoursSaveFailed(String)
@@ -111,10 +117,7 @@ struct SettingsFeature {
                     },
                     .run { send in
                         let config = ZeitConfig.load()
-                        await send(.workHoursLoaded(
-                            startHour: config.workHours.startHour,
-                            endHour: config.workHours.endHour
-                        ))
+                        await send(.workHoursLoaded(config.workHours))
                     }
                 )
 
@@ -140,13 +143,21 @@ struct SettingsFeature {
                 }
                 return .none
 
-            case .workHoursLoaded(let startHour, let endHour):
-                state.workHours.startHour = startHour
-                state.workHours.endHour = endHour
+            case .workHoursLoaded(let config):
+                state.workHours.startHour = config.startHour
+                state.workHours.startMinute = config.startMinute
+                state.workHours.endHour = config.endHour
+                state.workHours.endMinute = config.endMinute
+                state.workHours.workDays = config.workDays
                 return .none
 
             case .setStartHour(let hour):
                 state.workHours.startHour = hour
+                state.workHours.saveError = nil
+                return .none
+
+            case .setStartMinute(let minute):
+                state.workHours.startMinute = minute
                 state.workHours.saveError = nil
                 return .none
 
@@ -155,12 +166,36 @@ struct SettingsFeature {
                 state.workHours.saveError = nil
                 return .none
 
+            case .setEndMinute(let minute):
+                state.workHours.endMinute = minute
+                state.workHours.saveError = nil
+                return .none
+
+            case .toggleWorkDay(let day):
+                if state.workHours.workDays.contains(day) {
+                    // Don't allow removing the last work day
+                    if state.workHours.workDays.count > 1 {
+                        state.workHours.workDays.remove(day)
+                    }
+                } else {
+                    state.workHours.workDays.insert(day)
+                }
+                state.workHours.saveError = nil
+                return .none
+
             case .saveWorkHours:
                 let startHour = state.workHours.startHour
+                let startMinute = state.workHours.startMinute
                 let endHour = state.workHours.endHour
+                let endMinute = state.workHours.endMinute
+                let workDays = state.workHours.workDays
                 return .run { send in
                     do {
-                        try ZeitConfig.saveWorkHours(startHour: startHour, endHour: endHour)
+                        try ZeitConfig.saveWorkHours(
+                            startHour: startHour, startMinute: startMinute,
+                            endHour: endHour, endMinute: endMinute,
+                            workDays: workDays
+                        )
                         await send(.workHoursSaved)
                     } catch {
                         await send(.workHoursSaveFailed(error.localizedDescription))

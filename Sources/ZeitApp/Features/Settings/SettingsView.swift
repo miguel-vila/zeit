@@ -116,14 +116,14 @@ struct SettingsView: View {
                 .font(.title2)
                 .fontWeight(.bold)
 
-            Text("Set your typical work schedule. Tracking only runs during these hours.")
+            Text("Set your typical work schedule. Tracking only runs during these hours on the selected days.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
             Divider()
 
             VStack(spacing: 12) {
-                // Start hour picker
+                // Start time picker
                 HStack(spacing: 12) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 8)
@@ -136,7 +136,7 @@ struct SettingsView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Start Hour")
+                        Text("Start Time")
                             .fontWeight(.semibold)
 
                         Text("When your work day begins")
@@ -146,16 +146,32 @@ struct SettingsView: View {
 
                     Spacer()
 
-                    Picker("", selection: Binding(
-                        get: { store.workHours.startHour },
-                        set: { store.send(.setStartHour($0)) }
-                    )) {
-                        ForEach(0..<24) { hour in
-                            Text(formatHour(hour)).tag(hour)
+                    HStack(spacing: 4) {
+                        Picker("", selection: Binding(
+                            get: { store.workHours.startHour },
+                            set: { store.send(.setStartHour($0)) }
+                        )) {
+                            ForEach(0..<24) { hour in
+                                Text(formatHour(hour)).tag(hour)
+                            }
                         }
+                        .labelsHidden()
+                        .frame(width: 70)
+
+                        Text(":")
+                            .fontWeight(.medium)
+
+                        Picker("", selection: Binding(
+                            get: { store.workHours.startMinute },
+                            set: { store.send(.setStartMinute($0)) }
+                        )) {
+                            ForEach(minuteOptions, id: \.self) { minute in
+                                Text(String(format: "%02d", minute)).tag(minute)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(width: 55)
                     }
-                    .labelsHidden()
-                    .frame(width: 100)
                 }
                 .padding(10)
                 .background(
@@ -163,7 +179,7 @@ struct SettingsView: View {
                         .fill(Color.primary.opacity(0.015))
                 )
 
-                // End hour picker
+                // End time picker
                 HStack(spacing: 12) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 8)
@@ -176,7 +192,7 @@ struct SettingsView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("End Hour")
+                        Text("End Time")
                             .fontWeight(.semibold)
 
                         Text("When your work day ends")
@@ -186,20 +202,94 @@ struct SettingsView: View {
 
                     Spacer()
 
-                    Picker("", selection: Binding(
-                        get: { store.workHours.endHour },
-                        set: { store.send(.setEndHour($0)) }
-                    )) {
-                        ForEach(0..<24) { hour in
-                            Text(formatHour(hour)).tag(hour)
+                    HStack(spacing: 4) {
+                        Picker("", selection: Binding(
+                            get: { store.workHours.endHour },
+                            set: { store.send(.setEndHour($0)) }
+                        )) {
+                            ForEach(0..<24) { hour in
+                                Text(formatHour(hour)).tag(hour)
+                            }
                         }
+                        .labelsHidden()
+                        .frame(width: 70)
+
+                        Text(":")
+                            .fontWeight(.medium)
+
+                        Picker("", selection: Binding(
+                            get: { store.workHours.endMinute },
+                            set: { store.send(.setEndMinute($0)) }
+                        )) {
+                            ForEach(minuteOptions, id: \.self) { minute in
+                                Text(String(format: "%02d", minute)).tag(minute)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(width: 55)
                     }
-                    .labelsHidden()
-                    .frame(width: 100)
                 }
                 .padding(10)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.primary.opacity(0.015))
+                )
+
+                // Work days selector
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.green.opacity(0.1))
+                            .frame(width: 36, height: 36)
+
+                        Image(systemName: "calendar")
+                            .foregroundStyle(.green)
+                            .font(.body)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Work Days")
+                            .fontWeight(.semibold)
+
+                        Text("Days when tracking is active")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+                }
+                .padding(.horizontal, 10)
+                .padding(.top, 10)
+                .padding(.bottom, 4)
+                .background(
+                    UnevenRoundedRectangle(topLeadingRadius: 8, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 8)
+                        .fill(Color.primary.opacity(0.015))
+                )
+
+                HStack(spacing: 6) {
+                    ForEach(ZeitConfig.Weekday.allCases, id: \.rawValue) { day in
+                        let isSelected = store.workHours.workDays.contains(day)
+                        Button {
+                            store.send(.toggleWorkDay(day))
+                        } label: {
+                            Text(day.shortName)
+                                .font(.caption)
+                                .fontWeight(isSelected ? .semibold : .regular)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.05))
+                                )
+                                .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.bottom, 10)
+                .background(
+                    UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 8, bottomTrailingRadius: 8, topTrailingRadius: 0)
                         .fill(Color.primary.opacity(0.015))
                 )
             }
@@ -221,6 +311,10 @@ struct SettingsView: View {
             Spacer()
         }
         .padding(22)
+    }
+
+    private var minuteOptions: [Int] {
+        stride(from: 0, to: 60, by: 5).map { $0 }
     }
 
     private func formatHour(_ hour: Int) -> String {
