@@ -93,6 +93,6 @@
   },
   {
     "id": "allow-setting-work-hours",
-    "description": "Allow configuring work hours in hours and minutes, and selecting the work days of the week. By default it should be set to 9:00 AM to 5:30 PM, Monday to Friday."
+    "description": "Allow configuring work hours in hours and minutes, and selecting the work days of the week. By default it should be set to 9:00 AM to 5:30 PM, Monday to Friday. This should affect both the onboarding and the settings screens."
   }
 ]
