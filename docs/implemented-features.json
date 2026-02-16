@@ -1,0 +1,94 @@
+[
+  {
+    "id": "activity-condensation",
+    "description": "Implement activity condensation/grouping logic that groups consecutive identical activities into time ranges. This includes: (1) a function to group consecutive same-activity entries (excluding idle) into ActivityGroup structs with start/end times, duration, and collected reasonings, and (2) a function to build a CondensedActivitySummary that groups consecutive activities and computes percentage breakdown (excluding idle). This is a prerequisite for day summarization. Create a new Swift file (e.g., ActivitySummarization.swift) in the processing/models area following the Python patterns."
+  },
+  {
+    "id": "day-summarization",
+    "description": "Implement the day summarization feature that uses an LLM to generate a qualitative summary of a day's activities. This includes: (1) a DaySummarizer class that takes condensed activity groups and optional day objectives, formats them into a prompt, calls the text LLM, and returns a DaySummary with summary text, percentages, and time range, (2) wiring up the existing 'zeit view summarize [date]' CLI command (currently a placeholder in ViewCommand.swift printing 'not yet implemented') to actually call the summarizer. The prompt template already exists in Prompts.daySummary(). Support an optional --model flag to override the LLM model (format: 'provider:model'). This feature depends on activity-condensation being implemented first."
+  },
+  {
+    "id": "model-config-from-yaml",
+    "description": "Load LLM model configuration (vision model name, text model name, text provider) from the conf.yml config file instead of hardcoding defaults in ActivityIdentifier.swift. The Python version reads 'models.vision', 'models.text.provider', and 'models.text.model' from conf.yml. The Swift TrackingClient already loads conf.yml for work hours -- extend or extract the config loading to also parse model settings, and pass them to ActivityIdentifier. The ActivityIdentifier constructor already accepts these as parameters, they just need to be loaded from config instead of using hardcoded defaults."
+  },
+  {
+    "id": "auto-create-config",
+    "description": "On first run, if ~/.local/share/zeit/conf.yml does not exist, automatically create it with sensible defaults. The Python version copies a bundled default conf.yml to the user data directory. In the Swift version, either embed a default YAML string or generate the file programmatically with default values for work_hours (start_hour: 9, end_hour: 18), models (vision: qwen3-vl:4b, text provider: ollama, text model: qwen3:8b), and paths. This should happen early in app startup (both CLI and GUI paths). Also ensure the data directory ~/.local/share/zeit/ is created if it doesn't exist."
+  },
+  {
+    "id": "richer-details-view",
+    "description": "Enhance the DetailsView.swift to show a richer activity breakdown similar to the Python version. Currently it's minimal. Add: (1) colored progress bars for each activity (use green/teal for work activities, purple/pink for personal), (2) percentage labels and minute counts next to each bar, (3) exclude idle from the display, (4) show total tracked time. Reference the Python DetailsWindow which uses colored QProgressBar widgets with percentage and minute labels."
+  },
+  {
+    "id": "basic-ui-enhancements",
+    "description": "Enhance the UI with better layout and styling. Hover effects on buttons, improved spacing, and a more modern look. This will involve updating the SwiftUI views and possibly adding new components for a better user experience."
+  },
+  {
+    "id": "present-all-activity-types",
+    "description": "The menubar should present activity percentage for all activity types, not just the top ones"
+  },
+  {
+    "id": "replace-close-button-with-xmark",
+    "description": "Replace the close button in the menubar with an 'xmark' icon for a more intuitive user experience. This will involve updating the SwiftUI view that contains the close button to use the appropriate SF Symbol and ensuring that it maintains its functionality."
+  },
+  {
+    "id": "refresh-permissions-checking",
+    "description": "Implement a mechanism to refresh the permissions checking in the app. Instead of making the user click a button to check permissions, the app should automatically refresh the permissions status at regular intervals or when certain events occur (e.g., app launch, returning from background). This will improve the user experience by providing up-to-date information without requiring manual intervention."
+  },
+  {
+    "id": "include-day-objectives-in-menubar",
+    "description": "Include the day's objectives in the menubar, if they are set. They should be displayed prominently, perhaps at the top of the menubar, to remind users of their goals for the day. This will involve updating the data model to include objectives and modifying the SwiftUI view to display them appropriately."
+  },
+  {
+    "id": "keep-onboarding-window-open",
+    "description": "Keep the onboarding window open until the user has completed all the steps. This means that after the user grants permissions, the onboarding window should not close immediately. Instead, it should wait until the user has completed all the necessary steps to set up the app."
+  },
+  {
+    "id": "objectives-window-stays-open-until-closed-by-user",
+    "description": "The objectives window should remain open until the user decides to close it. This means that after the user sets their objectives, the window should not automatically close. Instead, it should stay open, allowing the user to review or modify their objectives as needed, until they choose to close it themselves."
+  },
+  {
+    "id": "left-click-on-menu-bar-to-quit",
+    "description": "When left clicking on the menu bar icon, it should show a menu with the option to quit the app."
+  },
+  {
+    "id": "keep-onboarding-permissions-window-open-until-user-grants-or-denies-all-permissions",
+    "description": "When the user needs to grant permissions, and they click on the button to grant one of them, the onboarding window should stay open until the user has granted or denied all the required permissions. Currently, if the user clicks on the button to grant a permission, the onboarding window closes, which can be confusing if they have more permissions to grant. The expected behavior is that the onboarding window should only close after the user has made a decision (grant or deny) for all the permissions that are required."
+  },
+  {
+    "id": "remove-ollama-dependency",
+    "description": "Refactor the code to remove the direct dependency on the Ollama CLI. Instead, implement something that downloads the models. You can find some information about this at @features-docs/qwen-on-device-integration.md . You will have to implement a new model management feature, as part of the app onboarding (which has its UI already for permissions, we can add a new section for the models setup), because the user will need to download the models before using the app. This is a more complex feature that will require changes in multiple areas of the codebase, including the CLI, the ActivityIdentifier, and possibly the config management. The goal is to have the app manage its own models without relying on an external CLI tool. Should support downloading the following models: visual model qwen3-vl:4b and text model qwen3:8b. Search for all the places where you will need to update this. The doctor logic will need updating, in addition to the actual models invocations."
+  },
+  {
+    "id": "add-settings-button",
+    "description": "Add a settings button to the menubar. At the moment it should open the onboarding window, but in the future it could contain more settings"
+  },
+  {
+    "id": "add-force-track-debug-button",
+    "description": "Add a 'Force Track' button in the app's debug menu. First, add a new section to the settings (in addition to the existing 'Permissions' section) called 'Other settings'. For now, it will only have a single toggle called 'Debug mode'. Then, create a new button called 'Force track, in the menubar (this should only appear when debug mode is enabled), that will perform a force track action (similar to the cli's 'zeit track --force')."
+  },
+  {
+    "id": "add-clear-today-data-button-to-debug-menu",
+    "description": "Add a 'Clear Today's Data' button to the debug menu in the app. This button should clear all tracked data for the current day. This is part of the debug features and should only be visible when debug mode is enabled."
+  },
+  {
+    "id": "app-icon-should-be-work-percentage-when-tracking",
+    "description": "When the app is tracking activities, the app icon in the menu bar should display the percentage of work activities tracked. If paused show a pause icon, if not tracking show the default icon, if out of hours show a moon icon."
+  },
+  {
+    "id": "allow-setting-work-hours-in-settings",
+    "description": "Allow users to set their work hours in the app settings. Add a new tab in the settings view for 'Work Hours' where users can specify their typical work start and end times. First look where we are sourcing this information from and then add the UI to allow users to customize it. Also, add a `zeit set-work-hours` CLI command that allows users to set their work hours from the terminal. This command should accept start and end times as arguments and update the app's settings accordingly."
+  },
+  {
+    "id": "better-menubar-icon",
+    "description": "The menubar icon should behave like this: if it's before work hours, it should be a morning/sun/day icon. If it's during work hours: if tracking is not paused, then it should show the work percentage with a green dot. If its paused it should show the work percentage with an orange dot. If it's after work hours, it should show the work percentage AND a moon/night icon."
+  },
+  {
+    "id": "stop-background-tracking-on-exit",
+    "description": "Stop background tracking when exitting the menubar app, even if still during work hours"
+  },
+  {
+    "id": "extend-view-day-output",
+    "description": "When running `zeit view <day>`, in addition to the activity types, also show the described activity."
+  }
+]
