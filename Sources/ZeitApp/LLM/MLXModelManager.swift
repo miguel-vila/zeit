@@ -21,6 +21,18 @@ struct MLXModelInfo: Sendable, Equatable {
     let approximateSizeGB: Double
 }
 
+/// Errors thrown when model operations fail
+enum MLXModelError: LocalizedError {
+    case modelNotDownloaded(MLXModelInfo)
+
+    var errorDescription: String? {
+        switch self {
+        case .modelNotDownloaded(let model):
+            return "Model '\(model.displayName)' is not downloaded. Run the Zeit app to complete onboarding, or run 'zeit doctor' to check model status."
+        }
+    }
+}
+
 /// Download status for a model
 enum ModelDownloadStatus: Equatable, Sendable {
     case notDownloaded
@@ -117,6 +129,13 @@ actor MLXModelManager {
     func loadModel(_ model: MLXModelInfo) async throws -> ModelContainer {
         if let cached = loadedModels[model.huggingFaceID] {
             return cached
+        }
+
+        // Guard: ensure model is downloaded before attempting to load.
+        // Without this, loadContainer() silently downloads multi-GB weights
+        // AND loads them into Metal memory simultaneously, causing system freezes.
+        guard isModelDownloaded(model: model) else {
+            throw MLXModelError.modelNotDownloaded(model)
         }
 
         logger.info("Loading model: \(model.huggingFaceID)")
