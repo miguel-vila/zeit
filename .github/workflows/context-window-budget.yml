@@ -1,4 +1,4 @@
-name: Token Budget Check
+name: Context Window Budget
 
 on:
   push:
