@@ -21,7 +21,6 @@ For detailed documentation see:
 | Task | Location |
 |------|----------|
 | Add CLI command | `Sources/ZeitApp/CLI/` (ZeitCLI.swift routes to subcommands) |
-| Add activity category | `Sources/ZeitApp/Models/Activity.swift` → Activity enum |
 | Modify LLM prompts | `Sources/ZeitApp/LLM/Prompts.swift` |
 | Change screenshot behavior | `Sources/ZeitApp/Core/ScreenCapture.swift` |
 | Modify idle detection | `Sources/ZeitApp/Core/IdleDetection.swift` |
@@ -29,7 +28,6 @@ For detailed documentation see:
 | Add new UI feature | `Sources/ZeitApp/Features/` (TCA reducer + SwiftUI view) |
 | Add dependency client | `Sources/ZeitApp/Clients/` (use @DependencyClient) |
 | Change database schema | `Sources/ZeitApp/Clients/DatabaseClient.swift` |
-| Modify work hours | `~/.local/share/zeit/conf.yml` |
 | Change data paths | `Sources/ZeitApp/Core/ZeitConfig.swift` |
 | Add LLM provider | `Sources/ZeitApp/LLM/` (conform to LLMProvider/VisionLLMProvider) |
 | Modify build process | `build.sh` |
