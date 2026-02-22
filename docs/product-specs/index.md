@@ -51,3 +51,5 @@ Automatic, private, on-device activity tracking. No data leaves the machine (whe
 - [Menubar](menubar.md) - Menubar app features and settings
 - [Recurring Tracking](recurring-tracking.md) - The tracking pipeline and its configuration
 - [CLI](cli.md) - Command-line interface reference
+- [Day Summarization](day-summarization.md) - AI-generated daily activity summaries
+- [Custom Activity Types](../../large-features-specs/custom-activity-types.md) - User-configurable activity categories
