@@ -52,4 +52,4 @@ Automatic, private, on-device activity tracking. No data leaves the machine (whe
 - [Recurring Tracking](recurring-tracking.md) - The tracking pipeline and its configuration
 - [CLI](cli.md) - Command-line interface reference
 - [Day Summarization](day-summarization.md) - AI-generated daily activity summaries
-- [Custom Activity Types](../../large-features-specs/custom-activity-types.md) - User-configurable activity categories
+- [Custom Activity Types](custom-activity-types.md) - User-configurable activity categories
