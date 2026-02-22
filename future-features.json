@@ -1,5 +1,10 @@
 [
   {
+    "id":"proper-code-signing",
+    "description": "Implement proper code signing, see @FUTURE-BUILD.md for details.",
+    "implemented": false
+  },
+  {
     "id": "check-update-command",
     "description": "Implement a 'zeit check-update' CLI command that checks GitHub releases for newer versions. It should fetch the latest release from the GitHub API (repo: the zeit repository), compare the version tag against the current app version, and inform the user if an update is available with a download link. Use URLSession for the HTTP request. Add the command as a subcommand of the root ZeitCLI in ZeitCLI.swift.",
     "implemented": false
