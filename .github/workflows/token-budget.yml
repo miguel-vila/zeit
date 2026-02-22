@@ -1,0 +1,57 @@
+name: Token Budget Check
+
+on:
+  push:
+    paths:
+      - "**/*.md"
+  pull_request:
+    paths:
+      - "**/*.md"
+
+jobs:
+  check-tokens:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Count tokens
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: uv run scripts/token-counter.py --output token-counts.json
+
+      - name: Check budget
+        run: |
+          python3 - <<'PYEOF'
+          import json, sys
+
+          CONTEXT = 200_000
+          MAX_FILE_PCT = 5.0
+          MAX_TOTAL_PCT = 15.0
+
+          with open("token-counts.json") as f:
+              counts = json.load(f)
+
+          total = counts.pop("_total")
+          failed = False
+
+          for name, tokens in sorted(counts.items()):
+              pct = tokens / CONTEXT * 100
+              flag = " ** OVER BUDGET **" if pct > MAX_FILE_PCT else ""
+              print(f"  {name}: {tokens:,} ({pct:.2f}%){flag}")
+              if pct > MAX_FILE_PCT:
+                  failed = True
+
+          total_pct = total / CONTEXT * 100
+          print(f"\n  Total: {total:,} ({total_pct:.2f}%)")
+          if total_pct > MAX_TOTAL_PCT:
+              print(f"  ** OVER BUDGET ** (max {MAX_TOTAL_PCT}%)")
+              failed = True
+
+          if failed:
+              print("\nToken budget exceeded.", file=sys.stderr)
+              sys.exit(1)
+          else:
+              print("\nAll within budget.")
+          PYEOF
