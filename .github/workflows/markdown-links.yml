@@ -1,0 +1,24 @@
+name: Markdown Link Check
+
+on:
+  push:
+    paths:
+      - "**/*.md"
+  pull_request:
+    paths:
+      - "**/*.md"
+
+jobs:
+  check-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install mlc
+        run: |
+          curl -sLO https://github.com/becheran/mlc/releases/latest/download/mlc-x86_64-linux
+          chmod +x mlc-x86_64-linux
+          sudo mv mlc-x86_64-linux /usr/local/bin/mlc
+
+      - name: Check markdown links
+        run: ./scripts/check-markdown-links.sh

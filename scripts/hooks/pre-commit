@@ -1,25 +1,10 @@
 #!/usr/bin/env bash
 # Pre-commit hook: check markdown links when .md files are staged
 
-# Get list of staged .md files (added, modified, or renamed)
 staged_md_files=$(git diff --cached --name-only --diff-filter=AMR -- '*.md')
 
 if [ -z "$staged_md_files" ]; then
     exit 0
 fi
 
-# Check if mlc is installed
-if ! command -v mlc &> /dev/null; then
-    echo "Error: mlc (markup link checker) is not installed."
-    echo "Install it with: brew install mlc"
-    exit 1
-fi
-
-echo "Checking markdown links..."
-mlc --offline --ignore-path .build,mcp-app/node_modules .
-
-if [ $? -ne 0 ]; then
-    echo ""
-    echo "Markdown link check failed. Fix broken links before committing."
-    exit 1
-fi
+"$(git rev-parse --show-toplevel)/scripts/check-markdown-links.sh"
