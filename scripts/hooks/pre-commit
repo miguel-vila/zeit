@@ -10,10 +10,9 @@ fi
 
 # Check if mlc is installed
 if ! command -v mlc &> /dev/null; then
-    echo "Warning: mlc (markup link checker) is not installed."
+    echo "Error: mlc (markup link checker) is not installed."
     echo "Install it with: brew install mlc"
-    echo "Skipping markdown link check."
-    exit 0
+    exit 1
 fi
 
 echo "Checking markdown links..."
