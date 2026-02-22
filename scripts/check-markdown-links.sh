@@ -11,4 +11,4 @@ if ! command -v mlc &> /dev/null; then
 fi
 
 echo "Checking markdown links..."
-mlc --offline --ignore-path .build,*/node_modules/ .
+mlc --offline --gitignore --ignore-path .build .
