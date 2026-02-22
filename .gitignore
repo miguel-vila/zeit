@@ -16,3 +16,5 @@ data/
 
 # Implementation logs
 implementation-logs/
+
+node_modules/
