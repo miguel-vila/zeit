@@ -51,6 +51,9 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Use committed git hooks
+git config core.hooksPath scripts/hooks
+
 BUILD_DIR=".build"
 DIST_DIR="dist"
 APP_NAME="Zeit"
