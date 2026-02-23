@@ -20,7 +20,7 @@ Before doing any work, the tracker checks three conditions:
 
 - **Work hours** - Is the current time within the configured start/end hours on a configured work day? Checked via `ZeitConfig`. Skips silently if outside hours.
 - **Stop flag** - Does `~/.local/share/zeit/.zeit_stop` exist? If so, tracking is paused. The menubar app creates/removes this file via the pause/resume button.
-- **Idle detection** - Is the system idle for longer than the threshold? Uses IOKit's `HIDIdleTime` property (default: 300 seconds). If idle, records an `idle` activity entry and stops without capturing screenshots. Note: The idle threshold is hardcoded to 300 seconds and does not currently use the `IDLE_THRESHOLD_SECONDS` environment variable.
+- **Idle detection** - Is the system idle for longer than the threshold? Uses IOKit's `HIDIdleTime` property (default: 300 seconds). If idle, records an `idle` activity entry and stops without capturing screenshots.
 
 All three checks are bypassed when running `zeit track --force`.
 

@@ -59,14 +59,4 @@ enum IdleDetection {
         }
         return idleTime > threshold
     }
-
-    /// Get idle threshold from environment variable or default
-    static func getIdleThreshold() -> Double {
-        if let envValue = ProcessInfo.processInfo.environment["IDLE_THRESHOLD_SECONDS"],
-           let threshold = Double(envValue)
-        {
-            return threshold
-        }
-        return 300  // Default: 5 minutes
-    }
 }
