@@ -45,7 +45,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const files = await collectFiles(repoDir, "CLAUDE.md");
+  const files = await collectFiles(repoDir, ["CLAUDE.md", ...cli.include]);
 
   const resultsDir = mkdtempSync(join(tmpdir(), "verify-docs-in-sync-with-code-"));
   console.log(`Results will be saved to: ${resultsDir}`);

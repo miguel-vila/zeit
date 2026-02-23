@@ -31,9 +31,9 @@ function extractLinks(source: string, filePath: string, repoDir: string): string
   return links;
 }
 
-export async function collectFiles(repoDir: string, seed: string): Promise<string[]> {
+export async function collectFiles(repoDir: string, seeds: string[]): Promise<string[]> {
   const visited = new Set<string>();
-  const queue = [seed];
+  const queue = [...seeds];
   const files: string[] = [];
 
   while (queue.length > 0) {
