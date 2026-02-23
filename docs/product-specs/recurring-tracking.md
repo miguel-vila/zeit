@@ -20,7 +20,7 @@ Before doing any work, the tracker checks three conditions:
 
 - **Work hours** - Is the current time within the configured start/end hours on a configured work day? Checked via `ZeitConfig`. Skips silently if outside hours.
 - **Stop flag** - Does `~/.local/share/zeit/.zeit_stop` exist? If so, tracking is paused. The menubar app creates/removes this file via the pause/resume button.
-- **Idle detection** - Is the system idle for longer than the threshold? Uses IOKit's `HIDIdleTime` property (default: 300 seconds, configurable via `IDLE_THRESHOLD_SECONDS` env var). If idle, records an `idle` activity entry and stops without capturing screenshots.
+- **Idle detection** - Is the system idle for longer than the threshold? Uses IOKit's `HIDIdleTime` property (default: 300 seconds). If idle, records an `idle` activity entry and stops without capturing screenshots. Note: The idle threshold is hardcoded to 300 seconds and does not currently use the `IDLE_THRESHOLD_SECONDS` environment variable.
 
 All three checks are bypassed when running `zeit track --force`.
 
@@ -29,7 +29,7 @@ All three checks are bypassed when running `zeit track --force`.
 Captures all connected monitors using CoreGraphics (`CGDisplayCreateImage`):
 
 - Iterates through `NSScreen.screens` and maps each to a display ID
-- Saves PNG files to `/tmp/zeit_screenshots/` with timestamped names
+- Saves PNG files to a temporary directory (on macOS: `/var/folders/.../zeit_screenshots/` via `FileManager.default.temporaryDirectory`)
 - Returns a dictionary of `[screenNumber: fileURL]` (1-based screen numbers)
 - Retina images are auto-downscaled to max 1280px for the LLM payload
 - Temporary files are deleted after processing (kept if `--debug` flag is used)
@@ -67,6 +67,7 @@ The text model receives the vision description and classifies it into an activit
 **Structured output schema:**
 ```json
 {
+  "thinking": "<internal reasoning for the classification>",
   "main_activity": "<activity_type_id or 'idle'>",
   "reasoning": "<explanation of why this activity was chosen>",
   "secondary_context": "<optional context from non-active screens>"
@@ -130,7 +131,7 @@ The activity types directly shape the classification prompt: the LLM is given th
 
 ### Idle Threshold
 
-Default: 300 seconds (5 minutes). Override via `IDLE_THRESHOLD_SECONDS` environment variable.
+Default: 300 seconds (5 minutes). Currently hardcoded and not configurable via environment variable.
 
 ## Controlling the Tracker
 
