@@ -50,7 +50,7 @@ Each tracking iteration follows this pipeline:
 ```
 Work hours check → Stop flag check → Idle detection
     ↓ (if active)
-ScreenCapture.captureAllMonitors()     → [screenNumber: fileURL]
+ ScreenCapture.captureAllMonitors()     → [screenNumber: fileURL]
 ActiveWindow.getActiveScreenNumber()   → which screen has focus
 ActiveWindow.getFrontmostAppName()     → app name hint
     ↓
@@ -153,10 +153,10 @@ The GUI's `DatabaseClient` uses an actor (`DatabaseActor`) for thread-safe GRDB 
 ### Two-Stage LLM Pipeline
 
 Activity identification always uses two models:
-1. **Vision model** — processes screenshots into a text description
-2. **Text model** — classifies the description into an activity category using structured JSON output with a schema
+1. **Vision model** — processes screenshots into a text description using `MLXClient.generateWithVisionThinking()`
+2. **Text model** — classifies the description into an activity category using `MLXClient.generateStructured()` with a dynamically constructed JSON schema
 
-Both stages are abstracted behind `LLMProvider` / `VisionLLMProvider` protocols, with `MLXClient` (on-device) and `OpenAIClient` (remote) as implementations.
+The pipeline directly uses `MLXClient` for on-device inference. An `LLMProvider` protocol exists as a potential foundation for future abstraction but is not currently used in the active pipeline.
 
 ### Single Binary, Dual Mode
 
