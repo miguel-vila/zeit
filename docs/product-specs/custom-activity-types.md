@@ -20,7 +20,7 @@ A set of 16 default types is provided and can be restored at any time via "Reset
 
 Activity types can be managed in three places:
 
-- **Onboarding** - A dedicated step after permissions, pre-filled with defaults. Two lists (work and personal) that can be edited, extended, or cleared entirely.
+- **Onboarding** - A dedicated step after model download, pre-filled with defaults. Two lists (work and personal) that can be edited, extended, or cleared entirely.
 - **Settings > Activity Types** - Same editing interface, accessible any time from the menubar.
 - **CLI** - `zeit list-activity-types` to view, `zeit set-activity-types` to update.
 
