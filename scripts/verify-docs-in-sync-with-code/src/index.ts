@@ -19,6 +19,7 @@ import { verifyFile, fixFile } from "./agent.js";
 import {
   createBranch,
   commitChanges,
+  pushBranch,
   createPR,
   restoreMainBranch,
   deleteBranch,
@@ -73,7 +74,9 @@ async function main(): Promise<void> {
   console.log(`Done. Full results saved in: ${resultsDir}`);
 
   // -- Fix phase --
-  const outdated = results.filter((r) => r.result !== UP_TO_DATE);
+  const outdated = results.filter(
+    (r) => !r.result.trimEnd().endsWith(UP_TO_DATE),
+  );
 
   if (cli.verifyOnly || outdated.length === 0) {
     if (outdated.length === 0) {
@@ -104,12 +107,11 @@ async function main(): Promise<void> {
 
       if (!hasChanges(repoDir, fullPath)) {
         console.log(`  No changes made to ${file}, skipping PR.\n`);
-        restoreMainBranch(repoDir);
-        deleteBranch(repoDir, branch);
         continue;
       }
 
       commitChanges(repoDir, fullPath, `docs: fix outdated content in ${file}`);
+      pushBranch(repoDir, branch);
       const prUrl = createPR(
         repoDir,
         branch,
@@ -136,6 +138,11 @@ async function main(): Promise<void> {
         restoreMainBranch(repoDir);
       } catch {
         // already on main or repo in weird state — continue
+      }
+      try {
+        deleteBranch(repoDir, branch);
+      } catch {
+        // branch may not exist or may have been pushed — continue
       }
     }
   }
