@@ -1,4 +1,4 @@
-name: Verify Docs
+name: Verify Docs in Sync with Code
 
 on:
   schedule:
