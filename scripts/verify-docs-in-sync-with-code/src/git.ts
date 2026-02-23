@@ -20,8 +20,8 @@ export function createBranch(repoDir: string, branchName: string): void {
   git(repoDir, "checkout", "-b", branchName);
 }
 
-export function commitChanges(repoDir: string, filePath: string, message: string): void {
-  git(repoDir, "add", filePath);
+export function commitAllChanges(repoDir: string, message: string): void {
+  git(repoDir, "add", "-A");
   git(repoDir, "commit", "-m", message);
 }
 
@@ -45,7 +45,7 @@ export function deleteBranch(repoDir: string, branchName: string): void {
   git(repoDir, "branch", "-D", branchName);
 }
 
-export function hasChanges(repoDir: string, filePath: string): boolean {
-  const status = git(repoDir, "status", "--porcelain", filePath);
+export function hasChanges(repoDir: string): boolean {
+  const status = git(repoDir, "status", "--porcelain");
   return status.length > 0;
 }

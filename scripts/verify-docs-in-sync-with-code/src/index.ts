@@ -18,7 +18,7 @@ import { collectFiles } from "./markdown.js";
 import { verifyFile, fixFile } from "./agent.js";
 import {
   createBranch,
-  commitChanges,
+  commitAllChanges,
   pushBranch,
   createPR,
   restoreMainBranch,
@@ -105,12 +105,12 @@ async function main(): Promise<void> {
       const fixResult = await fixFile(fullPath, repoDir, mismatches, cli.model);
       console.log(fixResult);
 
-      if (!hasChanges(repoDir, fullPath)) {
-        console.log(`  No changes made to ${file}, skipping PR.\n`);
+      if (!hasChanges(repoDir)) {
+        console.log(`  No changes made, skipping PR.\n`);
         continue;
       }
 
-      commitChanges(repoDir, fullPath, `docs: fix outdated content in ${file}`);
+      commitAllChanges(repoDir, `docs: fix outdated content in ${file}`);
       pushBranch(repoDir, branch);
       const prUrl = createPR(
         repoDir,
