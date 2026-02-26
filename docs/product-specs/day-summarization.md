@@ -21,21 +21,38 @@ For example, 45 raw entries might condense into 8 groups like:
 10:30-10:45 - personal browsing (15 min): "Reading Hacker News"
 ```
 
-### 2. LLM Summary Generation
+### 2. LLM Summary Generation (Structured Output)
 
 The condensed data is formatted into a prompt with two sections:
 
 - **Activity breakdown** - Percentage of time per activity type.
 - **Chronological activities** - Each group with its time range, activity type, duration, and vision model descriptions.
 
-If the user has set **day objectives**, they are appended to the prompt. The LLM is asked to consider whether the activities align with the stated objectives.
+If the user has set **day objectives**, they are appended to the prompt.
 
-The LLM is asked to provide a brief summary (2-3 sentences) covering:
-1. What the user spent most of their time doing
-2. Notable patterns or observations
-3. How productive the day appears to have been
+The LLM generates a **structured JSON response** constrained by a JSON schema (via `LLMProvider.generateStructured`). The schema is built dynamically based on whether objectives are set:
 
-The text model runs with `temperature=0.7` (higher than classification's `0` to allow more natural prose).
+```json
+{
+  "type": "object",
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "A concise 2-3 sentence narrative summary of the day's activities"
+    },
+    "objectives_alignment": {
+      "type": "string",
+      "description": "1-2 sentence assessment of how well the day's activities aligned with the stated objectives"
+    }
+  },
+  "required": ["summary"]
+}
+```
+
+- `summary` is always required.
+- `objectives_alignment` is added to the schema (and marked required) only when day objectives are set.
+
+The text model runs with `temperature=0.7`.
 
 ## Output
 
@@ -44,6 +61,7 @@ A `DaySummary` contains:
 | Field | Description |
 |-------|-------------|
 | Summary text | 2-3 sentence narrative from the LLM |
+| Objectives alignment | Optional 1-2 sentence assessment of objective alignment (only when objectives are set) |
 | Percentage breakdown | Per-activity percentages (formatted list) |
 | Start time | Timestamp of the first non-idle activity |
 | End time | Timestamp of the last non-idle activity |
@@ -70,8 +88,11 @@ Main objective: Ship the new onboarding flow
 
 Today was primarily a coding day, with roughly 70% of time spent in Xcode
 working on Swift UI components and unit tests. A notable mid-afternoon
-context switch to design work suggests iteration on the UI. The day
-aligns well with the stated objective.
+context switch to design work suggests iteration on the UI.
+
+**Objectives Alignment:**
+The day aligns well with the stated objective — most coding time was
+spent on onboarding-related UI components and tests.
 
 **Percentages Breakdown:**
 
@@ -92,4 +113,4 @@ Uses the configured text model (same as activity classification). Default: MLX o
 
 - **No activities for the date** - Prints "No activities recorded for \<date\>" and exits.
 - **Only idle activities** - Prints "No non-idle activities recorded for \<date\>" and exits.
-- **No objectives set** - The summary is generated without objective alignment analysis.
+- **No objectives set** - The summary is generated without objective alignment; `objectives_alignment` will be `nil`.
