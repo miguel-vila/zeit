@@ -89,7 +89,7 @@ final class ActivityIdentifier: @unchecked Sendable {
         let classificationResponseText: String
 
         if let mlxClient = MLXClient(configName: textModel) {
-            let mlxResponse = try await mlxClient.generateStructured(
+            let mlxResponse = try await mlxClient.generateStructuredMLX(
                 prompt: classificationPrompt,
                 schema: schema,
                 temperature: 0,
@@ -99,7 +99,7 @@ final class ActivityIdentifier: @unchecked Sendable {
         } else {
             // Fallback: try MLX with the text model info directly
             let mlxClient = MLXClient(modelInfo: MLXModelManager.textModel)
-            let mlxResponse = try await mlxClient.generateStructured(
+            let mlxResponse = try await mlxClient.generateStructuredMLX(
                 prompt: classificationPrompt,
                 schema: schema,
                 temperature: 0,

@@ -98,20 +98,21 @@ enum Prompts {
             if !obj.secondary.isEmpty {
                 prompt += "\n- Secondary: \(obj.secondary.joined(separator: ", "))"
             }
-
-            prompt += """
-
-            Consider whether the activities align with the stated objectives.
-            """
         }
 
-        prompt += """
+        if objectives != nil {
+            prompt += """
 
-        Provide a brief summary (2-3 sentences) of:
-        1. What the user spent most of their time doing
-        2. Notable patterns or observations
-        3. How productive the day appears to have been
-        """
+            Provide:
+            1. A "summary": a brief narrative (2-4 sentences) of what the user spent most of their time doing and notable patterns
+            2. An "objectives_alignment": a 1-2 sentence assessment of how well the day's activities aligned with the stated objectives — what was accomplished vs. missed
+            """
+        } else {
+            prompt += """
+
+            Provide a "summary": a brief narrative (2-3 sentences) of what the user spent most of their time doing, notable patterns, and how productive the day appears to have been.
+            """
+        }
 
         return prompt
     }

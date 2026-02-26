@@ -6,6 +6,7 @@ private let logger = Logger(subsystem: "com.zeit", category: "DaySummarizer")
 /// Result of summarizing a day's activities
 struct DaySummary: Sendable {
     let summary: String
+    let objectivesAlignment: String?
     let percentagesBreakdown: String
     let startTime: Date
     let endTime: Date
@@ -71,11 +72,15 @@ struct DaySummarizer: Sendable {
 
         logger.debug("Day summarization prompt:\n\(prompt)")
 
-        let responseText = try await provider.generate(
+        let schema = Self.summarySchema(hasObjectives: objectives != nil)
+
+        let responseText = try await provider.generateStructured(
             prompt: prompt,
-            temperature: 0.7,
-            jsonMode: false
+            schema: schema,
+            temperature: 0.7
         )
+
+        let parsed = try parseSummaryResponse(responseText)
 
         let isoFormatter = ISO8601DateFormatter()
         let startTime = isoFormatter.date(from: nonIdle[0].timestamp) ?? Date()
@@ -83,11 +88,54 @@ struct DaySummarizer: Sendable {
 
         logger.debug("Day summary generated")
         return DaySummary(
-            summary: responseText,
+            summary: parsed.summary,
+            objectivesAlignment: parsed.objectivesAlignment,
             percentagesBreakdown: percentageText,
             startTime: startTime,
             endTime: endTime
         )
+    }
+
+    // MARK: - JSON Schema
+
+    private static func summarySchema(hasObjectives: Bool) -> [String: Any] {
+        var properties: [String: Any] = [
+            "summary": [
+                "type": "string",
+                "description": "A concise 2-3 sentence narrative summary of the day's activities"
+            ]
+        ]
+        var required = ["summary"]
+
+        if hasObjectives {
+            properties["objectives_alignment"] = [
+                "type": "string",
+                "description": "1-2 sentence assessment of how well the day's activities aligned with the stated objectives"
+            ]
+            required.append("objectives_alignment")
+        }
+
+        return [
+            "type": "object",
+            "properties": properties,
+            "required": required
+        ]
+    }
+
+    // MARK: - Response Parsing
+
+    private func parseSummaryResponse(_ response: String) throws -> SummaryResponse {
+        let trimmed = response.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let data = trimmed.data(using: .utf8) else {
+            throw DaySummarizerError.invalidResponse("Could not encode response as UTF-8")
+        }
+        do {
+            return try JSONDecoder().decode(SummaryResponse.self, from: data)
+        } catch {
+            throw DaySummarizerError.invalidResponse(
+                "Failed to parse summary: \(error.localizedDescription). Response was: \(trimmed.prefix(200))"
+            )
+        }
     }
 
     // MARK: - Formatting
@@ -108,5 +156,30 @@ struct DaySummarizer: Sendable {
             : group.reasonings.joined(separator: "; ")
         let activityName = group.activity.displayName.lowercased()
         return "\(timeRange) - \(activityName) (\(group.durationMinutes) min): \"\(reasoning)\""
+    }
+}
+
+// MARK: - Response Models
+
+private struct SummaryResponse: Decodable {
+    let summary: String
+    let objectivesAlignment: String?
+
+    enum CodingKeys: String, CodingKey {
+        case summary
+        case objectivesAlignment = "objectives_alignment"
+    }
+}
+
+// MARK: - Errors
+
+enum DaySummarizerError: LocalizedError {
+    case invalidResponse(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidResponse(let message):
+            return "Invalid summary response: \(message)"
+        }
     }
 }

@@ -64,10 +64,21 @@ final class MLXClient: LLMProvider, @unchecked Sendable {
         return cleaned
     }
 
+    // MARK: - LLMProvider (structured)
+
+    func generateStructured(
+        prompt: String,
+        schema: [String: Any],
+        temperature: Double?
+    ) async throws -> String {
+        let result = try await generateStructuredMLX(prompt: prompt, schema: schema, temperature: temperature)
+        return result.response
+    }
+
     // MARK: - Extended Methods
 
-    /// Generate structured output (JSON) — for text models
-    func generateStructured(
+    /// Generate structured output (JSON) — for text models, returning the full MLXResponse
+    func generateStructuredMLX(
         prompt: String,
         schema: [String: Any],
         temperature: Double? = nil,

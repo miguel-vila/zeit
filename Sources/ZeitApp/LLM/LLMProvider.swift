@@ -13,6 +13,36 @@ protocol LLMProvider: Sendable {
         temperature: Double?,
         jsonMode: Bool
     ) async throws -> String
+
+    /// Generate a structured JSON response matching the given schema
+    /// - Parameters:
+    ///   - prompt: The prompt to send to the model
+    ///   - schema: JSON Schema dictionary describing the expected output
+    ///   - temperature: Optional temperature for response randomness
+    /// - Returns: The generated JSON string
+    func generateStructured(
+        prompt: String,
+        schema: [String: Any],
+        temperature: Double?
+    ) async throws -> String
+}
+
+// MARK: - Default Implementation
+
+extension LLMProvider {
+    func generateStructured(
+        prompt: String,
+        schema: [String: Any],
+        temperature: Double?
+    ) async throws -> String {
+        // Default: append schema to prompt and use jsonMode
+        var enhancedPrompt = prompt
+        if let schemaData = try? JSONSerialization.data(withJSONObject: schema),
+           let schemaStr = String(data: schemaData, encoding: .utf8) {
+            enhancedPrompt += "\n\nRespond with valid JSON matching this schema:\n\(schemaStr)"
+        }
+        return try await generate(prompt: enhancedPrompt, temperature: temperature, jsonMode: true)
+    }
 }
 
 /// Factory for creating LLM providers based on configuration

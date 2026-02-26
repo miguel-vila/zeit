@@ -159,6 +159,11 @@ struct ViewSummarizeCommand: AsyncParsableCommand {
 
         print("")
         print(result.summary)
+        if let alignment = result.objectivesAlignment {
+            print("")
+            print("**Objectives Alignment:**")
+            print(alignment)
+        }
         print("")
         print("**Percentages Breakdown:**")
         print("")
