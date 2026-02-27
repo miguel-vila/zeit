@@ -262,14 +262,17 @@ struct MenubarView: View {
 
             MenubarActionButton(
                 icon: "tray.and.arrow.down.fill",
-                label: store.isSampling ? "Sampling..." : "Force Track & Sample",
-                action: { store.send(.forceTrackAndSample) }
+                label: "Force Track & Sample",
+                action: {
+                    store.send(.forceTrackAndSample)
+                    dismissPopover()
+                }
             )
             .disabled(store.isSampling)
 
             MenubarActionButton(
                 icon: "timer",
-                label: store.isSampling ? "Sampling..." : "Force Track & Sample with Delay",
+                label: "Force Track & Sample with Delay",
                 action: { store.send(.forceTrackAndSampleWithDelay) }
             )
             .disabled(store.isSampling)
@@ -282,6 +285,7 @@ struct MenubarView: View {
         )) {
             SampleDelaySheet { seconds in
                 store.send(.sampleWithDelayConfirmed(seconds: seconds))
+                dismissPopover()
             }
         }
         #endif
@@ -313,6 +317,15 @@ struct MenubarView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
+    }
+
+    // MARK: - Popover Dismiss
+
+    /// Dismiss the menubar popover by finding the enclosing NSPopover.
+    private func dismissPopover() {
+        DispatchQueue.main.async {
+            NSApp.keyWindow?.performClose(nil)
+        }
     }
 
     // MARK: - Helpers

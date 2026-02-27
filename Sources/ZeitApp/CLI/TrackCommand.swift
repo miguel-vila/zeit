@@ -87,6 +87,12 @@ struct TrackCommand: AsyncParsableCommand {
                 }
             }
 
+            #if DEBUG
+            if let samplePath = result.samplePath {
+                print("Sample saved to: \(samplePath.path)")
+            }
+            #endif
+
             // Save to database
             let entry = result.toActivityEntry()
             let db = try DatabaseHelper()

@@ -91,6 +91,7 @@ A new `--sample` flag on the existing `track` command. It:
 
 1. Runs the normal tracking pipeline (capture, identify, save to DB)
 2. Additionally writes the sample artifacts to disk
+3. Prints the sample directory path to stdout
 
 `--sample` implies `--force` (bypass work hours / stop flag checks). Can be combined with `--delay`:
 
@@ -111,18 +112,17 @@ Two new buttons in the existing debug section (below "Force Track" and "Clear To
 #### "Force Track & Sample"
 
 - Icon: `tray.and.arrow.down.fill`
+- Dismisses the menubar popover immediately on click (sampling runs in the background)
 - Runs the tracking pipeline with sampling enabled
-- Shows loading state: "Sampling..."
-- On completion: notification with the activity name and the sample directory path
+- On completion: notification with the activity name and the sample directory path. Clicking the notification opens the sample directory in Finder.
 
 #### "Force Track & Sample with Delay"
 
 - Icon: `timer`
 - Opens a small input alert/popover asking for delay in seconds
 - Pre-fills with the last-used delay value (stored in UserDefaults under key `lastSampleDelay`, default: `5`)
-- After the user confirms, runs the pipeline with the specified delay and sampling
-- Shows loading state: "Sampling in Ns..." (countdown would be nice-to-have, not required)
-- On completion: same notification as above
+- After the user confirms, dismisses the menubar popover (sampling runs in the background with the delay)
+- On completion: same notification as above (clicking opens the sample directory)
 
 ## Shared Implementation
 

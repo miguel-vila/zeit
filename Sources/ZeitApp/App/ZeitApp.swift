@@ -1,6 +1,7 @@
 import AppKit
 import ComposableArchitecture
 import SwiftUI
+import UserNotifications
 
 // Note: @main is in main.swift which decides CLI vs GUI mode
 struct ZeitAppGUI: App {
@@ -38,6 +39,9 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationDidFinishLaunching(_: Notification) {
         // Resume tracking on launch (clear any stop flag left by a previous quit)
         resumeTrackingOnLaunch()
+
+        // Register notification delegate for handling click actions
+        UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
 
         setupStatusItem()
         startIconObservation()

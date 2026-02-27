@@ -112,6 +112,7 @@ final class ActivityIdentifier: @unchecked Sendable {
 
         #if DEBUG
         // Write sample artifacts to disk if requested
+        var samplePath: URL? = nil
         if sample {
             let sampleData = SampleData(
                 timestamp: Date(),
@@ -130,19 +131,32 @@ final class ActivityIdentifier: @unchecked Sendable {
                 parsedActivity: classification.mainActivity,
                 parsedReasoning: classification.reasoning
             )
-            let sampleDir = try SampleWriter.write(sampleData)
-            print("Sample written to: \(sampleDir.path)")
+            samplePath = try SampleWriter.write(sampleData)
         }
         #endif
 
+        let screenshotPathsResult = shouldKeep ? screenshots.keys.sorted().compactMap { screenshots[$0] } : nil
+
+        #if DEBUG
         return IdentificationResult(
             activity: classification.activity,
             reasoning: classification.reasoning,
             description: description.mainActivityDescription,
             activeScreen: activeScreen,
-            screenshotPaths: shouldKeep ? screenshots.keys.sorted().compactMap { screenshots[$0] } : nil,
+            screenshotPaths: screenshotPathsResult,
+            screenDebugInfo: screenDebugInfo,
+            samplePath: samplePath
+        )
+        #else
+        return IdentificationResult(
+            activity: classification.activity,
+            reasoning: classification.reasoning,
+            description: description.mainActivityDescription,
+            activeScreen: activeScreen,
+            screenshotPaths: screenshotPathsResult,
             screenDebugInfo: screenDebugInfo
         )
+        #endif
     }
 
     // MARK: - JSON Schemas
@@ -224,6 +238,30 @@ struct IdentificationResult {
     let activeScreen: Int
     let screenshotPaths: [URL]?
     let screenDebugInfo: String?
+    #if DEBUG
+    let samplePath: URL?
+    #endif
+
+    #if DEBUG
+    init(activity: Activity, reasoning: String?, description: String, activeScreen: Int, screenshotPaths: [URL]?, screenDebugInfo: String?, samplePath: URL?) {
+        self.activity = activity
+        self.reasoning = reasoning
+        self.description = description
+        self.activeScreen = activeScreen
+        self.screenshotPaths = screenshotPaths
+        self.screenDebugInfo = screenDebugInfo
+        self.samplePath = samplePath
+    }
+    #else
+    init(activity: Activity, reasoning: String?, description: String, activeScreen: Int, screenshotPaths: [URL]?, screenDebugInfo: String?) {
+        self.activity = activity
+        self.reasoning = reasoning
+        self.description = description
+        self.activeScreen = activeScreen
+        self.screenshotPaths = screenshotPaths
+        self.screenDebugInfo = screenDebugInfo
+    }
+    #endif
 
     /// Convert to ActivityEntry for database storage
     func toActivityEntry() -> ActivityEntry {

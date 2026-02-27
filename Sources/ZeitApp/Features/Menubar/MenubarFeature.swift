@@ -340,11 +340,10 @@ struct MenubarFeature {
                         let entry = result.toActivityEntry()
                         let db = try DatabaseHelper()
                         try await db.insertActivity(entry)
-                        // The sample directory path is printed by identifyCurrentActivity
                         await send(.sampleCompleted(.success(
                             SampleInfo(
                                 activityName: result.activity.displayName,
-                                samplePath: ""
+                                samplePath: result.samplePath?.path ?? ""
                             )
                         )))
                     } catch {
@@ -382,7 +381,7 @@ struct MenubarFeature {
                         await send(.sampleCompleted(.success(
                             SampleInfo(
                                 activityName: result.activity.displayName,
-                                samplePath: ""
+                                samplePath: result.samplePath?.path ?? ""
                             )
                         )))
                     } catch {
@@ -392,14 +391,26 @@ struct MenubarFeature {
 
             case .sampleCompleted(.success(let info)):
                 state.isSampling = false
+                let sampleURL = info.samplePath.isEmpty
+                    ? nil
+                    : URL(fileURLWithPath: info.samplePath)
                 return .merge(
                     .send(.refreshData),
                     .run { _ in
-                        await notification.show(
-                            "Zeit",
-                            "Sample: \(info.activityName)",
-                            "Sample saved to ~/.local/share/zeit/samples/"
-                        )
+                        if let sampleURL {
+                            await notification.showWithAction(
+                                "Zeit",
+                                "Sample: \(info.activityName)",
+                                "Click to open sample folder",
+                                sampleURL
+                            )
+                        } else {
+                            await notification.show(
+                                "Zeit",
+                                "Sample: \(info.activityName)",
+                                "Sample saved"
+                            )
+                        }
                     }
                 )
 
