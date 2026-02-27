@@ -38,6 +38,8 @@ The popover (300x400px) contains these sections from top to bottom:
 Only present in debug builds (`#if DEBUG`), compiled out entirely in release builds:
 
 - **Force Track** - triggers an immediate tracking capture regardless of work hours or stop flag
+- **Force Track & Sample** - triggers tracking and saves sample data for LLM pipeline debugging
+- **Force Track & Sample with Delay** - same as above but with a configurable delay
 - **Clear Today's Data** - deletes all activities for today
 
 ### Settings

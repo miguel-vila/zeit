@@ -254,13 +254,6 @@ struct MenubarView: View {
             .disabled(store.isForceTracking)
 
             MenubarActionButton(
-                icon: "trash",
-                label: store.isClearingTodayData ? "Clearing..." : "Clear Today's Data",
-                action: { store.send(.clearTodayData) }
-            )
-            .disabled(store.isClearingTodayData)
-
-            MenubarActionButton(
                 icon: "tray.and.arrow.down.fill",
                 label: "Force Track & Sample",
                 action: {
@@ -276,6 +269,13 @@ struct MenubarView: View {
                 action: { store.send(.forceTrackAndSampleWithDelay) }
             )
             .disabled(store.isSampling)
+
+            MenubarActionButton(
+                icon: "trash",
+                label: store.isClearingTodayData ? "Clearing..." : "Clear Today's Data",
+                action: { store.send(.clearTodayData) }
+            )
+            .disabled(store.isClearingTodayData)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
