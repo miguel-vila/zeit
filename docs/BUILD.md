@@ -35,6 +35,20 @@ All distribution builds go through `build.sh`. Output: `dist/Zeit.app` (macOS ap
 | `--dmg` | Create DMG installer |
 | `--clean` | Clean build artifacts first |
 
+### Debug vs Release
+
+Swift defines the `DEBUG` flag automatically based on build configuration. Several features are gated behind `#if DEBUG` and are only available in debug builds:
+
+- **Menubar debug section** — Force Track, Clear Today's Data, and sampling buttons
+- **`--sample` CLI flag** — saves LLM pipeline artifacts (screenshots, prompts, responses) to `~/.local/share/zeit/samples/`
+
+| Build command | `DEBUG` flag | Debug features |
+|---------------|-------------|----------------|
+| `./build.sh` | Defined | Available |
+| `swift build` | Defined | Available |
+| `./build.sh --release` | Not defined | Compiled out |
+| `swift build -c release` | Not defined | Compiled out |
+
 ### Environment Variables
 
 | Variable | Purpose |
