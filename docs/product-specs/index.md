@@ -20,8 +20,8 @@ Automatic, private, on-device activity tracking. No data leaves the machine (whe
 - Persistent menu bar presence with dynamic status icon
 - Shows today's work/personal percentage and activity breakdown
 - Day objectives management (main + 2 secondary)
-- Quick actions: pause/resume tracking, view details, force track (debug mode)
-- Settings: permissions, models, work hours, activity types, debug mode
+- Quick actions: pause/resume tracking, view details, force track (debug builds only)
+- Settings: permissions, models, work hours, activity types
 
 ### Onboarding
 - Required first-run flow: permissions, model download, activity type configuration, work hours
@@ -53,3 +53,4 @@ Automatic, private, on-device activity tracking. No data leaves the machine (whe
 - [CLI](cli.md) - Command-line interface reference
 - [Day Summarization](day-summarization.md) - AI-generated daily activity summaries
 - [Custom Activity Types](custom-activity-types.md) - User-configurable activity categories
+- [Test Data Sampling](sampling.md) - Capturing LLM pipeline inputs/outputs for debugging and evaluation
