@@ -25,7 +25,6 @@ struct MenubarFeature {
 
         // Settings
         var launchAtLogin: Bool = false
-        var debugModeEnabled: Bool = UserDefaults.standard.bool(forKey: "debugModeEnabled")
 
         // Force track
         var isForceTracking: Bool = false
@@ -60,7 +59,6 @@ struct MenubarFeature {
         case forceTrackCompleted(Result<ForceTrackInfo, Error>)
         case clearTodayData
         case clearTodayDataCompleted(Result<Void, Error>)
-        case debugModeChanged(Bool)
         case quitApp
 
         // Child feature actions
@@ -306,10 +304,6 @@ struct MenubarFeature {
                     )
                 }
 
-            case .debugModeChanged(let enabled):
-                state.debugModeEnabled = enabled
-                return .none
-
             case .toggleLaunchAtLogin:
                 let currentlyEnabled = state.launchAtLogin
 
@@ -363,8 +357,6 @@ struct MenubarFeature {
 
             case .onboarding(.presented(.completed)):
                 state.onboarding = nil
-                // Sync debug mode in case it was changed in settings
-                state.debugModeEnabled = UserDefaults.standard.bool(forKey: "debugModeEnabled")
                 return .run { _ in
                     do {
                         try await launchAgent.installServices()
@@ -379,8 +371,6 @@ struct MenubarFeature {
                 }
 
             case .onboarding(.dismiss):
-                // Sync debug mode even if the user dismissed without clicking Done
-                state.debugModeEnabled = UserDefaults.standard.bool(forKey: "debugModeEnabled")
                 return .none
 
             case .onboarding:
@@ -388,13 +378,9 @@ struct MenubarFeature {
 
             case .settings(.presented(.closeSettings)):
                 state.settings = nil
-                // Sync debug mode in case it was changed in settings
-                state.debugModeEnabled = UserDefaults.standard.bool(forKey: "debugModeEnabled")
                 return .none
 
             case .settings(.dismiss):
-                // Sync debug mode even if the user dismissed without clicking Close
-                state.debugModeEnabled = UserDefaults.standard.bool(forKey: "debugModeEnabled")
                 return .none
 
             case .settings:

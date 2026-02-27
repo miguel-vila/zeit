@@ -12,7 +12,6 @@ struct SettingsFeature {
         var models: SettingsModelsState = .init()
         var workHours: WorkHoursState = .init()
         var activityTypes: ActivityTypesFeature.State = .init()
-        var debugModeEnabled: Bool = UserDefaults.standard.bool(forKey: "debugModeEnabled")
         var isCompleted: Bool = false
 
         enum Tab: String, CaseIterable, Equatable {
@@ -20,7 +19,6 @@ struct SettingsFeature {
             case models = "Models"
             case workHours = "Work Hours"
             case activityTypes = "Activity Types"
-            case debug = "Debug"
             case about = "About"
 
             var icon: String {
@@ -29,7 +27,6 @@ struct SettingsFeature {
                 case .models: return "cpu"
                 case .workHours: return "clock.fill"
                 case .activityTypes: return "list.bullet.rectangle"
-                case .debug: return "ladybug.fill"
                 case .about: return "info.circle"
                 }
             }
@@ -93,9 +90,6 @@ struct SettingsFeature {
 
         // Activity Types
         case activityTypes(ActivityTypesFeature.Action)
-
-        // Debug
-        case toggleDebugMode
 
         // Window
         case closeSettings
@@ -221,11 +215,6 @@ struct SettingsFeature {
                 return .none
 
             case .activityTypes:
-                return .none
-
-            case .toggleDebugMode:
-                state.debugModeEnabled.toggle()
-                UserDefaults.standard.set(state.debugModeEnabled, forKey: "debugModeEnabled")
                 return .none
 
             case .closeSettings:

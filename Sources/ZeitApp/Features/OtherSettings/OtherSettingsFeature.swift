@@ -1,7 +1,7 @@
 import ComposableArchitecture
 import Foundation
 
-/// Other settings feature with work hours configuration and debug mode toggle.
+/// Other settings feature with work hours configuration.
 @Reducer
 struct OtherSettingsFeature {
     @ObservableState
@@ -11,7 +11,6 @@ struct OtherSettingsFeature {
         var endHour: Int = ZeitConfig.defaultWorkHours.endHour
         var endMinute: Int = ZeitConfig.defaultWorkHours.endMinute
         var workDays: Set<ZeitConfig.Weekday> = ZeitConfig.defaultWorkDays
-        var debugModeEnabled: Bool = UserDefaults.standard.bool(forKey: "debugModeEnabled")
     }
 
     enum Action {
@@ -22,7 +21,6 @@ struct OtherSettingsFeature {
         case setEndHour(Int)
         case setEndMinute(Int)
         case toggleWorkDay(ZeitConfig.Weekday)
-        case toggleDebugMode
         case done
     }
 
@@ -67,11 +65,6 @@ struct OtherSettingsFeature {
                 } else {
                     state.workDays.insert(day)
                 }
-                return .none
-
-            case .toggleDebugMode:
-                state.debugModeEnabled.toggle()
-                UserDefaults.standard.set(state.debugModeEnabled, forKey: "debugModeEnabled")
                 return .none
 
             case .done:

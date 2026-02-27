@@ -139,6 +139,6 @@ Default: 300 seconds (5 minutes). Currently hardcoded and not configurable via e
 |--------|-----|
 | Pause tracking | `zeit service stop` or menubar pause button (creates `.zeit_stop` flag) |
 | Resume tracking | `zeit service start` or menubar resume button (removes `.zeit_stop` flag) |
-| Force a single capture | `zeit track --force` or "Force Track" button in menubar (debug mode) |
+| Force a single capture | `zeit track --force` or "Force Track" button in menubar (debug builds only) |
 | Restart the service | `zeit service restart` |
 | Uninstall completely | `zeit service uninstall` |

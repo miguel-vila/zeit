@@ -63,11 +63,10 @@ Configure when tracking should be active:
 
 - **Start time** and **end time** (hour and minute pickers)
 - **Work days** (toggle each day of the week)
-- **Debug mode** toggle (enables "Force Track" button in the menubar for testing)
 
 Defaults: 9:00-17:30, Monday through Friday.
 
-**Later:** Editable in Settings > Work Hours tab and Settings > Debug tab, or via `zeit set-work-hours` CLI command.
+**Later:** Editable in Settings > Work Hours tab, or via `zeit set-work-hours` CLI command.
 
 ## Completion
 

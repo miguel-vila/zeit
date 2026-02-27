@@ -29,7 +29,7 @@ struct MenubarView: View {
             // Actions
             actionsSection
 
-            // Debug (visible only when debug mode is enabled)
+            // Debug (debug builds only)
             debugSection
 
             Divider()
@@ -235,34 +235,34 @@ struct MenubarView: View {
 
     @ViewBuilder
     private var debugSection: some View {
-        if store.debugModeEnabled {
-            Divider()
-                .padding(.horizontal, 12)
+        #if DEBUG
+        Divider()
+            .padding(.horizontal, 12)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Debug")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .textCase(.uppercase)
-                    .padding(.horizontal, 14)
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Debug")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .textCase(.uppercase)
+                .padding(.horizontal, 14)
 
-                MenubarActionButton(
-                    icon: "bolt.fill",
-                    label: store.isForceTracking ? "Tracking..." : "Force Track",
-                    action: { store.send(.forceTrack) }
-                )
-                .disabled(store.isForceTracking)
+            MenubarActionButton(
+                icon: "bolt.fill",
+                label: store.isForceTracking ? "Tracking..." : "Force Track",
+                action: { store.send(.forceTrack) }
+            )
+            .disabled(store.isForceTracking)
 
-                MenubarActionButton(
-                    icon: "trash",
-                    label: store.isClearingTodayData ? "Clearing..." : "Clear Today's Data",
-                    action: { store.send(.clearTodayData) }
-                )
-                .disabled(store.isClearingTodayData)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            MenubarActionButton(
+                icon: "trash",
+                label: store.isClearingTodayData ? "Clearing..." : "Clear Today's Data",
+                action: { store.send(.clearTodayData) }
+            )
+            .disabled(store.isClearingTodayData)
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        #endif
     }
 
     private var settingsSection: some View {

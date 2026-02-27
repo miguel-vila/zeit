@@ -33,8 +33,10 @@ The popover (300x400px) contains these sections from top to bottom:
 - **View Details** - opens a floating panel with full activity breakdown
 - **Set Day Objectives** - opens a floating panel to set/edit day objectives
 
-### Debug Section (conditional)
-Only visible when debug mode is enabled:
+### Debug Section (debug builds only)
+
+Only present in debug builds (`#if DEBUG`), compiled out entirely in release builds:
+
 - **Force Track** - triggers an immediate tracking capture regardless of work hours or stop flag
 - **Clear Today's Data** - deletes all activities for today
 
@@ -60,7 +62,7 @@ Text fields for setting day objectives:
 Saves to the database on confirmation. Objectives are included in AI day summaries.
 
 ### Settings Panel
-A `NavigationSplitView` with 6 tabs:
+A `NavigationSplitView` with 5 tabs:
 
 | Tab | Content |
 |-----|---------|
@@ -68,7 +70,6 @@ A `NavigationSplitView` with 6 tabs:
 | **Models** | Download status for each AI model (vision + text) |
 | **Work Hours** | Start/end time pickers, work day toggles |
 | **Activity Types** | Full editor for work and personal activity categories |
-| **Debug** | Debug mode toggle |
 | **About** | App version and information |
 
 All settings tabs mirror what was configured during onboarding and can be changed at any time.

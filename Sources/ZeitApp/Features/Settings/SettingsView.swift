@@ -43,8 +43,6 @@ struct SettingsView: View {
             settingsWorkHoursTab
         case .activityTypes:
             settingsActivityTypesTab
-        case .debug:
-            settingsDebugTab
         case .about:
             settingsAboutTab
         }
@@ -173,63 +171,6 @@ struct SettingsView: View {
             .disabled(!store.activityTypes.isValid)
             .padding(22)
         }
-    }
-
-    // MARK: - Debug Tab
-
-    private var settingsDebugTab: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Debug")
-                .font(.title2)
-                .fontWeight(.bold)
-
-            Text("Developer and debugging options.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            Divider()
-
-            HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(
-                            store.debugModeEnabled
-                                ? Color.orange.opacity(0.1)
-                                : Color.primary.opacity(0.05)
-                        )
-                        .frame(width: 36, height: 36)
-
-                    Image(systemName: "ladybug.fill")
-                        .foregroundStyle(store.debugModeEnabled ? .orange : .secondary)
-                        .font(.body)
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Debug Mode")
-                        .fontWeight(.semibold)
-
-                    Text("Shows a debug section with Force Track in the menubar")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Toggle("", isOn: Binding(
-                    get: { store.debugModeEnabled },
-                    set: { _ in store.send(.toggleDebugMode) }
-                ))
-                .labelsHidden()
-            }
-            .padding(10)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.primary.opacity(0.015))
-            )
-
-            Spacer()
-        }
-        .padding(22)
     }
 
     // MARK: - About Tab
