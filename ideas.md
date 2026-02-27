@@ -1,0 +1,7 @@
+- memory use optimization: right now it occupies 18.5 GB of RAM
+- are models loaded on demand or once at startup?
+- more fine grained activity identification (e.g. capture the jira tickets I've been working on)
+- sample screenshots and eval
+- eval basic stuff , e.g. it works on multiple screens, identifying the active one...
+- a tool to help in the evaluation process:
+  - collect samples:
