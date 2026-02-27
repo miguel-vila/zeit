@@ -17,9 +17,20 @@ struct TrackCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Keep screenshots in /tmp and print their paths")
     var debug: Bool = false
 
+    #if DEBUG
+    @Flag(name: .long, help: "Save sample artifacts (screenshots, prompts, responses) to disk")
+    var sample: Bool = false
+    #endif
+
     func run() async throws {
-        // 1. Check work hours (unless --force)
-        if !force {
+        #if DEBUG
+        let shouldForce = force || sample
+        #else
+        let shouldForce = force
+        #endif
+
+        // 1. Check work hours (unless --force or --sample)
+        if !shouldForce {
             let helper = CLITrackingHelper()
             if !helper.isWithinWorkHours() {
                 print("Outside work hours, skipping tracking")
@@ -55,7 +66,11 @@ struct TrackCommand: AsyncParsableCommand {
                 textModel: config.models.text.model,
                 textProvider: config.models.text.provider
             )
+            #if DEBUG
+            let result = try await identifier.identifyCurrentActivity(keepScreenshots: debug, debug: debug, sample: sample)
+            #else
             let result = try await identifier.identifyCurrentActivity(keepScreenshots: debug, debug: debug)
+            #endif
 
             print("Activity: \(result.activity.displayName)")
             print("Reasoning: \(result.reasoning ?? "N/A")")

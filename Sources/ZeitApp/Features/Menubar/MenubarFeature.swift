@@ -6,6 +6,13 @@ struct ForceTrackInfo: Equatable {
     let description: String
 }
 
+#if DEBUG
+struct SampleInfo: Equatable {
+    let activityName: String
+    let samplePath: String
+}
+#endif
+
 @Reducer
 struct MenubarFeature {
     @ObservableState
@@ -31,6 +38,12 @@ struct MenubarFeature {
 
         // Clear today's data
         var isClearingTodayData: Bool = false
+
+        #if DEBUG
+        // Sampling
+        var isSampling: Bool = false
+        var showDelayInput: Bool = false
+        #endif
 
         // Loading state
         var isLoading: Bool = false
@@ -59,6 +72,12 @@ struct MenubarFeature {
         case forceTrackCompleted(Result<ForceTrackInfo, Error>)
         case clearTodayData
         case clearTodayDataCompleted(Result<Void, Error>)
+        #if DEBUG
+        case forceTrackAndSample
+        case forceTrackAndSampleWithDelay
+        case sampleWithDelayConfirmed(seconds: Int)
+        case sampleCompleted(Result<SampleInfo, Error>)
+        #endif
         case quitApp
 
         // Child feature actions
@@ -303,6 +322,97 @@ struct MenubarFeature {
                         error.localizedDescription
                     )
                 }
+
+            #if DEBUG
+            case .forceTrackAndSample:
+                guard !state.isSampling else { return .none }
+                state.isSampling = true
+
+                return .run { send in
+                    do {
+                        let config = ZeitConfig.load()
+                        let identifier = ActivityIdentifier(
+                            visionModel: config.models.vision,
+                            textModel: config.models.text.model,
+                            textProvider: config.models.text.provider
+                        )
+                        let result = try await identifier.identifyCurrentActivity(sample: true)
+                        let entry = result.toActivityEntry()
+                        let db = try DatabaseHelper()
+                        try await db.insertActivity(entry)
+                        // The sample directory path is printed by identifyCurrentActivity
+                        await send(.sampleCompleted(.success(
+                            SampleInfo(
+                                activityName: result.activity.displayName,
+                                samplePath: ""
+                            )
+                        )))
+                    } catch {
+                        await send(.sampleCompleted(.failure(error)))
+                    }
+                }
+
+            case .forceTrackAndSampleWithDelay:
+                state.showDelayInput = true
+                return .none
+
+            case .sampleWithDelayConfirmed(let seconds):
+                state.showDelayInput = false
+                guard !state.isSampling else { return .none }
+                state.isSampling = true
+
+                // Save delay for next time
+                UserDefaults.standard.set(seconds, forKey: "lastSampleDelay")
+
+                return .run { send in
+                    do {
+                        if seconds > 0 {
+                            try await Task.sleep(nanoseconds: UInt64(seconds) * 1_000_000_000)
+                        }
+                        let config = ZeitConfig.load()
+                        let identifier = ActivityIdentifier(
+                            visionModel: config.models.vision,
+                            textModel: config.models.text.model,
+                            textProvider: config.models.text.provider
+                        )
+                        let result = try await identifier.identifyCurrentActivity(sample: true)
+                        let entry = result.toActivityEntry()
+                        let db = try DatabaseHelper()
+                        try await db.insertActivity(entry)
+                        await send(.sampleCompleted(.success(
+                            SampleInfo(
+                                activityName: result.activity.displayName,
+                                samplePath: ""
+                            )
+                        )))
+                    } catch {
+                        await send(.sampleCompleted(.failure(error)))
+                    }
+                }
+
+            case .sampleCompleted(.success(let info)):
+                state.isSampling = false
+                return .merge(
+                    .send(.refreshData),
+                    .run { _ in
+                        await notification.show(
+                            "Zeit",
+                            "Sample: \(info.activityName)",
+                            "Sample saved to ~/.local/share/zeit/samples/"
+                        )
+                    }
+                )
+
+            case .sampleCompleted(.failure(let error)):
+                state.isSampling = false
+                return .run { _ in
+                    await notification.show(
+                        "Zeit Error",
+                        "Sample Failed",
+                        error.localizedDescription
+                    )
+                }
+            #endif
 
             case .toggleLaunchAtLogin:
                 let currentlyEnabled = state.launchAtLogin

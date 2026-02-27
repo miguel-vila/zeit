@@ -259,9 +259,31 @@ struct MenubarView: View {
                 action: { store.send(.clearTodayData) }
             )
             .disabled(store.isClearingTodayData)
+
+            MenubarActionButton(
+                icon: "tray.and.arrow.down.fill",
+                label: store.isSampling ? "Sampling..." : "Force Track & Sample",
+                action: { store.send(.forceTrackAndSample) }
+            )
+            .disabled(store.isSampling)
+
+            MenubarActionButton(
+                icon: "timer",
+                label: store.isSampling ? "Sampling..." : "Force Track & Sample with Delay",
+                action: { store.send(.forceTrackAndSampleWithDelay) }
+            )
+            .disabled(store.isSampling)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
+        .sheet(isPresented: Binding(
+            get: { store.showDelayInput },
+            set: { _ in }
+        )) {
+            SampleDelaySheet { seconds in
+                store.send(.sampleWithDelayConfirmed(seconds: seconds))
+            }
+        }
         #endif
     }
 
@@ -342,3 +364,43 @@ private struct MenubarActionButton: View {
         }
     }
 }
+
+// MARK: - Sample Delay Sheet
+
+#if DEBUG
+private struct SampleDelaySheet: View {
+    let onConfirm: (Int) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var delayText: String
+
+    init(onConfirm: @escaping (Int) -> Void) {
+        self.onConfirm = onConfirm
+        let saved = UserDefaults.standard.integer(forKey: "lastSampleDelay")
+        _delayText = State(initialValue: String(saved > 0 ? saved : 5))
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text("Sample Delay")
+                .font(.headline)
+            Text("Enter delay in seconds before sampling")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextField("Seconds", text: $delayText)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 80)
+                .multilineTextAlignment(.center)
+            HStack(spacing: 8) {
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Sample") {
+                    let seconds = Int(delayText) ?? 5
+                    onConfirm(seconds)
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(16)
+    }
+}
+#endif

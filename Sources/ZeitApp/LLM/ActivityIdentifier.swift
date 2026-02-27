@@ -18,11 +18,13 @@ final class ActivityIdentifier: @unchecked Sendable {
 
     /// Capture screenshots and identify the current activity
     /// - Parameter keepScreenshots: If true, don't delete screenshots after processing
-    func identifyCurrentActivity(keepScreenshots: Bool = false, debug: Bool = false) async throws -> IdentificationResult {
+    /// - Parameter sample: If true, collect all artifacts and write a sample to disk
+    func identifyCurrentActivity(keepScreenshots: Bool = false, debug: Bool = false, sample: Bool = false) async throws -> IdentificationResult {
         // 1. Capture screenshots from all monitors
         let screenshots = try ScreenCapture.captureAllMonitors()
+        let shouldKeep = keepScreenshots || sample
         defer {
-            if !keepScreenshots {
+            if !shouldKeep {
                 ScreenCapture.cleanup(screenshots: screenshots)
             }
         }
@@ -86,36 +88,59 @@ final class ActivityIdentifier: @unchecked Sendable {
 
         let schema = Self.classificationSchema(for: activityTypes)
 
-        let classificationResponseText: String
+        let classificationResult: MLXResponse
 
         if let mlxClient = MLXClient(configName: textModel) {
-            let mlxResponse = try await mlxClient.generateStructuredMLX(
+            classificationResult = try await mlxClient.generateStructuredMLX(
                 prompt: classificationPrompt,
                 schema: schema,
                 temperature: 0,
                 think: true
             )
-            classificationResponseText = mlxResponse.response
         } else {
             // Fallback: try MLX with the text model info directly
             let mlxClient = MLXClient(modelInfo: MLXModelManager.textModel)
-            let mlxResponse = try await mlxClient.generateStructuredMLX(
+            classificationResult = try await mlxClient.generateStructuredMLX(
                 prompt: classificationPrompt,
                 schema: schema,
                 temperature: 0,
                 think: true
             )
-            classificationResponseText = mlxResponse.response
         }
 
-        let classification = try parseClassificationResponse(classificationResponseText, activityTypes: activityTypes)
+        let classification = try parseClassificationResponse(classificationResult.response, activityTypes: activityTypes)
+
+        #if DEBUG
+        // Write sample artifacts to disk if requested
+        if sample {
+            let sampleData = SampleData(
+                timestamp: Date(),
+                activeScreen: activeScreen,
+                frontmostApp: frontmostApp,
+                screenshotURLs: imageURLs,
+                visionModel: visionModel,
+                visionPrompt: descriptionPrompt,
+                visionThinking: visionResponse.thinking,
+                visionResponse: visionResponse.response,
+                classificationModel: textModel,
+                classificationProvider: textProvider,
+                classificationPrompt: classificationPrompt,
+                classificationThinking: classificationResult.thinking,
+                classificationResponse: classificationResult.response,
+                parsedActivity: classification.mainActivity,
+                parsedReasoning: classification.reasoning
+            )
+            let sampleDir = try SampleWriter.write(sampleData)
+            print("Sample written to: \(sampleDir.path)")
+        }
+        #endif
 
         return IdentificationResult(
             activity: classification.activity,
             reasoning: classification.reasoning,
             description: description.mainActivityDescription,
             activeScreen: activeScreen,
-            screenshotPaths: keepScreenshots ? screenshots.keys.sorted().compactMap { screenshots[$0] } : nil,
+            screenshotPaths: shouldKeep ? screenshots.keys.sorted().compactMap { screenshots[$0] } : nil,
             screenDebugInfo: screenDebugInfo
         )
     }
@@ -210,6 +235,34 @@ struct IdentificationResult {
         )
     }
 }
+
+// MARK: - Sample Data
+
+#if DEBUG
+struct SampleData {
+    let timestamp: Date
+    let activeScreen: Int
+    let frontmostApp: String?
+    let screenshotURLs: [URL]
+
+    // Vision stage
+    let visionModel: String
+    let visionPrompt: String
+    let visionThinking: String?
+    let visionResponse: String
+
+    // Classification stage
+    let classificationModel: String
+    let classificationProvider: String
+    let classificationPrompt: String
+    let classificationThinking: String?
+    let classificationResponse: String
+
+    // Final result
+    let parsedActivity: String
+    let parsedReasoning: String?
+}
+#endif
 
 // MARK: - Errors
 
