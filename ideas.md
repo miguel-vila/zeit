@@ -4,4 +4,6 @@
 - sample screenshots and eval
 - eval basic stuff , e.g. it works on multiple screens, identifying the active one...
 - a tool to help in the evaluation process:
-  - collect samples:
+  - maybe should allow sampling, say 5 screenshots per hour during a day.
+- How can we support out of work tracking? 
+  - The objective would be to track how you spend your time outside of work, maybe in side projects or personal projects. How can we design this?
