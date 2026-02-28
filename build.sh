@@ -84,7 +84,22 @@ if [ "$NOTARIZE" = true ]; then
     echo "Notarization profile: $NOTARIZE_PROFILE"
 fi
 
-# Clean if requested
+# Auto-clean if Swift compiler version changed
+SWIFT_VERSION=$(swift --version 2>&1 | head -1)
+SWIFT_VERSION_FILE="$BUILD_DIR/.swift-version-used"
+if [ -f "$SWIFT_VERSION_FILE" ]; then
+    CACHED_VERSION=$(cat "$SWIFT_VERSION_FILE")
+    if [ "$CACHED_VERSION" != "$SWIFT_VERSION" ]; then
+        echo ""
+        echo "Swift compiler changed:"
+        echo "  was: $CACHED_VERSION"
+        echo "  now: $SWIFT_VERSION"
+        echo "Auto-cleaning build artifacts..."
+        CLEAN=true
+    fi
+fi
+
+# Clean if requested or auto-triggered
 if [ "$CLEAN" = true ]; then
     echo ""
     echo "Cleaning build artifacts..."
@@ -104,6 +119,10 @@ else
     swift build
     BINARY_PATH="$BUILD_DIR/debug/ZeitApp"
 fi
+
+# Record Swift version for future change detection
+mkdir -p "$BUILD_DIR"
+echo "$SWIFT_VERSION" > "$SWIFT_VERSION_FILE"
 
 echo "Binary built: $BINARY_PATH"
 
