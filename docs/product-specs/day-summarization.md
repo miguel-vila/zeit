@@ -38,7 +38,7 @@ The LLM generates a **structured JSON response** constrained by a JSON schema (v
   "properties": {
     "summary": {
       "type": "string",
-      "description": "A concise 2-3 sentence narrative summary of the day's activities"
+      "description": "A concise narrative summary of the day's activities (2-3 sentences, or 2-4 sentences if objectives are set)"
     },
     "objectives_alignment": {
       "type": "string",
@@ -60,7 +60,7 @@ A `DaySummary` contains:
 
 | Field | Description |
 |-------|-------------|
-| Summary text | 2-3 sentence narrative from the LLM |
+| Summary text | Narrative from the LLM (2-3 sentences, or 2-4 sentences if objectives are set) |
 | Objectives alignment | Optional 1-2 sentence assessment of objective alignment (only when objectives are set) |
 | Percentage breakdown | Per-activity percentages (formatted list) |
 | Start time | Timestamp of the first non-idle activity |
