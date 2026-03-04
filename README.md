@@ -37,10 +37,10 @@ See [docs/BUILD.md](docs/BUILD.md) for signing and notarization details.
 open dist/Zeit.app
 
 # CLI
-./dist/Zeit.app/Contents/MacOS/ZeitApp view today
-./dist/Zeit.app/Contents/MacOS/ZeitApp stats
-./dist/Zeit.app/Contents/MacOS/ZeitApp track --force
-./dist/Zeit.app/Contents/MacOS/ZeitApp --help
+./dist/Zeit.app/Contents/MacOS/Zeit view today
+./dist/Zeit.app/Contents/MacOS/Zeit stats
+./dist/Zeit.app/Contents/MacOS/Zeit track --force
+./dist/Zeit.app/Contents/MacOS/Zeit --help
 ```
 
 ## Configuration
@@ -50,7 +50,9 @@ Edit `~/.local/share/zeit/conf.yml`:
 ```yaml
 work_hours:
   start_hour: 9
-  end_hour: 18
+  start_minute: 0
+  end_hour: 17
+  end_minute: 30
 
 models:
   vision: 'qwen3-vl:4b'
