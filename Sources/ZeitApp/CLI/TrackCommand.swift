@@ -45,8 +45,16 @@ struct TrackCommand: AsyncParsableCommand {
 
         // 2. Check idle
         if let idleTime = IdleDetection.getIdleTimeSeconds(), idleTime > 300 {
-            print("System idle for \(Int(idleTime)) seconds, recording idle activity")
-            // TODO: Save idle entry to database
+            let seconds = Int(idleTime)
+            print("System idle for \(seconds) seconds, recording idle activity")
+            let entry = ActivityEntry(
+                timestamp: ISO8601DateFormatter().string(from: Date()),
+                activity: .idle,
+                reasoning: nil,
+                description: "System idle for \(seconds) seconds"
+            )
+            let db = try DatabaseHelper()
+            try await db.insertActivity(entry)
             return
         }
 
