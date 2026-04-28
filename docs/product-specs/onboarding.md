@@ -44,7 +44,7 @@ Configure the activity categories that the tracker uses for classification. Type
 - **Work activities** - e.g. Slack, Work Coding, Zoom Meeting
 - **Personal activities** - e.g. Social Media, YouTube, Personal Email
 
-Each type has a name and a description (the description is included in the LLM prompt to guide classification). The user can add, edit, reorder, and delete types. There are sensible defaults pre-populated.
+Each type has a name and a description (the description is included in the LLM prompt to guide classification). The user can add, edit, and delete types. There are sensible defaults pre-populated.
 
 Validation rules:
 - At least 1 work type and 1 personal type required
