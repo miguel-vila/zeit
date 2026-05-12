@@ -54,7 +54,7 @@ Only present in debug builds (`#if DEBUG`), compiled out entirely in release bui
 Three floating panels can be opened from the menubar:
 
 ### Details Panel
-Shows a detailed activity summary for today: full activity list with timestamps and breakdown chart.
+Shows an activity summary for today grouped by Work and Personal categories, with percentage breakdown and duration in minutes for each activity type.
 
 ### Objectives Panel
 Text fields for setting day objectives:
