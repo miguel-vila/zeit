@@ -39,7 +39,7 @@ If only `--work` is provided, existing personal types are preserved (and vice ve
 
 ## How Activity Types Affect Tracking
 
-The classification prompt is built dynamically from the configured types. Each type's name and description are included so the LLM understands what to look for. The structured output schema constrains the model to only produce valid activity IDs, ensuring classifications always map to a configured type.
+The classification prompt is built dynamically from the configured types. Each type's ID and description are included so the LLM understands what to look for. The structured output schema constrains the model to only produce valid activity IDs, ensuring classifications always map to a configured type.
 
 Changes to activity types take effect on the next tracking iteration.
 
