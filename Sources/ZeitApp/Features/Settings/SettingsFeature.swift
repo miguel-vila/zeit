@@ -9,7 +9,7 @@ struct SettingsFeature {
     struct State: Equatable {
         var selectedTab: Tab = .permissions
         var permissions: SettingsPermissionsState = .init()
-        var models: SettingsModelsState = .init()
+        var models: ModelDownloadFeature.State = .init()
         var workHours: WorkHoursState = .init()
         var activityTypes: ActivityTypesFeature.State = .init()
         var isCompleted: Bool = false
@@ -40,22 +40,6 @@ struct SettingsFeature {
         var accessibilityGranted: Bool = false
     }
 
-    // MARK: - Models tab state
-
-    struct SettingsModelsState: Equatable {
-        var models: [ModelInfo] = []
-
-        struct ModelInfo: Equatable, Identifiable {
-            let configName: String
-            let displayName: String
-            let approximateSizeGB: Double
-            let isVision: Bool
-            var isDownloaded: Bool
-
-            var id: String { configName }
-        }
-    }
-
     // MARK: - Work Hours tab state
 
     struct WorkHoursState: Equatable {
@@ -74,8 +58,8 @@ struct SettingsFeature {
         // Permissions
         case permissionsUpdated(screenRecording: Bool, accessibility: Bool)
 
-        // Models
-        case modelStatusesLoaded([ModelProgress])
+        // Models — delegated to the shared model-download reducer
+        case models(ModelDownloadFeature.Action)
 
         // Work Hours
         case workHoursLoaded(ZeitConfig.WorkHoursConfig)
@@ -103,6 +87,10 @@ struct SettingsFeature {
             ActivityTypesFeature()
         }
 
+        Scope(state: \.models, action: \.models) {
+            ModelDownloadFeature()
+        }
+
         Reduce { state, action in
             switch action {
             case .task:
@@ -115,10 +103,7 @@ struct SettingsFeature {
                             accessibility: accessibility
                         ))
                     },
-                    .run { send in
-                        let statuses = await modelClient.getModelStatuses()
-                        await send(.modelStatusesLoaded(statuses))
-                    },
+                    .send(.models(.task)),
                     .run { send in
                         let config = ZeitConfig.load()
                         await send(.workHoursLoaded(config.workHours))
@@ -134,17 +119,7 @@ struct SettingsFeature {
                 state.permissions.accessibilityGranted = accessibility
                 return .none
 
-            case .modelStatusesLoaded(let statuses):
-                state.models.models = MLXModelManager.supportedModels.map { model in
-                    let status = statuses.first { $0.modelName == model.configName }
-                    return SettingsModelsState.ModelInfo(
-                        configName: model.configName,
-                        displayName: model.displayName,
-                        approximateSizeGB: model.approximateSizeGB,
-                        isVision: model.isVision,
-                        isDownloaded: status?.status == .downloaded
-                    )
-                }
+            case .models:
                 return .none
 
             case .workHoursLoaded(let config):

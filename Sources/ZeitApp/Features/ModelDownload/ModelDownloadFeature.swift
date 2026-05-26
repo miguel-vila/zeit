@@ -6,23 +6,38 @@ import Foundation
 struct ModelDownloadFeature {
     @ObservableState
     struct State: Equatable {
-        var models: [ModelState] = MLXModelManager.supportedModels.map { model in
-            ModelState(
-                configName: model.configName,
-                displayName: model.displayName,
-                approximateSizeGB: model.approximateSizeGB,
-                isVision: model.isVision,
-                status: .notDownloaded,
-                progress: 0
-            )
+        var models: [ModelState] = MLXModelManager.supportedModels.map { ModelState(from: $0) }
+
+        /// The vision model the user has chosen to use.
+        var selectedVision: String = MLXModelManager.visionModel.configName
+        /// The text model the user has chosen to use.
+        var selectedText: String = MLXModelManager.textModel.configName
+
+        var visionModels: [ModelState] {
+            models.filter(\.isVision)
         }
 
+        var textModels: [ModelState] {
+            models.filter { !$0.isVision }
+        }
+
+        /// Setup is complete when the *selected* vision + text models are downloaded.
         var allDownloaded: Bool {
-            models.allSatisfy { $0.status == .downloaded }
+            let visionReady = models.first(where: { $0.configName == selectedVision })?.status == .downloaded
+            let textReady = models.first(where: { $0.configName == selectedText })?.status == .downloaded
+            return visionReady && textReady
         }
 
         var isAnyDownloading: Bool {
             models.contains { $0.status == .downloading }
+        }
+
+        /// Models that the user has selected and which still need to be downloaded.
+        var pendingSelected: [String] {
+            [selectedVision, selectedText].filter { name in
+                guard let model = models.first(where: { $0.configName == name }) else { return false }
+                return model.status != .downloaded && model.status != .downloading
+            }
         }
 
         struct ModelState: Equatable, Identifiable {
@@ -30,10 +45,41 @@ struct ModelDownloadFeature {
             let displayName: String
             let approximateSizeGB: Double
             let isVision: Bool
+            let releaseDate: String
             var status: Status
             var progress: Double
 
             var id: String { configName }
+
+            init(
+                configName: String,
+                displayName: String,
+                approximateSizeGB: Double,
+                isVision: Bool,
+                releaseDate: String,
+                status: Status,
+                progress: Double
+            ) {
+                self.configName = configName
+                self.displayName = displayName
+                self.approximateSizeGB = approximateSizeGB
+                self.isVision = isVision
+                self.releaseDate = releaseDate
+                self.status = status
+                self.progress = progress
+            }
+
+            init(from info: MLXModelInfo) {
+                self.init(
+                    configName: info.configName,
+                    displayName: info.displayName,
+                    approximateSizeGB: info.approximateSizeGB,
+                    isVision: info.isVision,
+                    releaseDate: info.releaseDate,
+                    status: .notDownloaded,
+                    progress: 0
+                )
+            }
 
             enum Status: Equatable {
                 case notDownloaded
@@ -46,14 +92,20 @@ struct ModelDownloadFeature {
 
     enum Action {
         case task
+        case activeModelsLoaded(ActiveModels)
         case statusesLoaded([ModelProgress])
-        case downloadAll
+        case selectVision(String)
+        case selectText(String)
+        case downloadSelected
         case downloadModel(String)
+        case deleteModel(String)
         case downloadProgress(configName: String, progress: Double)
         case downloadCompleted(configName: String)
         case downloadFailed(configName: String, error: String)
         case continuePressed
         case allModelsReady
+        case persistSelection
+        case persistSelectionFailed(String)
     }
 
     @Dependency(\.modelClient) var modelClient
@@ -63,10 +115,27 @@ struct ModelDownloadFeature {
         Reduce { state, action in
             switch action {
             case .task:
-                return .run { send in
-                    let statuses = await modelClient.getModelStatuses()
-                    await send(.statusesLoaded(statuses))
+                return .merge(
+                    .run { send in
+                        let active = await modelClient.getActiveModels()
+                        await send(.activeModelsLoaded(active))
+                    },
+                    .run { send in
+                        let statuses = await modelClient.getModelStatuses()
+                        await send(.statusesLoaded(statuses))
+                    }
+                )
+
+            case .activeModelsLoaded(let active):
+                if MLXModelManager.modelInfo(forConfigName: active.vision) != nil {
+                    state.selectedVision = active.vision
                 }
+                if active.textProvider.lowercased() == "mlx",
+                   MLXModelManager.modelInfo(forConfigName: active.text) != nil
+                {
+                    state.selectedText = active.text
+                }
+                return .none
 
             case .statusesLoaded(let statuses):
                 for status in statuses {
@@ -91,16 +160,25 @@ struct ModelDownloadFeature {
                 }
                 return .none
 
-            case .downloadAll:
-                let modelsToDownload = state.models
-                    .filter { $0.status != .downloaded && $0.status != .downloading }
-                    .map(\.configName)
+            case .selectVision(let name):
+                guard state.models.contains(where: { $0.configName == name && $0.isVision }) else {
+                    return .none
+                }
+                state.selectedVision = name
+                return .send(.persistSelection)
 
-                guard !modelsToDownload.isEmpty else { return .none }
+            case .selectText(let name):
+                guard state.models.contains(where: { $0.configName == name && !$0.isVision }) else {
+                    return .none
+                }
+                state.selectedText = name
+                return .send(.persistSelection)
 
-                // Start downloads sequentially to avoid memory pressure
+            case .downloadSelected:
+                let pending = state.pendingSelected
+                guard !pending.isEmpty else { return .none }
                 return .run { send in
-                    for configName in modelsToDownload {
+                    for configName in pending {
                         await send(.downloadModel(configName))
                     }
                 }
@@ -114,7 +192,6 @@ struct ModelDownloadFeature {
                 return .run { send in
                     do {
                         try await modelClient.downloadModel(configName) { progress in
-                            // Fire-and-forget progress update
                             Task {
                                 await send(.downloadProgress(configName: configName, progress: progress))
                             }
@@ -126,6 +203,19 @@ struct ModelDownloadFeature {
                             error: error.localizedDescription
                         ))
                     }
+                }
+
+            case .deleteModel(let configName):
+                // Refuse to delete a model that is currently selected as active.
+                if configName == state.selectedVision || configName == state.selectedText {
+                    return .none
+                }
+                if let index = state.models.firstIndex(where: { $0.configName == configName }) {
+                    state.models[index].status = .notDownloaded
+                    state.models[index].progress = 0
+                }
+                return .run { _ in
+                    try? await modelClient.deleteModel(configName)
                 }
 
             case .downloadProgress(let configName, let progress):
@@ -156,7 +246,7 @@ struct ModelDownloadFeature {
                         await notificationClient.show(
                             "Model Downloaded",
                             modelDisplayName,
-                            "\(modelDisplayName) is ready. Remaining models are still downloading."
+                            "\(modelDisplayName) is ready."
                         )
                     }
                 }
@@ -169,9 +259,27 @@ struct ModelDownloadFeature {
                 return .none
 
             case .continuePressed:
-                return .none
+                return .send(.persistSelection)
 
             case .allModelsReady:
+                return .none
+
+            case .persistSelection:
+                let active = ActiveModels(
+                    vision: state.selectedVision,
+                    textProvider: "mlx",
+                    text: state.selectedText
+                )
+                return .run { send in
+                    do {
+                        try await modelClient.setActiveModels(active)
+                    } catch {
+                        await send(.persistSelectionFailed(error.localizedDescription))
+                    }
+                }
+
+            case .persistSelectionFailed:
+                // Persistence is best-effort during onboarding; surface in logs only.
                 return .none
             }
         }

@@ -14,9 +14,16 @@ struct DoctorCommand: AsyncParsableCommand {
     func run() async throws {
         var checks: [Check] = []
 
-        // Model checks (on-device MLX models)
-        checks.append(await checkLocalModel(MLXModelManager.visionModel))
-        checks.append(await checkLocalModel(MLXModelManager.textModel))
+        // Model checks: the active vision + text models from the config.
+        let config = ZeitConfig.load()
+        let visionInfo = MLXModelManager.modelInfo(forConfigName: config.models.vision)
+            ?? MLXModelManager.visionModel
+        checks.append(await checkLocalModel(visionInfo))
+        if config.models.text.provider.lowercased() == "mlx" {
+            let textInfo = MLXModelManager.modelInfo(forConfigName: config.models.text.model)
+                ?? MLXModelManager.textModel
+            checks.append(await checkLocalModel(textInfo))
+        }
 
         // Permission checks
         checks.append(checkScreenRecordingPermission())

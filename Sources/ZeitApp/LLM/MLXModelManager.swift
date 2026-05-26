@@ -19,6 +19,8 @@ struct MLXModelInfo: Sendable, Equatable {
     let isVision: Bool
     /// Approximate download size in GB
     let approximateSizeGB: Double
+    /// Upstream model release date (ISO-8601 day, e.g. "2025-10-15")
+    let releaseDate: String
 }
 
 /// Errors thrown when model operations fail
@@ -45,24 +47,84 @@ enum ModelDownloadStatus: Equatable, Sendable {
 actor MLXModelManager {
     static let shared = MLXModelManager()
 
-    /// Known models that Zeit supports
-    static let visionModel = MLXModelInfo(
+    // MARK: - Vision Models (Qwen3-VL Instruct, 4-bit MLX)
+
+    static let visionModel2B = MLXModelInfo(
+        configName: "qwen3-vl:2b",
+        huggingFaceID: "mlx-community/Qwen3-VL-2B-Instruct-4bit",
+        displayName: "Qwen3-VL 2B (Vision)",
+        isVision: true,
+        approximateSizeGB: 1.3,
+        releaseDate: "2025-10-21"
+    )
+
+    static let visionModel4B = MLXModelInfo(
         configName: "qwen3-vl:4b",
         huggingFaceID: "mlx-community/Qwen3-VL-4B-Instruct-4bit",
         displayName: "Qwen3-VL 4B (Vision)",
         isVision: true,
-        approximateSizeGB: 2.5
+        approximateSizeGB: 2.5,
+        releaseDate: "2025-10-15"
     )
 
-    static let textModel = MLXModelInfo(
+    static let visionModel8B = MLXModelInfo(
+        configName: "qwen3-vl:8b",
+        huggingFaceID: "mlx-community/Qwen3-VL-8B-Instruct-4bit",
+        displayName: "Qwen3-VL 8B (Vision)",
+        isVision: true,
+        approximateSizeGB: 5.0,
+        releaseDate: "2025-10-15"
+    )
+
+    // MARK: - Text Models (Qwen3, 4-bit MLX)
+
+    static let textModel1_7B = MLXModelInfo(
+        configName: "qwen3:1.7b",
+        huggingFaceID: "mlx-community/Qwen3-1.7B-4bit",
+        displayName: "Qwen3 1.7B (Text)",
+        isVision: false,
+        approximateSizeGB: 1.0,
+        releaseDate: "2025-04-28"
+    )
+
+    static let textModel4B = MLXModelInfo(
+        configName: "qwen3:4b",
+        huggingFaceID: "mlx-community/Qwen3-4B-4bit",
+        displayName: "Qwen3 4B (Text)",
+        isVision: false,
+        approximateSizeGB: 2.5,
+        releaseDate: "2025-04-28"
+    )
+
+    static let textModel8B = MLXModelInfo(
         configName: "qwen3:8b",
         huggingFaceID: "mlx-community/Qwen3-8B-4bit",
         displayName: "Qwen3 8B (Text)",
         isVision: false,
-        approximateSizeGB: 5.0
+        approximateSizeGB: 5.0,
+        releaseDate: "2025-04-28"
     )
 
-    static let supportedModels: [MLXModelInfo] = [visionModel, textModel]
+    // MARK: - Defaults & Catalog
+
+    /// Default vision model used when the config is missing or invalid.
+    static let visionModel = visionModel4B
+    /// Default text model used when the config is missing or invalid.
+    static let textModel = textModel8B
+
+    /// Full catalog of Qwen models that Zeit can download.
+    static let supportedModels: [MLXModelInfo] = [
+        visionModel2B, visionModel4B, visionModel8B,
+        textModel1_7B, textModel4B, textModel8B,
+    ]
+
+    static var supportedVisionModels: [MLXModelInfo] {
+        supportedModels.filter(\.isVision)
+    }
+
+    static var supportedTextModels: [MLXModelInfo] {
+        supportedModels.filter { !$0.isVision }
+    }
 
     /// Cached model containers for reuse
     private var loadedModels: [String: ModelContainer] = [:]
@@ -165,6 +227,16 @@ actor MLXModelManager {
         logger.info("All models unloaded")
     }
 
+    /// Delete a model's cached weights from disk and drop it from memory.
+    func deleteModel(_ model: MLXModelInfo) throws {
+        unloadModel(model)
+        let cacheDir = Self.hubCacheBase.appendingPathComponent(model.huggingFaceID)
+        if FileManager.default.fileExists(atPath: cacheDir.path) {
+            try FileManager.default.removeItem(at: cacheDir)
+            logger.info("Deleted model cache: \(model.huggingFaceID)")
+        }
+    }
+
     // MARK: - Lookup
 
     /// Find the MLXModelInfo for a given config name (e.g. "qwen3-vl:4b")
@@ -172,8 +244,20 @@ actor MLXModelManager {
         supportedModels.first { $0.configName == name }
     }
 
-    /// Check if all required models are downloaded
-    func allModelsDownloaded() -> Bool {
-        Self.supportedModels.allSatisfy { isModelDownloaded(model: $0) }
+    /// Check whether the currently-active vision and text models (from `ZeitConfig`)
+    /// are downloaded. This is the gate for "is setup complete?".
+    func activeModelsDownloaded() -> Bool {
+        let config = ZeitConfig.load()
+        let visionReady: Bool = {
+            guard let info = Self.modelInfo(forConfigName: config.models.vision) else { return false }
+            return isModelDownloaded(model: info)
+        }()
+        // Only require the text model when it's an on-device MLX model.
+        let textReady: Bool = {
+            guard config.models.text.provider.lowercased() == "mlx" else { return true }
+            guard let info = Self.modelInfo(forConfigName: config.models.text.model) else { return false }
+            return isModelDownloaded(model: info)
+        }()
+        return visionReady && textReady
     }
 }

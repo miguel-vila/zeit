@@ -257,6 +257,36 @@ struct ZeitConfig: Sendable {
 
     // MARK: - Saving
 
+    /// Update model selection in the config file, preserving all other settings.
+    static func saveModels(
+        vision: String,
+        textProvider: String,
+        textModel: String
+    ) throws {
+        ensureSetup()
+
+        let path = configPath
+
+        var yaml: [String: Any] = [:]
+        if FileManager.default.fileExists(atPath: path.path),
+           let contents = try? String(contentsOf: path, encoding: .utf8),
+           let parsed = try? Yams.load(yaml: contents) as? [String: Any]
+        {
+            yaml = parsed
+        }
+
+        yaml["models"] = [
+            "vision": vision,
+            "text": [
+                "provider": textProvider,
+                "model": textModel,
+            ],
+        ]
+
+        let output = try Yams.dump(object: yaml)
+        try output.write(to: path, atomically: true, encoding: .utf8)
+    }
+
     /// Update work hours in the config file, preserving all other settings.
     static func saveWorkHours(
         startHour: Int, startMinute: Int,

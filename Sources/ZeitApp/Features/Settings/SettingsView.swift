@@ -86,26 +86,10 @@ struct SettingsView: View {
     // MARK: - Models Tab
 
     private var settingsModelsTab: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("AI Models")
-                .font(.title2)
-                .fontWeight(.bold)
-
-            Text("Models used for activity classification. Models run locally on your Mac.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            Divider()
-
-            VStack(spacing: 8) {
-                ForEach(store.models.models) { model in
-                    SettingsModelRow(model: model)
-                }
-            }
-
-            Spacer()
-        }
-        .padding(22)
+        ModelDownloadView(
+            store: store.scope(state: \.models, action: \.models),
+            mode: .settings
+        )
     }
 
     // MARK: - Work Hours Tab
@@ -253,50 +237,3 @@ private struct SettingsPermissionRow: View {
     }
 }
 
-// MARK: - Model Row (read-only)
-
-private struct SettingsModelRow: View {
-    let model: SettingsFeature.SettingsModelsState.ModelInfo
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(model.isDownloaded ? Color.green.opacity(0.1) : Color.secondary.opacity(0.1))
-                    .frame(width: 36, height: 36)
-
-                Image(systemName: model.isDownloaded ? "checkmark.circle.fill" : (model.isVision ? "eye.fill" : "text.bubble.fill"))
-                    .foregroundStyle(model.isDownloaded ? .green : .secondary)
-                    .font(.body)
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(model.displayName)
-                    .fontWeight(.semibold)
-
-                Text("\(model.isVision ? "Vision" : "Text") model (~\(String(format: "%.1f", model.approximateSizeGB)) GB)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            if model.isDownloaded {
-                Text("Downloaded")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.green)
-            } else {
-                Text("Not Downloaded")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.orange)
-            }
-        }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.primary.opacity(0.015))
-        )
-    }
-}
