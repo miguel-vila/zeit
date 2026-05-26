@@ -76,6 +76,17 @@ actor MLXModelManager {
         releaseDate: "2025-10-15"
     )
 
+    // MARK: - Vision Models (Gemma 4, 4-bit MLX)
+
+    static let gemma4VisionE4B = MLXModelInfo(
+        configName: "gemma4-vl:e4b",
+        huggingFaceID: "mlx-community/gemma-4-e4b-it-4bit",
+        displayName: "Gemma 4 E4B (Vision)",
+        isVision: true,
+        approximateSizeGB: 3.5,
+        releaseDate: "2026-04-02"
+    )
+
     // MARK: - Text Models (Qwen3, 4-bit MLX)
 
     static let textModel1_7B = MLXModelInfo(
@@ -112,9 +123,10 @@ actor MLXModelManager {
     /// Default text model used when the config is missing or invalid.
     static let textModel = textModel8B
 
-    /// Full catalog of Qwen models that Zeit can download.
+    /// Full catalog of models that Zeit can download.
     static let supportedModels: [MLXModelInfo] = [
         visionModel2B, visionModel4B, visionModel8B,
+        gemma4VisionE4B,
         textModel1_7B, textModel4B, textModel8B,
     ]
 
