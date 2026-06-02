@@ -29,7 +29,7 @@ For detailed documentation see:
 | Add dependency client | `Sources/ZeitApp/Clients/` (use @DependencyClient) |
 | Change database schema | `Sources/ZeitApp/Clients/DatabaseClient.swift` |
 | Change data paths | `Sources/ZeitApp/Core/ZeitConfig.swift` |
-| Add LLM provider | `Sources/ZeitApp/LLM/` (conform to LLMProvider/VisionLLMProvider) |
+| Add LLM provider | `Sources/ZeitApp/LLM/` (conform to LLMProvider) |
 | Modify build process | `build.sh` |
 
 ## Code Conventions
@@ -38,5 +38,5 @@ For detailed documentation see:
 - TCA (Composable Architecture) for all UI features (reducer + view pairs)
 - @DependencyClient for testable service interfaces
 - Actor-based database access (thread-safe GRDB)
-- Protocol-based LLM providers (LLMProvider, VisionLLMProvider)
+- Protocol-based LLM providers (LLMProvider)
 - Modern SwiftUI patterns (@State, @Binding, ViewStore)
