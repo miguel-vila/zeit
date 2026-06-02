@@ -22,7 +22,7 @@ Before doing any work, the tracker checks three conditions:
 - **Stop flag** - Does `~/.local/share/zeit/.zeit_stop` exist? If so, tracking is paused. The menubar app creates/removes this file via the pause/resume button.
 - **Idle detection** - Is the system idle for longer than the threshold? Uses IOKit's `HIDIdleTime` property (default: 300 seconds). If idle, records an `idle` activity entry and stops without capturing screenshots.
 
-All three checks are bypassed when running `zeit track --force`.
+The work hours and stop flag checks are bypassed when running `zeit track --force`, but the idle detection check always runs.
 
 ### 2. Screenshot Capture
 
