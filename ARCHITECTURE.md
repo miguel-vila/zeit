@@ -25,12 +25,11 @@ MenubarFeature (root)
 │   ├── ModelDownloadFeature (step 2)
 │   ├── ActivityTypesFeature (step 3)
 │   └── OtherSettingsFeature (step 4)
-├── SettingsFeature (@Presents, 6-tab NavigationSplitView)
+├── SettingsFeature (@Presents, 5-tab NavigationSplitView)
 │   ├── Permissions tab
 │   ├── Models tab
 │   ├── Work Hours tab
 │   ├── Activity Types tab (embeds ActivityTypesFeature)
-│   ├── Debug tab
 │   └── About tab
 ├── DetailsFeature (@Presents, floating panel)
 └── ObjectivesFeature (@Presents, floating panel)
