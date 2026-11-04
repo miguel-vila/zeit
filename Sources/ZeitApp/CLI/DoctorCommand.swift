@@ -38,6 +38,19 @@ struct DoctorCommand: AsyncParsableCommand {
                 + (config.schedule.contains(Date()) ? "tracking now" : "not tracking now")
         ))
 
+        // Cadence: how often this machine tracks, whether it holds off on
+        // battery, and what this tick would do. Holding off is not a failure
+        // either, so this check also passes both ways.
+        let decision = await CLITrackingHelper().decideTick()
+        checks.append(Check(
+            name: "Tracking cadence",
+            passed: true,
+            details: "every \(config.tracking.intervalSeconds)s, "
+                + "skip on battery: \(config.tracking.skipOnBattery ? "on" : "off") — "
+                + (decision.skipReason.map { "this tick would skip: \($0)" }
+                    ?? "this tick would track")
+        ))
+
         // Classification: the group this machine is judged by.
         checks.append(Check(
             name: "Primary group",

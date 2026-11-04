@@ -58,11 +58,13 @@ struct SettingsFeature {
         case models(ModelDownloadFeature.Action)
 
         // Schedule
-        case scheduleLoaded(ZeitConfig.ScheduleConfig)
+        case scheduleLoaded(ZeitConfig.ScheduleConfig, ZeitConfig.TrackingConfig)
         case setAlways(Bool)
         case addWindow
         case removeWindow(UUID)
         case changeWindow(ScheduleWindowDraft)
+        case setInterval(Int)
+        case setSkipOnBattery(Bool)
         case saveSchedule
         case scheduleSaved
         case scheduleSaveFailed(String)
@@ -101,7 +103,7 @@ struct SettingsFeature {
                     .send(.models(.task)),
                     .run { send in
                         let config = ZeitConfig.load()
-                        await send(.scheduleLoaded(config.schedule))
+                        await send(.scheduleLoaded(config.schedule, config.tracking))
                     }
                 )
 
@@ -117,8 +119,8 @@ struct SettingsFeature {
             case .models:
                 return .none
 
-            case .scheduleLoaded(let schedule):
-                state.schedule.editor.load(schedule)
+            case .scheduleLoaded(let schedule, let tracking):
+                state.schedule.editor.load(schedule, tracking: tracking)
                 return .none
 
             case .setAlways(let isAlways):
@@ -141,11 +143,22 @@ struct SettingsFeature {
                 state.schedule.saveError = nil
                 return .none
 
+            case .setInterval(let seconds):
+                state.schedule.editor.intervalSeconds = ScheduleEditorState.clamped(seconds)
+                state.schedule.saveError = nil
+                return .none
+
+            case .setSkipOnBattery(let skip):
+                state.schedule.editor.skipOnBattery = skip
+                state.schedule.saveError = nil
+                return .none
+
             case .saveSchedule:
                 let schedule = state.schedule.editor.schedule
+                let tracking = state.schedule.editor.tracking
                 return .run { send in
                     do {
-                        try ZeitConfig.saveSchedule(schedule)
+                        try ZeitConfig.saveSchedule(schedule, tracking: tracking)
                         await send(.scheduleSaved)
                     } catch {
                         await send(.scheduleSaveFailed(error.localizedDescription))

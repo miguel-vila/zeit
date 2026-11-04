@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// The schedule editor used by both onboarding and settings: Always or Windows,
-/// and under Windows a list of window rows with add and remove.
+/// and under Windows a list of window rows with add and remove. The cadence and
+/// the battery gate sit under both forms, since they apply to either.
 struct ScheduleEditorView: View {
     let state: ScheduleEditorState
 
@@ -9,6 +10,8 @@ struct ScheduleEditorView: View {
     let onAddWindow: () -> Void
     let onRemoveWindow: (UUID) -> Void
     let onChangeWindow: (ScheduleWindowDraft) -> Void
+    let onSetInterval: (Int) -> Void
+    let onSetSkipOnBattery: (Bool) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -89,7 +92,78 @@ struct ScheduleEditorView: View {
                     Spacer()
                 }
             }
+
+            cadenceRow
+
+            batteryRow
         }
+    }
+
+    // MARK: - Subviews
+
+    /// How often a tracked entry is recorded. The tracker is woken every
+    /// minute either way and decides whether the tick is due, so changing this
+    /// needs no service reinstall.
+    private var cadenceRow: some View {
+        HStack(spacing: 12) {
+            ScheduleSettingsIcon(name: "timer", color: .purple)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Check Every")
+                    .fontWeight(.semibold)
+
+                Text("How often an activity is recorded")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Picker("", selection: Binding(
+                get: { ScheduleEditorState.clamped(state.intervalSeconds) },
+                set: { onSetInterval($0) }
+            )) {
+                ForEach(state.intervalOptions, id: \.self) { seconds in
+                    Text(ScheduleEditorState.intervalLabel(seconds)).tag(seconds)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 100)
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.primary.opacity(0.015))
+        )
+    }
+
+    private var batteryRow: some View {
+        HStack(spacing: 12) {
+            ScheduleSettingsIcon(name: "battery.50percent", color: .yellow)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Pause on Battery")
+                    .fontWeight(.semibold)
+
+                Text("Skip tracking while unplugged")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Toggle("", isOn: Binding(
+                get: { state.skipOnBattery },
+                set: { onSetSkipOnBattery($0) }
+            ))
+            .labelsHidden()
+            .toggleStyle(.switch)
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.primary.opacity(0.015))
+        )
     }
 }
 

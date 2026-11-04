@@ -11,11 +11,13 @@ struct OtherSettingsFeature {
 
     enum Action {
         case task
-        case scheduleLoaded(ZeitConfig.ScheduleConfig)
+        case scheduleLoaded(ZeitConfig.ScheduleConfig, ZeitConfig.TrackingConfig)
         case setAlways(Bool)
         case addWindow
         case removeWindow(UUID)
         case changeWindow(ScheduleWindowDraft)
+        case setInterval(Int)
+        case setSkipOnBattery(Bool)
         case done
     }
 
@@ -25,11 +27,11 @@ struct OtherSettingsFeature {
             case .task:
                 return .run { send in
                     let config = ZeitConfig.load()
-                    await send(.scheduleLoaded(config.schedule))
+                    await send(.scheduleLoaded(config.schedule, config.tracking))
                 }
 
-            case .scheduleLoaded(let schedule):
-                state.editor.load(schedule)
+            case .scheduleLoaded(let schedule, let tracking):
+                state.editor.load(schedule, tracking: tracking)
                 return .none
 
             case .setAlways(let isAlways):
@@ -48,10 +50,19 @@ struct OtherSettingsFeature {
                 state.editor.update(window)
                 return .none
 
+            case .setInterval(let seconds):
+                state.editor.intervalSeconds = ScheduleEditorState.clamped(seconds)
+                return .none
+
+            case .setSkipOnBattery(let skip):
+                state.editor.skipOnBattery = skip
+                return .none
+
             case .done:
                 let schedule = state.editor.schedule
+                let tracking = state.editor.tracking
                 return .run { _ in
-                    try? ZeitConfig.saveSchedule(schedule)
+                    try? ZeitConfig.saveSchedule(schedule, tracking: tracking)
                 }
             }
         }

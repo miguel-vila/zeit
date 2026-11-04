@@ -40,7 +40,9 @@ The menubar runs a 60-second refresh timer to keep stats current.
 
 ### 2. Recurring Tracker (LaunchAgent)
 
-A LaunchAgent (`co.invariante.zeit`) that runs `zeit track` every 60 seconds during configured work hours. This is the core data collection pipeline.
+A LaunchAgent (`co.invariante.zeit`) that runs `zeit track` every 60 seconds. This is the core data collection pipeline.
+
+The plist tick stays at 60 seconds whatever the config says: `tracking.interval_seconds` (minimum 60, default 60) is honoured by the tracking run itself, which compares the newest stored entry against the configured cadence. Changing the cadence therefore needs no service reinstall, and the plist cannot disagree with the config.
 
 **Entry point:** `Sources/ZeitApp/CLI/TrackCommand.swift`
 **Pipeline:** `Sources/ZeitApp/LLM/ActivityIdentifier.swift`
@@ -48,7 +50,7 @@ A LaunchAgent (`co.invariante.zeit`) that runs `zeit track` every 60 seconds dur
 Each tracking iteration follows this pipeline:
 
 ```
-Work hours check → Stop flag check → Idle detection
+Schedule → Stop flag → Battery → Cadence → Idle detection
     ↓ (if active)
  ScreenCapture.captureAllMonitors()     → [screenNumber: fileURL]
 ActiveWindow.getActiveScreenNumber()   → which screen has focus
@@ -62,7 +64,7 @@ Text model (e.g. qwen3:8b)            → structured JSON classification
 Parse → ActivityEntry → Save to SQLite
 ```
 
-The tracker skips silently when outside work hours, when the stop flag exists, or when the system is idle (IOKit HIDIdleTime > threshold).
+`TrackingTick.decide` is the single gate: it holds a tick off when the moment is outside the schedule, when the stop flag exists, when the machine is on battery and `tracking.skip_on_battery` is on, or when the configured cadence has not elapsed since the newest entry. The reason goes to the tracker log, and `zeit doctor` reports the same decision without acting on it. An idle system (IOKit HIDIdleTime > threshold) still records an idle entry.
 
 ### 3. CLI
 

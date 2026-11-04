@@ -84,6 +84,26 @@ final class DatabaseHelper: @unchecked Sendable {
         }
     }
 
+    /// The timestamp of the most recent stored entry, or nil when there is
+    /// none, for the cadence gate.
+    ///
+    /// Only the newest day is read: a day is written as one row of entries, and
+    /// a row for an earlier date cannot hold a later entry.
+    func newestEntryTimestamp() async throws -> Date? {
+        try await dbQueue.read { db in
+            guard let row = try Row.fetchOne(
+                db,
+                sql: "SELECT activities FROM daily_activities ORDER BY date DESC LIMIT 1"
+            ) else {
+                return nil
+            }
+
+            let activitiesJson: String = row["activities"]
+            let activities = (try? self.parseActivities(from: activitiesJson)) ?? []
+            return activities.compactMap(\.date).max()
+        }
+    }
+
     func insertActivity(_ entry: ActivityEntry) async throws {
         let today = DateHelpers.todayString()
         let now = ISO8601DateFormatter().string(from: Date())

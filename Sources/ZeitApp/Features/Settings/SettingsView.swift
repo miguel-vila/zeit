@@ -112,7 +112,9 @@ struct SettingsView: View {
                     onSetAlways: { store.send(.setAlways($0)) },
                     onAddWindow: { store.send(.addWindow) },
                     onRemoveWindow: { store.send(.removeWindow($0)) },
-                    onChangeWindow: { store.send(.changeWindow($0)) }
+                    onChangeWindow: { store.send(.changeWindow($0)) },
+                    onSetInterval: { store.send(.setInterval($0)) },
+                    onSetSkipOnBattery: { store.send(.setSkipOnBattery($0)) }
                 )
             }
 

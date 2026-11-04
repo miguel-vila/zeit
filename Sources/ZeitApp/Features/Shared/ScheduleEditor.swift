@@ -49,19 +49,31 @@ struct ScheduleWindowDraft: Equatable, Identifiable, Sendable {
 }
 
 /// The schedule as the onboarding step and the Schedule settings tab edit it:
-/// a form (Always or Windows) plus the window rows.
+/// a form (Always or Windows) plus the window rows, and under them the cadence
+/// and the battery gate.
 ///
 /// The rows survive switching to Always and back, so the choice is not
 /// destructive while the sheet is open.
 struct ScheduleEditorState: Equatable, Sendable {
     var isAlways: Bool = false
     var windows: [ScheduleWindowDraft] = [.default]
+    var intervalSeconds: Int = ZeitConfig.defaultTracking.intervalSeconds
+    var skipOnBattery: Bool = ZeitConfig.defaultTracking.skipOnBattery
 
-    init(schedule: ZeitConfig.ScheduleConfig = ZeitConfig.defaultSchedule) {
-        load(schedule)
+    init(
+        schedule: ZeitConfig.ScheduleConfig = ZeitConfig.defaultSchedule,
+        tracking: ZeitConfig.TrackingConfig = ZeitConfig.defaultTracking
+    ) {
+        load(schedule, tracking: tracking)
     }
 
-    mutating func load(_ schedule: ZeitConfig.ScheduleConfig) {
+    mutating func load(
+        _ schedule: ZeitConfig.ScheduleConfig,
+        tracking: ZeitConfig.TrackingConfig
+    ) {
+        intervalSeconds = Self.clamped(tracking.intervalSeconds)
+        skipOnBattery = tracking.skipOnBattery
+
         switch schedule {
         case .always:
             isAlways = true
@@ -79,6 +91,35 @@ struct ScheduleEditorState: Equatable, Sendable {
     /// What `ZeitConfig.saveSchedule` is given.
     var schedule: ZeitConfig.ScheduleConfig {
         isAlways ? .always : .windows(windows.map(\.window))
+    }
+
+    /// The other half of what `ZeitConfig.saveSchedule` is given.
+    var tracking: ZeitConfig.TrackingConfig {
+        ZeitConfig.TrackingConfig(
+            intervalSeconds: intervalSeconds,
+            skipOnBattery: skipOnBattery
+        )
+    }
+
+    /// What the cadence picker shows and selects. `intervalSeconds` is a plain
+    /// Int so the picker can bind to it, so the clamp `TrackingConfig` applies
+    /// has to be visible here too, or the picker would select a value the saved
+    /// config does not hold.
+    static func clamped(_ intervalSeconds: Int) -> Int {
+        max(intervalSeconds, ZeitConfig.TrackingConfig.minimumIntervalSeconds)
+    }
+
+    /// The cadences the editor offers, plus whatever the config already holds:
+    /// a hand-edited interval has to be visible to be changed.
+    var intervalOptions: [Int] {
+        Set(Self.intervalPresets + [Self.clamped(intervalSeconds)]).sorted()
+    }
+
+    static let intervalPresets = [60, 120, 300, 600, 900, 1800]
+
+    /// "5 min" for a round cadence, "90s" for a hand-edited one.
+    static func intervalLabel(_ seconds: Int) -> String {
+        seconds % 60 == 0 ? "\(seconds / 60) min" : "\(seconds)s"
     }
 
     mutating func addWindow() {

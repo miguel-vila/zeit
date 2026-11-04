@@ -7,6 +7,7 @@ private let logger = Logger(subsystem: "com.zeit", category: "ZeitConfig")
 /// Shared configuration loaded from ~/.local/share/zeit/conf.yml
 struct ZeitConfig: Sendable {
     let schedule: ScheduleConfig
+    let tracking: TrackingConfig
     let models: ModelsConfig
     let classification: ClassificationConfig
 
@@ -50,6 +51,33 @@ struct ZeitConfig: Sendable {
         }
     }
 
+    /// How often this machine tracks, and when it holds off.
+    ///
+    /// The schedule lives in the same `tracking:` block but stays its own
+    /// field: it answers "does this machine track at all now?", which the
+    /// menubar and the CLI ask on their own, while these answer "is *this
+    /// tick* due?".
+    struct TrackingConfig: Sendable, Equatable {
+        /// Seconds between tracked entries. launchd keeps firing every 60
+        /// seconds; a tracking run compares this against the newest stored
+        /// entry and decides whether the tick is due.
+        let intervalSeconds: Int
+
+        /// Whether to skip a tick while the machine runs on battery.
+        let skipOnBattery: Bool
+
+        /// The launchd tick, and so the shortest cadence that can be honoured.
+        static let minimumIntervalSeconds = 60
+
+        /// A shorter interval than the tick is raised here, so no caller — the
+        /// config reader, the editor, the writer — can hold a cadence that
+        /// cannot be honoured.
+        init(intervalSeconds: Int, skipOnBattery: Bool) {
+            self.intervalSeconds = max(intervalSeconds, Self.minimumIntervalSeconds)
+            self.skipOnBattery = skipOnBattery
+        }
+    }
+
     /// How this machine groups the time it tracks.
     struct ClassificationConfig: Sendable {
         /// The group this machine is judged by: the share the menubar icon shows.
@@ -82,6 +110,11 @@ struct ZeitConfig: Sendable {
 
     static let defaultSchedule = ScheduleConfig.windows([defaultScheduleWindow])
 
+    static let defaultTracking = TrackingConfig(
+        intervalSeconds: TrackingConfig.minimumIntervalSeconds,
+        skipOnBattery: false
+    )
+
     static let defaultClassification = ClassificationConfig(primaryGroup: .work)
 
     static let defaultModels = ModelsConfig(
@@ -109,6 +142,8 @@ struct ZeitConfig: Sendable {
               - days: ['mon', 'tue', 'wed', 'thu', 'fri']
                 from: '09:00'
                 to: '17:30'
+          interval_seconds: 60   # seconds between entries, minimum 60
+          skip_on_battery: false # hold off while running on battery
 
         classification:
           primary_group: 'work'   # 'work', 'personal_projects' or 'personal'
@@ -158,6 +193,7 @@ struct ZeitConfig: Sendable {
         else {
             return ZeitConfig(
                 schedule: defaultSchedule,
+                tracking: defaultTracking,
                 models: defaultModels,
                 classification: defaultClassification
             )
@@ -174,6 +210,7 @@ struct ZeitConfig: Sendable {
     static func parse(yaml: [String: Any]) -> ZeitConfig {
         ZeitConfig(
             schedule: parseSchedule(from: yaml),
+            tracking: parseTracking(from: yaml),
             models: parseModels(from: yaml),
             classification: parseClassification(from: yaml)
         )
@@ -292,6 +329,33 @@ struct ZeitConfig: Sendable {
                 endHour: endHour, endMinute: endMinute
             )
         ])
+    }
+
+    /// `tracking.interval_seconds` and `tracking.skip_on_battery`. An interval
+    /// below the launchd tick is raised by `TrackingConfig` itself; the warning
+    /// is here so a cadence that cannot be honoured is not raised silently.
+    static func parseTracking(from yaml: [String: Any]) -> TrackingConfig {
+        guard let tracking = yaml["tracking"] as? [String: Any] else {
+            return defaultTracking
+        }
+
+        let configured = tracking["interval_seconds"] as? Int
+        let parsed = TrackingConfig(
+            intervalSeconds: configured ?? defaultTracking.intervalSeconds,
+            skipOnBattery: tracking["skip_on_battery"] as? Bool ?? defaultTracking.skipOnBattery
+        )
+
+        if let configured, configured != parsed.intervalSeconds {
+            logger.warning(
+                """
+                tracking.interval_seconds: \(configured, privacy: .public)s is below the \
+                \(TrackingConfig.minimumIntervalSeconds, privacy: .public)s tick, \
+                using \(parsed.intervalSeconds, privacy: .public)s
+                """
+            )
+        }
+
+        return parsed
     }
 
     /// A missing or unrecognised `primary_group` falls back to the default
@@ -423,7 +487,11 @@ struct ZeitConfig: Sendable {
 
     /// Update the tracking schedule in the config file, preserving all other
     /// settings.
-    static func saveSchedule(_ schedule: ScheduleConfig) throws {
+    ///
+    /// `tracking` is written only when given: `zeit schedule` changes the
+    /// windows without touching the cadence, while the editor saves both in
+    /// one pass.
+    static func saveSchedule(_ schedule: ScheduleConfig, tracking: TrackingConfig? = nil) throws {
         ensureSetup()
 
         let path = configPath
@@ -437,7 +505,7 @@ struct ZeitConfig: Sendable {
             yaml = parsed
         }
 
-        let output = try Yams.dump(object: applying(schedule, to: yaml))
+        let output = try Yams.dump(object: applying(schedule, tracking: tracking, to: yaml))
         try output.write(to: path, atomically: true, encoding: .utf8)
     }
 
@@ -449,6 +517,7 @@ struct ZeitConfig: Sendable {
     /// file on disk.
     static func applying(
         _ schedule: ScheduleConfig,
+        tracking cadence: TrackingConfig? = nil,
         to yaml: [String: Any]
     ) -> [String: Any] {
         var yaml = yaml
@@ -470,6 +539,11 @@ struct ZeitConfig: Sendable {
                     ] as [String: Any]
                 }
             ]
+        }
+
+        if let cadence {
+            tracking["interval_seconds"] = cadence.intervalSeconds
+            tracking["skip_on_battery"] = cadence.skipOnBattery
         }
 
         yaml["tracking"] = tracking

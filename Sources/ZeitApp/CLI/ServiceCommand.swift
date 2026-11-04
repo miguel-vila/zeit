@@ -258,6 +258,11 @@ struct ServiceHelper {
         }
     }
 
+    /// The plist tick is fixed at 60 seconds and does not follow
+    /// `tracking.interval_seconds`: a tracking run compares the newest stored
+    /// entry against the configured cadence and decides whether the tick is
+    /// due, so changing the cadence needs no reinstall and the plist cannot
+    /// disagree with the config.
     func installTrackerService(cliPath: String) throws {
         let plist = """
         <?xml version="1.0" encoding="UTF-8"?>

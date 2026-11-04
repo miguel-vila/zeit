@@ -536,7 +536,12 @@ struct ScheduleSettingsTabTests {
         }
         store.exhaustivity = .off
 
-        await store.send(.scheduleLoaded(.windows([window(weekdays, 9, 0, 13, 0)])))
+        await store.send(
+            .scheduleLoaded(
+                .windows([window(weekdays, 9, 0, 13, 0)]),
+                ZeitConfig.defaultTracking
+            )
+        )
         #expect(!store.state.schedule.editor.isAlways)
         #expect(store.state.schedule.editor.windows.count == 1)
 

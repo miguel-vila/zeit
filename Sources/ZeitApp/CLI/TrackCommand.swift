@@ -29,16 +29,11 @@ struct TrackCommand: AsyncParsableCommand {
         let shouldForce = force
         #endif
 
-        // 1. Check the tracking schedule (unless --force or --sample)
+        // 1. Schedule, stop flag, battery and cadence (unless --force or --sample)
         if !shouldForce {
-            let helper = CLITrackingHelper()
-            if !helper.isWithinSchedule() {
-                print("Outside the tracking schedule, skipping tracking")
-                return
-            }
-
-            if !helper.isTrackingActive() {
-                print("Tracking is paused (stop flag exists)")
+            let decision = await CLITrackingHelper().decideTick()
+            if let reason = decision.skipReason {
+                print("Skipping this tick: \(reason)")
                 return
             }
         }
@@ -130,5 +125,22 @@ struct CLITrackingHelper {
 
     func isWithinSchedule() -> Bool {
         ZeitConfig.load().schedule.contains(Date())
+    }
+
+    /// Whether this tick should track, and why not when it should not.
+    ///
+    /// A database that cannot be opened reads as "no entry stored", so a
+    /// broken database does not silently stop tracking for good.
+    func decideTick(now: Date = Date()) async -> TrackingTickDecision {
+        let config = ZeitConfig.load()
+
+        return await TrackingTick.decide(
+            now: now,
+            schedule: config.schedule,
+            tracking: config.tracking,
+            isTrackingActive: isTrackingActive(),
+            isOnBattery: PowerSource.isOnBattery(),
+            newestEntry: { try? await DatabaseHelper().newestEntryTimestamp() }
+        )
     }
 }
