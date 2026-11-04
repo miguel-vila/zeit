@@ -225,8 +225,4 @@ extension ActivityType {
         ),
     ]
 
-    /// The default types belonging to `group`, in declaration order.
-    static func defaultTypes(in group: ActivityGroup) -> [ActivityType] {
-        defaultTypes.filter { $0.group == group }
-    }
 }

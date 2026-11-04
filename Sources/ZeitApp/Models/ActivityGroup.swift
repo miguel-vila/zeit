@@ -32,3 +32,9 @@ enum ActivityGroup: String, Codable, Sendable, CaseIterable {
         }
     }
 }
+
+/// An absent group is the Unclassified bucket, so a section heading can be read
+/// off an optional group without the caller testing for nil.
+extension Optional where Wrapped == ActivityGroup {
+    var sectionTitle: String { self?.displayName ?? ActivityGroup.unclassifiedLabel }
+}

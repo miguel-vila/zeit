@@ -17,12 +17,9 @@ struct DetailsView: View {
         return "\(minutes)m"
     }
 
-    private var workStats: [ActivityStat] {
-        store.stats.filter { $0.group == .work }
-    }
-
-    private var personalStats: [ActivityStat] {
-        store.stats.filter { $0.group != .work }
+    /// One section per group with stats, then Unclassified when it is non-empty.
+    private var sections: [ActivityStatSection] {
+        groupSections(in: store.stats)
     }
 
     var body: some View {
@@ -76,12 +73,8 @@ struct DetailsView: View {
             // Activity breakdown
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    if !workStats.isEmpty {
-                        ActivitySection(title: "Work", stats: workStats, isWork: true)
-                    }
-
-                    if !personalStats.isEmpty {
-                        ActivitySection(title: "Personal", stats: personalStats, isWork: false)
+                    ForEach(sections) { section in
+                        ActivitySection(section: section)
                     }
                 }
             }
@@ -96,15 +89,9 @@ struct DetailsView: View {
 // MARK: - Activity Section
 
 private struct ActivitySection: View {
-    let title: String
-    let stats: [ActivityStat]
-    let isWork: Bool
+    let section: ActivityStatSection
 
-    private var sectionColor: Color {
-        isWork
-            ? Color(red: 0.2, green: 0.7, blue: 0.6)
-            : Color(red: 0.6, green: 0.4, blue: 0.8)
-    }
+    private var sectionColor: Color { section.group.sectionColor }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -112,7 +99,7 @@ private struct ActivitySection: View {
                 Circle()
                     .fill(sectionColor)
                     .frame(width: 6, height: 6)
-                Text(title)
+                Text(section.title)
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundStyle(.secondary)
@@ -120,7 +107,7 @@ private struct ActivitySection: View {
             }
 
             VStack(spacing: 6) {
-                ForEach(stats) { stat in
+                ForEach(section.stats) { stat in
                     ActivityRow(stat: stat, color: sectionColor)
                 }
             }

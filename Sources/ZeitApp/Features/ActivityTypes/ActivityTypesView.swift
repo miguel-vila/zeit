@@ -33,31 +33,10 @@ struct ActivityTypesView: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
-                        // Work activities section
-                        activitySection(
-                            title: "Work Activities",
-                            icon: "briefcase.fill",
-                            color: Color(red: 0.2, green: 0.7, blue: 0.6),
-                            types: store.workTypes,
-                            onAdd: { store.send(.addWorkType) },
-                            onUpdate: { id, name, desc in
-                                store.send(.updateWorkType(id: id, name: name, description: desc))
-                            },
-                            onDelete: { id in store.send(.deleteWorkType(id: id)) }
-                        )
-
-                        // Personal activities section
-                        activitySection(
-                            title: "Personal Activities",
-                            icon: "house.fill",
-                            color: Color(red: 0.6, green: 0.4, blue: 0.8),
-                            types: store.personalTypes,
-                            onAdd: { store.send(.addPersonalType) },
-                            onUpdate: { id, name, desc in
-                                store.send(.updatePersonalType(id: id, name: name, description: desc))
-                            },
-                            onDelete: { id in store.send(.deletePersonalType(id: id)) }
-                        )
+                        // One section per group, in the order the enum declares
+                        ForEach(ActivityGroup.allCases, id: \.self) { group in
+                            activitySection(for: group)
+                        }
                     }
                 }
 
@@ -99,21 +78,19 @@ struct ActivityTypesView: View {
 
     // MARK: - Activity Section
 
-    private func activitySection(
-        title: String,
-        icon: String,
-        color: Color,
-        types: [ActivityType],
-        onAdd: @escaping () -> Void,
-        onUpdate: @escaping (String, String?, String?) -> Void,
-        onDelete: @escaping (String) -> Void
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+    /// A group's section: every group is shown, empty or not, so a type can be
+    /// added to a group the machine does not use yet.
+    private func activitySection(for group: ActivityGroup) -> some View {
+        let types = store.state.types(in: group)
+        let color = group.color
+        let onAdd = { store.send(.addType(group: group)) }
+
+        return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Image(systemName: icon)
+                Image(systemName: group.iconName)
                     .foregroundStyle(color)
                     .font(.subheadline)
-                Text(title)
+                Text(group.displayName)
                     .font(.subheadline)
                     .fontWeight(.semibold)
 
@@ -150,8 +127,12 @@ struct ActivityTypesView: View {
                         ActivityTypeRow(
                             type: type,
                             color: color,
-                            onUpdate: { name, desc in onUpdate(type.id, name, desc) },
-                            onDelete: { onDelete(type.id) }
+                            onUpdate: { name, desc in
+                                store.send(
+                                    .updateType(id: type.id, name: name, description: desc)
+                                )
+                            },
+                            onDelete: { store.send(.deleteType(id: type.id)) }
                         )
                     }
                 }

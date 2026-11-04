@@ -135,7 +135,7 @@ struct MenubarView: View {
                 ForEach(store.todayStats) { stat in
                     HStack(spacing: 8) {
                         Circle()
-                            .fill(stat.group == .work ? Color.green : Color.blue)
+                            .fill(stat.group.sectionColor)
                             .frame(width: 6, height: 6)
                         Text(stat.activity.displayName)
                             .font(.caption)

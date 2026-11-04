@@ -2,12 +2,14 @@ import ComposableArchitecture
 import Foundation
 
 /// Feature for editing activity types (used in both onboarding and settings).
+///
+/// Types are held in one flat list and sectioned by their group when rendered, so
+/// the editor gains a section the moment `ActivityGroup` gains a case.
 @Reducer
 struct ActivityTypesFeature {
     @ObservableState
     struct State: Equatable {
-        var workTypes: [ActivityType] = []
-        var personalTypes: [ActivityType] = []
+        var types: [ActivityType] = []
         var isLoading: Bool = true
         var saveError: String?
 
@@ -16,10 +18,14 @@ struct ActivityTypesFeature {
         /// Groups are not required to be populated: only the selection as a whole
         /// has to be non-empty.
         var isValid: Bool {
-            let allTypes = workTypes + personalTypes
-            return !allTypes.isEmpty
-                && allTypes.count <= ActivityTypeValidator.maxTotalTypes
-                && allTypes.allSatisfy({ ActivityTypeValidator.validateField($0) == nil })
+            !types.isEmpty
+                && types.count <= ActivityTypeValidator.maxTotalTypes
+                && types.allSatisfy({ ActivityTypeValidator.validateField($0) == nil })
+        }
+
+        /// The types belonging to `group`, in the order they were loaded or added.
+        func types(in group: ActivityGroup) -> [ActivityType] {
+            types.filter { $0.group == group }
         }
     }
 
@@ -27,15 +33,10 @@ struct ActivityTypesFeature {
         case task
         case typesLoaded([ActivityType])
 
-        // Work types
-        case addWorkType
-        case updateWorkType(id: String, name: String?, description: String?)
-        case deleteWorkType(id: String)
-
-        // Personal types
-        case addPersonalType
-        case updatePersonalType(id: String, name: String?, description: String?)
-        case deletePersonalType(id: String)
+        // Editing
+        case addType(group: ActivityGroup)
+        case updateType(id: String, name: String?, description: String?)
+        case deleteType(id: String)
 
         // Bulk
         case resetToDefaults
@@ -47,6 +48,7 @@ struct ActivityTypesFeature {
     }
 
     @Dependency(\.databaseClient) var database
+    @Dependency(\.uuid) var uuid
 
     var body: some ReducerOf<Self> {
         Reduce { state, action in
@@ -60,79 +62,48 @@ struct ActivityTypesFeature {
 
             case .typesLoaded(let types):
                 state.isLoading = false
-                state.workTypes = types.filter { $0.group == .work }
-                state.personalTypes = types.filter { $0.group != .work }
+                state.types = types
                 return .none
 
-            // MARK: - Work types
+            // MARK: - Editing
 
-            case .addWorkType:
-                let newType = ActivityType(
-                    id: "new_work_\(UUID().uuidString.prefix(8).lowercased())",
-                    name: "",
-                    description: "",
-                    group: .work
+            case .addType(let group):
+                state.types.append(
+                    ActivityType(
+                        id: "new_\(group.rawValue)_\(uuid().uuidString.prefix(8).lowercased())",
+                        name: "",
+                        description: "",
+                        group: group
+                    )
                 )
-                state.workTypes.append(newType)
                 return .none
 
-            case .updateWorkType(let id, let name, let description):
-                guard let index = state.workTypes.firstIndex(where: { $0.id == id }) else {
+            case .updateType(let id, let name, let description):
+                guard let index = state.types.firstIndex(where: { $0.id == id }) else {
                     return .none
                 }
                 if let name = name {
-                    state.workTypes[index].name = name
+                    state.types[index].name = name
                 }
                 if let description = description {
-                    state.workTypes[index].description = description
+                    state.types[index].description = description
                 }
                 state.saveError = nil
                 return .none
 
-            case .deleteWorkType(let id):
-                state.workTypes.removeAll { $0.id == id }
-                return .none
-
-            // MARK: - Personal types
-
-            case .addPersonalType:
-                let newType = ActivityType(
-                    id: "new_personal_\(UUID().uuidString.prefix(8).lowercased())",
-                    name: "",
-                    description: "",
-                    group: .personal
-                )
-                state.personalTypes.append(newType)
-                return .none
-
-            case .updatePersonalType(let id, let name, let description):
-                guard let index = state.personalTypes.firstIndex(where: { $0.id == id }) else {
-                    return .none
-                }
-                if let name = name {
-                    state.personalTypes[index].name = name
-                }
-                if let description = description {
-                    state.personalTypes[index].description = description
-                }
-                state.saveError = nil
-                return .none
-
-            case .deletePersonalType(let id):
-                state.personalTypes.removeAll { $0.id == id }
+            case .deleteType(let id):
+                state.types.removeAll { $0.id == id }
                 return .none
 
             // MARK: - Bulk
 
             case .resetToDefaults:
-                state.workTypes = ActivityType.defaultTypes(in: .work)
-                state.personalTypes = ActivityType.defaultTypes.filter { $0.group != .work }
+                state.types = ActivityType.defaultTypes
                 state.saveError = nil
                 return .none
 
             case .clearAll:
-                state.workTypes = []
-                state.personalTypes = []
+                state.types = []
                 state.saveError = nil
                 return .none
 
@@ -140,18 +111,13 @@ struct ActivityTypesFeature {
 
             case .done:
                 // Regenerate IDs from names before saving
-                for index in state.workTypes.indices {
-                    state.workTypes[index].id = ActivityType.generateID(
-                        from: state.workTypes[index].name
-                    )
-                }
-                for index in state.personalTypes.indices {
-                    state.personalTypes[index].id = ActivityType.generateID(
-                        from: state.personalTypes[index].name
+                for index in state.types.indices {
+                    state.types[index].id = ActivityType.generateID(
+                        from: state.types[index].name
                     )
                 }
 
-                let allTypes = state.workTypes + state.personalTypes
+                let allTypes = state.types
 
                 let errors = ActivityTypeValidator.validateAll(allTypes)
                 if let firstError = errors.first {

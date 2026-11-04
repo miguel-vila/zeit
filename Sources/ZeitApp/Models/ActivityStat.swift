@@ -82,3 +82,33 @@ func idleShare(in stats: [ActivityStat]) -> Double {
         .filter(\.isIdle)
         .reduce(0.0) { $0 + $1.percentage }
 }
+
+// MARK: - Sections
+
+/// One section of a breakdown: the stats of a single group, or the Unclassified
+/// stats when `group` is nil.
+struct ActivityStatSection: Equatable, Identifiable, Sendable {
+    let group: ActivityGroup?
+    let stats: [ActivityStat]
+
+    var id: String { group?.rawValue ?? "unclassified" }
+
+    /// Section heading.
+    var title: String { group.sectionTitle }
+}
+
+/// Split a breakdown into the sections a view renders: one per group, in the
+/// order the group enum declares, followed by Unclassified.
+///
+/// Empty sections are dropped, so a machine with no personal project time shows
+/// no such heading and Unclassified appears only once an entry's type id has gone
+/// missing. Idle is not a group and is left out of every section.
+func groupSections(in stats: [ActivityStat]) -> [ActivityStatSection] {
+    let groups: [ActivityGroup?] = ActivityGroup.allCases + [nil]
+
+    return groups.compactMap { group in
+        let sectionStats = stats.filter { !$0.isIdle && $0.group == group }
+        guard !sectionStats.isEmpty else { return nil }
+        return ActivityStatSection(group: group, stats: sectionStats)
+    }
+}
