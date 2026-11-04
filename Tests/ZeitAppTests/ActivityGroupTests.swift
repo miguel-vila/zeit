@@ -95,9 +95,23 @@ struct ActivityTypeMigrationTests {
         try ZeitDatabase.prepare(queue)
 
         let types = try queue.read { try ZeitDatabase.fetchActivityTypes($0) }
-        #expect(types.count == ActivityType.defaultTypes.count)
-        #expect(types.map(\.group) == ActivityType.defaultTypes.map(\.group))
+        #expect(types == ActivityCatalog.starterSet)
         #expect(!types.filter { $0.group == .personalProjects }.isEmpty)
+    }
+
+    /// The catalog is the picker's menu, not a set of rows. Seeding it would make
+    /// every suggestion a type the user then has to go and unselect.
+    @Test
+    func prepare_seedsTheStarterSetAndNotTheWholeCatalog() throws {
+        let queue = try DatabaseQueue()
+
+        try ZeitDatabase.prepare(queue)
+
+        let ids = try queue.read { try ZeitDatabase.fetchActivityTypes($0) }.map(\.id)
+        #expect(ids.count < ActivityCatalog.suggestions.count)
+
+        let notSeeded = ActivityCatalog.suggestions.map(\.id).filter { !ids.contains($0) }
+        #expect(!notSeeded.isEmpty)
     }
 
     @Test
@@ -106,12 +120,12 @@ struct ActivityTypeMigrationTests {
         try ZeitDatabase.prepare(queue)
 
         try queue.write { db in
-            try db.execute(sql: "DELETE FROM activity_types WHERE id <> 'slack'")
+            try db.execute(sql: "DELETE FROM activity_types WHERE id <> 'work_coding'")
         }
         try ZeitDatabase.prepare(queue)
 
         let types = try queue.read { try ZeitDatabase.fetchActivityTypes($0) }
-        #expect(types.map(\.id) == ["slack"])
+        #expect(types.map(\.id) == ["work_coding"])
     }
 }
 

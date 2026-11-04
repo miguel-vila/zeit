@@ -4,15 +4,11 @@ import SwiftUI
 struct ActivityTypesView: View {
     @Bindable var store: StoreOf<ActivityTypesFeature>
 
-    /// Where this editor is shown. Onboarding asks the primary group as a
-    /// question with two answers and owns the Continue button; settings offers
-    /// all three groups in a picker and has its own save flow.
-    enum Mode {
-        case onboarding
-        case settings
-    }
-
-    var mode: Mode = .onboarding
+    /// Onboarding asks the primary group as a question with two answers and owns
+    /// the Continue button; settings offers all three groups in a picker and has
+    /// its own save flow. The mode lives in state because the reducer needs it
+    /// too: in onboarding the answer re-seeds the selection.
+    private var mode: ActivityTypesFeature.Mode { store.mode }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -58,8 +54,8 @@ struct ActivityTypesView: View {
 
                 // Action buttons
                 HStack(spacing: 12) {
-                    Button("Reset to Defaults") {
-                        store.send(.resetToDefaults)
+                    Button("Reset to suggested set") {
+                        store.send(.resetToSuggestedSet)
                     }
 
                     Button("Clear All") {
@@ -67,6 +63,8 @@ struct ActivityTypesView: View {
                     }
 
                     Spacer()
+
+                    selectionCounter
 
                     if mode == .onboarding {
                         Button("Continue") {
@@ -80,8 +78,28 @@ struct ActivityTypesView: View {
         }
         .padding(22)
         .frame(minWidth: 500, minHeight: 480)
+        .alert($store.scope(state: \.alert, action: \.alert))
         .task {
             await store.send(.task).finish()
+        }
+    }
+
+    // MARK: - Selection Counter
+
+    /// The size of the selection against the cap, with the band that classifies
+    /// best: every selected type costs prompt tokens and, past a point, accuracy.
+    private var selectionCounter: some View {
+        let count = store.types.count
+        let range = ActivityCatalog.comfortableRange
+        let overCap = count > ActivityTypeValidator.maxTotalTypes
+
+        return VStack(alignment: .trailing, spacing: 1) {
+            Text("\(count) of \(ActivityTypeValidator.maxTotalTypes) selected")
+                .font(.caption)
+                .foregroundStyle(overCap ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+            Text("\(range.lowerBound) to \(range.upperBound) types classify best")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
         }
     }
 
@@ -165,7 +183,7 @@ struct ActivityTypesView: View {
     private func activitySection(for group: ActivityGroup) -> some View {
         let types = store.state.types(in: group)
         let color = group.color
-        let onAdd = { store.send(.addType(group: group)) }
+        let onAdd: () -> Void = { store.send(.addType(group: group)) }
 
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
@@ -229,6 +247,8 @@ struct ActivityTypesView: View {
                 }
             }
 
+            suggestionChips(for: group)
+
             Button {
                 onAdd()
             } label: {
@@ -242,6 +262,105 @@ struct ActivityTypesView: View {
             }
             .buttonStyle(.plain)
         }
+    }
+
+    // MARK: - Suggestion Chips
+
+    /// What Zeit offers for this group and the user has not taken. One click adds
+    /// the type with its description, and the chip goes away because the
+    /// suggestion is now in the selection.
+    @ViewBuilder
+    private func suggestionChips(for group: ActivityGroup) -> some View {
+        let unselected = store.state.unselectedSuggestions(in: group)
+
+        if !unselected.isEmpty {
+            FlowLayout(spacing: 4) {
+                ForEach(unselected) { suggestion in
+                    Button {
+                        store.send(.addSuggestion(id: suggestion.id))
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "plus")
+                                .font(.caption2)
+                            Text(suggestion.name)
+                                .font(.caption)
+                        }
+                        .foregroundStyle(group.color)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(group.color.opacity(0.08), in: Capsule())
+                        .overlay(
+                            Capsule().stroke(group.color.opacity(0.25), lineWidth: 0.5)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .help(suggestion.description)
+                }
+            }
+            .padding(.horizontal, 8)
+        }
+    }
+}
+
+// MARK: - Flow Layout
+
+/// Wraps its subviews onto as many rows as they need. Chips are short and there
+/// are up to ten of them per group, so a single `HStack` would clip.
+private struct FlowLayout: Layout {
+    var spacing: CGFloat = 4
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = layout(subviews: subviews, width: proposal.width ?? .infinity)
+        let height = rows.last.map { $0.y + $0.height } ?? 0
+        return CGSize(width: proposal.width ?? rows.map(\.width).max() ?? 0, height: height)
+    }
+
+    func placeSubviews(
+        in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()
+    ) {
+        for row in layout(subviews: subviews, width: bounds.width) {
+            var x = bounds.minX
+            for index in row.indices {
+                let size = subviews[index].sizeThatFits(.unspecified)
+                subviews[index].place(
+                    at: CGPoint(x: x, y: bounds.minY + row.y),
+                    proposal: ProposedViewSize(size)
+                )
+                x += size.width + spacing
+            }
+        }
+    }
+
+    private struct Row {
+        var indices: [Int] = []
+        var y: CGFloat = 0
+        var width: CGFloat = 0
+        var height: CGFloat = 0
+    }
+
+    private func layout(subviews: Subviews, width: CGFloat) -> [Row] {
+        var rows: [Row] = []
+        var current = Row()
+
+        for index in subviews.indices {
+            let size = subviews[index].sizeThatFits(.unspecified)
+            let needed = current.indices.isEmpty ? size.width : current.width + spacing + size.width
+
+            if needed > width, !current.indices.isEmpty {
+                rows.append(current)
+                current = Row(y: current.y + current.height + spacing)
+                current.indices = [index]
+                current.width = size.width
+                current.height = size.height
+            } else {
+                current.indices.append(index)
+                current.width = needed
+                current.height = max(current.height, size.height)
+            }
+        }
+
+        if !current.indices.isEmpty { rows.append(current) }
+        return rows
     }
 }
 
@@ -283,13 +402,27 @@ private struct ActivityTypeRow: View {
                 .padding(.top, 8)
 
             VStack(alignment: .leading, spacing: 4) {
-                TextField("Name", text: $editingName)
-                    .font(.body)
-                    .fontWeight(.medium)
-                    .textFieldStyle(.plain)
-                    .onChange(of: editingName) { _, newValue in
-                        onUpdate(newValue, nil)
+                HStack(spacing: 6) {
+                    TextField("Name", text: $editingName)
+                        .font(.body)
+                        .fontWeight(.medium)
+                        .textFieldStyle(.plain)
+                        .onChange(of: editingName) { _, newValue in
+                            onUpdate(newValue, nil)
+                        }
+
+                    // A twin is only separable by what the description says, so
+                    // the row says so rather than letting the pair look fine.
+                    if ActivityCatalog.isTwin(type) {
+                        Text("twin")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(Color.orange.opacity(0.12), in: Capsule())
+                            .help(ActivityCatalog.twinHint)
                     }
+                }
 
                 TextField("Description (used as context for AI classification)", text: $editingDescription)
                     .font(.caption)
@@ -298,6 +431,12 @@ private struct ActivityTypeRow: View {
                     .onChange(of: editingDescription) { _, newValue in
                         onUpdate(nil, newValue)
                     }
+
+                if ActivityCatalog.needsTwinDetail(type) {
+                    Text(ActivityCatalog.twinHint)
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
 
                 if let error = fieldError {
                     Text(error)

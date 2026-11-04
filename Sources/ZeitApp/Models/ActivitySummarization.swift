@@ -54,7 +54,7 @@ func groupConsecutiveActivities(from entries: [ActivityEntry]) -> [ActivityRun] 
 /// - Returns: `CondensedActivitySummary` with grouped activities and percentages.
 func buildCondensedSummary(
     from entries: [ActivityEntry],
-    activityTypes: [ActivityType] = ActivityType.defaultTypes
+    activityTypes: [ActivityType] = ActivityCatalog.starterSet
 ) -> CondensedActivitySummary {
     let nonIdle = entries.filter { $0.activity != .idle }
     let runs = groupConsecutiveActivities(from: entries)

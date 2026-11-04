@@ -13,7 +13,7 @@ struct OnboardingFeature {
         var step: Step = .permissions
         var permissions: PermissionsFeature.State = .init()
         var modelDownload: ModelDownloadFeature.State = .init()
-        var activityTypes: ActivityTypesFeature.State = .init()
+        var activityTypes: ActivityTypesFeature.State = .init(mode: .onboarding)
         var otherSettings: OtherSettingsFeature.State = .init()
         var isCompleted: Bool = false
 

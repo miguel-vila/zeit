@@ -28,7 +28,19 @@ Each activity type has:
 
 The name "idle" is reserved for system use. Maximum 30 total types.
 
-A set of 16 default types is provided and can be restored at any time via "Reset to Defaults". They are written automatically only when no activity types exist at all, for the machine where nobody opens the GUI.
+### Suggestions versus the selected set
+
+Zeit ships a catalog of 25 suggestions, grouped. The catalog is the picker's menu and is never written to the database on its own: the activity types table holds only what the user accepted or wrote.
+
+The picker lists the selected types per group, each with its name and description editable in place. Underneath each group is a line of chips for the suggestions not selected yet; one click adds the type with its description and the chip goes away. A counter shows the selection size against the 30 cap, with the note that 8 to 14 types classify best — every selected type costs prompt tokens and, past a point, costs accuracy. "Reset to suggested set" restores the suggestions for the current primary group.
+
+Six suggestions are cross-group twins: work coding against project coding, work email against personal email, code review, work research, and the two docs-and-writing types. They look identical on screen, so only content can separate them — which repository, which domain, which account. Those rows are flagged, with a hint to add what separates them for as long as the shipped generic description is still in place.
+
+Unselecting is reversible for free: ids are generated from names, so re-adding a removed suggestion regenerates the same id and its old entries reconnect. In between, those entries have no type and show as Unclassified, so unselecting a type that today's entries still reference asks for confirmation and names the count.
+
+A small starter set of 10 types, covering all three groups, is written when no activity types exist at all — for the machine where nobody opens the GUI. It does not read the config, and onboarding replaces it one screen later.
+
+A type Zeit no longer suggests but a database still holds stays in the selection, because entries reference its id. It is shown as an ordinary row and is not offered as a chip again once removed.
 
 ### Migration from the work/personal flag
 

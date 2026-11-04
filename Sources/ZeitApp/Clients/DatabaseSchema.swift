@@ -103,7 +103,7 @@ enum ZeitDatabase {
         guard count == 0 else { return }
 
         try dbQueue.write { db in
-            try insertActivityTypes(ActivityType.defaultTypes, into: db)
+            try insertActivityTypes(ActivityCatalog.starterSet, into: db)
         }
     }
 

@@ -38,7 +38,7 @@ enum Prompts {
     /// one section per group that has types in it.
     static func activityClassification(
         description: String,
-        activityTypes: [ActivityType] = ActivityType.defaultTypes
+        activityTypes: [ActivityType] = ActivityCatalog.starterSet
     ) -> String {
         let sections = ActivityGroup.allCases.compactMap { group -> String? in
             let types = activityTypes.filter { $0.group == group }

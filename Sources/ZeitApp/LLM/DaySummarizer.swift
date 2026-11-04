@@ -29,7 +29,7 @@ struct DaySummarizer: Sendable {
     func summarize(
         activities: [ActivityEntry],
         objectives: DayObjectives? = nil,
-        activityTypes: [ActivityType] = ActivityType.defaultTypes
+        activityTypes: [ActivityType] = ActivityCatalog.starterSet
     ) async throws -> DaySummary? {
         let nonIdle = activities.filter { $0.activity != .idle }
 

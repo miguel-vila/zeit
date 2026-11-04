@@ -4,16 +4,31 @@ import Foundation
 /// Feature for editing activity types (used in both onboarding and settings).
 ///
 /// Types are held in one flat list and sectioned by their group when rendered, so
-/// the editor gains a section the moment `ActivityGroup` gains a case.
+/// the editor gains a section the moment `ActivityGroup` gains a case. The list
+/// holds only what the user accepted or wrote; everything Zeit *offers* lives in
+/// `ActivityCatalog` and reaches the list through a chip or a reset.
 @Reducer
 struct ActivityTypesFeature {
+    /// Where this editor is shown.
+    ///
+    /// Onboarding treats the primary-group answer as a seed: picking one
+    /// re-selects the suggested set for it, because there is nothing to lose yet.
+    /// Settings must never do that — the selection there is the user's.
+    enum Mode: Equatable, Sendable {
+        case onboarding
+        case settings
+    }
+
     @ObservableState
     struct State: Equatable {
+        var mode: Mode = .settings
         var types: [ActivityType] = []
         /// The group this machine is judged by, saved to the config on `done`.
         var primaryGroup: ActivityGroup = ZeitConfig.defaultClassification.primaryGroup
         var isLoading: Bool = true
         var saveError: String?
+        /// Asks before unselecting a type that today's entries still reference.
+        @Presents var alert: AlertState<Action.Alert>?
 
         /// Whether the current configuration is valid for saving/continuing.
         ///
@@ -30,6 +45,16 @@ struct ActivityTypesFeature {
         func types(in group: ActivityGroup) -> [ActivityType] {
             types.filter { $0.group == group }
         }
+
+        /// The suggestions of `group` that are not in the selection, offered as
+        /// chips under the group's rows.
+        ///
+        /// Matched by id, which is the id a suggestion gets when saved, so a
+        /// chip does not come back for a type that is already selected.
+        func unselectedSuggestions(in group: ActivityGroup) -> [ActivityCatalog.Suggestion] {
+            let selected = Set(types.map(\.id))
+            return ActivityCatalog.suggestions(in: group).filter { !selected.contains($0.id) }
+        }
     }
 
     enum Action {
@@ -39,16 +64,25 @@ struct ActivityTypesFeature {
         // Editing
         case setPrimaryGroup(ActivityGroup)
         case addType(group: ActivityGroup)
+        case addSuggestion(id: String)
         case updateType(id: String, name: String?, description: String?)
         case deleteType(id: String)
+        case todaysEntryCountLoaded(id: String, count: Int)
+        case removeType(id: String)
+        case alert(PresentationAction<Alert>)
 
         // Bulk
-        case resetToDefaults
+        case resetToSuggestedSet
         case clearAll
 
         // Save
         case done
         case saveCompleted(Result<Void, Error>)
+
+        @CasePathable
+        enum Alert: Equatable {
+            case confirmRemove(id: String)
+        }
     }
 
     @Dependency(\.databaseClient) var database
@@ -67,8 +101,12 @@ struct ActivityTypesFeature {
 
             case .typesLoaded(let types, let primaryGroup):
                 state.isLoading = false
-                state.types = types
                 state.primaryGroup = primaryGroup
+                // Onboarding opens on the suggested set for the answer, not on
+                // the starter set the database seeded itself with.
+                state.types = state.mode == .onboarding
+                    ? ActivityCatalog.suggestedSelection(for: primaryGroup)
+                    : types
                 return .none
 
             // MARK: - Editing
@@ -76,6 +114,9 @@ struct ActivityTypesFeature {
             case .setPrimaryGroup(let group):
                 state.primaryGroup = group
                 state.saveError = nil
+                if state.mode == .onboarding {
+                    state.types = ActivityCatalog.suggestedSelection(for: group)
+                }
                 return .none
 
             case .addType(let group):
@@ -87,6 +128,15 @@ struct ActivityTypesFeature {
                         group: group
                     )
                 )
+                return .none
+
+            case .addSuggestion(let id):
+                guard
+                    let suggestion = ActivityCatalog.suggestion(id: id),
+                    !state.types.contains(where: { $0.id == id })
+                else { return .none }
+                state.types.append(suggestion.activityType)
+                state.saveError = nil
                 return .none
 
             case .updateType(let id, let name, let description):
@@ -103,13 +153,35 @@ struct ActivityTypesFeature {
                 return .none
 
             case .deleteType(let id):
+                // Unselecting is reversible — re-adding regenerates the same id —
+                // but it orphans today's entries into Unclassified in the
+                // meantime, so the ones with history ask first.
+                return .run { send in
+                    let count = await todaysEntryCount(for: id)
+                    await send(.todaysEntryCountLoaded(id: id, count: count))
+                }
+
+            case .todaysEntryCountLoaded(let id, let count):
+                guard count > 0, let type = state.types.first(where: { $0.id == id }) else {
+                    return .send(.removeType(id: id))
+                }
+                state.alert = .unselectWithEntries(type, count: count)
+                return .none
+
+            case .alert(.presented(.confirmRemove(let id))):
+                return .send(.removeType(id: id))
+
+            case .alert:
+                return .none
+
+            case .removeType(let id):
                 state.types.removeAll { $0.id == id }
                 return .none
 
             // MARK: - Bulk
 
-            case .resetToDefaults:
-                state.types = ActivityType.defaultTypes
+            case .resetToSuggestedSet:
+                state.types = ActivityCatalog.suggestedSelection(for: state.primaryGroup)
                 state.saveError = nil
                 return .none
 
@@ -157,6 +229,49 @@ struct ActivityTypesFeature {
                 state.saveError = error.localizedDescription
                 return .none
             }
+        }
+        .ifLet(\.$alert, action: \.alert)
+    }
+
+    /// How many of today's entries carry `id`. A database that cannot be read
+    /// reports zero: a failed count must not block the user from editing their
+    /// own selection.
+    private func todaysEntryCount(for id: String) async -> Int {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let today = formatter.string(from: Date())
+
+        guard let record = try? await database.getDayRecord(today) else { return 0 }
+        return record.activities.filter { $0.activity.rawValue == id }.count
+    }
+}
+
+// MARK: - Alerts
+
+extension AlertState where Action == ActivityTypesFeature.Action.Alert {
+    /// Names the count, because the cost of unselecting is proportional to it and
+    /// invisible until the day is rendered.
+    static func unselectWithEntries(_ type: ActivityType, count: Int) -> Self {
+        Self {
+            TextState("Remove “\(type.name)”?")
+        } actions: {
+            ButtonState(role: .destructive, action: .confirmRemove(id: type.id)) {
+                TextState("Remove")
+            }
+            ButtonState(role: .cancel) {
+                TextState("Keep")
+            }
+        } message: {
+            TextState(
+                """
+                \(count) \(count == 1 ? "entry" : "entries") today \
+                \(count == 1 ? "is" : "are") classified as “\(type.name)”. \
+                \(count == 1 ? "It" : "They") will show as \
+                \(ActivityGroup.unclassifiedLabel) instead.
+
+                Adding it back later reconnects them.
+                """
+            )
         }
     }
 }

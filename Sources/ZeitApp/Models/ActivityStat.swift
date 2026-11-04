@@ -27,7 +27,7 @@ struct ActivityStat: Equatable, Identifiable, Sendable {
 /// never folded into a group it was not labelled with.
 func computeActivityBreakdown(
     from activities: [ActivityEntry],
-    activityTypes: [ActivityType] = ActivityType.defaultTypes,
+    activityTypes: [ActivityType] = ActivityCatalog.starterSet,
     includeIdle: Bool = false
 ) -> [ActivityStat] {
     let filtered = includeIdle
