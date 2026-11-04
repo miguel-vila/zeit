@@ -1,19 +1,14 @@
 import Foundation
 import Yams
+import os
+
+private let logger = Logger(subsystem: "com.zeit", category: "ZeitConfig")
 
 /// Shared configuration loaded from ~/.local/share/zeit/conf.yml
 struct ZeitConfig: Sendable {
-    let workHours: WorkHoursConfig
+    let schedule: ScheduleConfig
     let models: ModelsConfig
     let classification: ClassificationConfig
-
-    struct WorkHoursConfig: Sendable {
-        let startHour: Int
-        let startMinute: Int
-        let endHour: Int
-        let endMinute: Int
-        let workDays: Set<Weekday>
-    }
 
     /// Days of the week, matching Calendar.component(.weekday) values.
     /// Sunday=1, Monday=2, ..., Saturday=7
@@ -77,13 +72,15 @@ struct ZeitConfig: Sendable {
 
     // MARK: - Defaults
 
-    static let defaultWorkDays: Set<Weekday> = [.monday, .tuesday, .wednesday, .thursday, .friday]
+    static let defaultScheduleDays: Set<Weekday> = [.monday, .tuesday, .wednesday, .thursday, .friday]
 
-    static let defaultWorkHours = WorkHoursConfig(
+    static let defaultScheduleWindow = ScheduleWindow(
+        days: defaultScheduleDays,
         startHour: 9, startMinute: 0,
-        endHour: 17, endMinute: 30,
-        workDays: defaultWorkDays
+        endHour: 17, endMinute: 30
     )
+
+    static let defaultSchedule = ScheduleConfig.windows([defaultScheduleWindow])
 
     static let defaultClassification = ClassificationConfig(primaryGroup: .work)
 
@@ -106,12 +103,12 @@ struct ZeitConfig: Sendable {
 
     /// What `ensureSetup()` writes when there is no config file yet.
     static let defaultConfigYAML = """
-        work_hours:
-          start_hour: 9
-          start_minute: 0
-          end_hour: 17
-          end_minute: 30
-          work_days: ['mon', 'tue', 'wed', 'thu', 'fri']
+        tracking:
+          schedule:              # 'always', or a list of windows
+            windows:
+              - days: ['mon', 'tue', 'wed', 'thu', 'fri']
+                from: '09:00'
+                to: '17:30'
 
         classification:
           primary_group: 'work'   # 'work', 'personal_projects' or 'personal'
@@ -160,7 +157,7 @@ struct ZeitConfig: Sendable {
               let yaml = try? Yams.load(yaml: contents) as? [String: Any]
         else {
             return ZeitConfig(
-                workHours: defaultWorkHours,
+                schedule: defaultSchedule,
                 models: defaultModels,
                 classification: defaultClassification
             )
@@ -176,7 +173,7 @@ struct ZeitConfig: Sendable {
     /// on disk.
     static func parse(yaml: [String: Any]) -> ZeitConfig {
         ZeitConfig(
-            workHours: parseWorkHours(from: yaml),
+            schedule: parseSchedule(from: yaml),
             models: parseModels(from: yaml),
             classification: parseClassification(from: yaml)
         )
@@ -184,47 +181,117 @@ struct ZeitConfig: Sendable {
 
     // MARK: - Parsing
 
-    private static func parseWorkHours(from yaml: [String: Any]) -> WorkHoursConfig {
-        guard let workHours = yaml["work_hours"] as? [String: Any] else {
-            return defaultWorkHours
+    /// `tracking.schedule` is either the string `always` or a mapping with a
+    /// non-empty `windows` list. Anything else — including `windows: []` — keeps
+    /// the last valid value Zeit has, which for a stateless load is the shipped
+    /// default, and logs the fallback: a silent "never track" is worse than a
+    /// loud one.
+    static func parseSchedule(from yaml: [String: Any]) -> ScheduleConfig {
+        guard let tracking = yaml["tracking"] as? [String: Any],
+              let schedule = tracking["schedule"]
+        else {
+            return parseLegacyWorkHours(from: yaml) ?? defaultSchedule
         }
+
+        if let form = schedule as? String {
+            guard form.trimmingCharacters(in: .whitespaces).lowercased() == "always" else {
+                logger.warning(
+                    "tracking.schedule: '\(form, privacy: .public)' is not a schedule, keeping \(defaultSchedule.summary, privacy: .public)"
+                )
+                return defaultSchedule
+            }
+            return .always
+        }
+
+        guard let mapping = schedule as? [String: Any],
+              let list = mapping["windows"] as? [Any]
+        else {
+            logger.warning(
+                "tracking.schedule: expected 'always' or a 'windows' list, keeping \(defaultSchedule.summary, privacy: .public)"
+            )
+            return defaultSchedule
+        }
+
+        let windows = list.compactMap { entry -> ScheduleWindow? in
+            guard let window = entry as? [String: Any] else { return nil }
+            return parseScheduleWindow(from: window)
+        }
+
+        guard !windows.isEmpty else {
+            logger.warning(
+                "tracking.schedule.windows: no usable window, keeping \(defaultSchedule.summary, privacy: .public)"
+            )
+            return defaultSchedule
+        }
+
+        return .windows(windows)
+    }
+
+    /// One `windows:` entry: `days`, `from` and `to`. A window missing any of
+    /// the three is dropped rather than half-guessed.
+    private static func parseScheduleWindow(from window: [String: Any]) -> ScheduleWindow? {
+        let days = parseDays(window["days"])
+        guard !days.isEmpty,
+              let from = window["from"] as? String, let start = parseTimeString(from),
+              let to = window["to"] as? String, let end = parseTimeString(to)
+        else {
+            return nil
+        }
+
+        return ScheduleWindow(
+            days: days,
+            startHour: start.hour, startMinute: start.minute,
+            endHour: end.hour, endMinute: end.minute
+        )
+    }
+
+    /// A pre-schedule config: the `work_hours:` block reads as a single window
+    /// with its work days. Never written back.
+    private static func parseLegacyWorkHours(from yaml: [String: Any]) -> ScheduleConfig? {
+        guard let workHours = yaml["work_hours"] as? [String: Any] else {
+            return nil
+        }
+
+        let fallback = defaultScheduleWindow
 
         // Support both integer "start_hour" and string "work_start_hour: '09:00'" formats
         let startHour: Int
         let startMinute: Int
         if let hour = workHours["start_hour"] as? Int {
             startHour = hour
-            startMinute = workHours["start_minute"] as? Int ?? defaultWorkHours.startMinute
+            startMinute = workHours["start_minute"] as? Int ?? fallback.startMinute
         } else if let hourStr = workHours["work_start_hour"] as? String,
                   let parsed = parseTimeString(hourStr) {
             startHour = parsed.hour
             startMinute = parsed.minute
         } else {
-            startHour = defaultWorkHours.startHour
-            startMinute = defaultWorkHours.startMinute
+            startHour = fallback.startHour
+            startMinute = fallback.startMinute
         }
 
         let endHour: Int
         let endMinute: Int
         if let hour = workHours["end_hour"] as? Int {
             endHour = hour
-            endMinute = workHours["end_minute"] as? Int ?? defaultWorkHours.endMinute
+            endMinute = workHours["end_minute"] as? Int ?? fallback.endMinute
         } else if let hourStr = workHours["work_end_hour"] as? String,
                   let parsed = parseTimeString(hourStr) {
             endHour = parsed.hour
             endMinute = parsed.minute
         } else {
-            endHour = defaultWorkHours.endHour
-            endMinute = defaultWorkHours.endMinute
+            endHour = fallback.endHour
+            endMinute = fallback.endMinute
         }
 
-        let workDays = parseWorkDays(from: workHours)
+        let days = parseDays(workHours["work_days"])
 
-        return WorkHoursConfig(
-            startHour: startHour, startMinute: startMinute,
-            endHour: endHour, endMinute: endMinute,
-            workDays: workDays
-        )
+        return .windows([
+            ScheduleWindow(
+                days: days.isEmpty ? defaultScheduleDays : days,
+                startHour: startHour, startMinute: startMinute,
+                endHour: endHour, endMinute: endMinute
+            )
+        ])
     }
 
     /// A missing or unrecognised `primary_group` falls back to the default
@@ -267,10 +334,11 @@ struct ZeitConfig: Sendable {
         return (hour, minute)
     }
 
-    /// Parse work days from the work_hours YAML section
-    private static func parseWorkDays(from workHours: [String: Any]) -> Set<Weekday> {
-        guard let daysList = workHours["work_days"] as? [Any] else {
-            return defaultWorkDays
+    /// Parse a YAML day list, which may name days (`'mon'`) or number them.
+    /// Unknown entries are dropped; the caller decides what an empty set means.
+    private static func parseDays(_ value: Any?) -> Set<Weekday> {
+        guard let daysList = value as? [Any] else {
+            return []
         }
 
         var days = Set<Weekday>()
@@ -282,7 +350,7 @@ struct ZeitConfig: Sendable {
             }
         }
 
-        return days.isEmpty ? defaultWorkDays : days
+        return days
     }
 
     /// Convert short day name to Weekday
@@ -353,12 +421,9 @@ struct ZeitConfig: Sendable {
         try output.write(to: path, atomically: true, encoding: .utf8)
     }
 
-    /// Update work hours in the config file, preserving all other settings.
-    static func saveWorkHours(
-        startHour: Int, startMinute: Int,
-        endHour: Int, endMinute: Int,
-        workDays: Set<Weekday>
-    ) throws {
+    /// Update the tracking schedule in the config file, preserving all other
+    /// settings.
+    static func saveSchedule(_ schedule: ScheduleConfig) throws {
         ensureSetup()
 
         let path = configPath
@@ -372,19 +437,42 @@ struct ZeitConfig: Sendable {
             yaml = parsed
         }
 
-        // Sort days by rawValue for consistent output
-        let sortedDays = workDays.sorted().map { $0.shortName.lowercased() }
-
-        // Update work_hours section
-        yaml["work_hours"] = [
-            "start_hour": startHour,
-            "start_minute": startMinute,
-            "end_hour": endHour,
-            "end_minute": endMinute,
-            "work_days": sortedDays,
-        ]
-
-        let output = try Yams.dump(object: yaml)
+        let output = try Yams.dump(object: applying(schedule, to: yaml))
         try output.write(to: path, atomically: true, encoding: .utf8)
+    }
+
+    /// Write the schedule into an already-parsed YAML mapping.
+    ///
+    /// Only the new shape is written, and a legacy `work_hours:` block is
+    /// dropped so the two cannot disagree afterwards. Separated from
+    /// `saveSchedule` so the written shape can be exercised without a config
+    /// file on disk.
+    static func applying(
+        _ schedule: ScheduleConfig,
+        to yaml: [String: Any]
+    ) -> [String: Any] {
+        var yaml = yaml
+        yaml.removeValue(forKey: "work_hours")
+
+        var tracking = yaml["tracking"] as? [String: Any] ?? [:]
+
+        switch schedule {
+        case .always:
+            tracking["schedule"] = "always"
+        case .windows(let windows):
+            tracking["schedule"] = [
+                "windows": windows.map { window in
+                    [
+                        // Sort days by rawValue for consistent output
+                        "days": window.days.sorted().map { $0.shortName.lowercased() },
+                        "from": String(format: "%02d:%02d", window.startHour, window.startMinute),
+                        "to": String(format: "%02d:%02d", window.endHour, window.endMinute),
+                    ] as [String: Any]
+                }
+            ]
+        }
+
+        yaml["tracking"] = tracking
+        return yaml
     }
 }

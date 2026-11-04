@@ -11,7 +11,7 @@ struct TrackCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Delay in seconds before capturing")
     var delay: Int = 0
 
-    @Flag(name: .long, help: "Ignore work hours and stop flag")
+    @Flag(name: .long, help: "Ignore the tracking schedule and stop flag")
     var force: Bool = false
 
     @Flag(name: .long, help: "Keep screenshots in /tmp and print their paths")
@@ -29,11 +29,11 @@ struct TrackCommand: AsyncParsableCommand {
         let shouldForce = force
         #endif
 
-        // 1. Check work hours (unless --force or --sample)
+        // 1. Check the tracking schedule (unless --force or --sample)
         if !shouldForce {
             let helper = CLITrackingHelper()
-            if !helper.isWithinWorkHours() {
-                print("Outside work hours, skipping tracking")
+            if !helper.isWithinSchedule() {
+                print("Outside the tracking schedule, skipping tracking")
                 return
             }
 
@@ -128,25 +128,7 @@ struct CLITrackingHelper {
         !FileManager.default.fileExists(atPath: Self.stopFlagPath.path)
     }
 
-    func isWithinWorkHours() -> Bool {
-        let config = ZeitConfig.load().workHours
-
-        let calendar = Calendar.current
-        let now = Date()
-        let hour = calendar.component(.hour, from: now)
-        let minute = calendar.component(.minute, from: now)
-        let weekday = calendar.component(.weekday, from: now)
-
-        // Check if today is a configured work day
-        guard let day = ZeitConfig.Weekday(rawValue: weekday),
-              config.workDays.contains(day) else {
-            return false
-        }
-
-        let currentMinutes = hour * 60 + minute
-        let startMinutes = config.startHour * 60 + config.startMinute
-        let endMinutes = config.endHour * 60 + config.endMinute
-
-        return currentMinutes >= startMinutes && currentMinutes < endMinutes
+    func isWithinSchedule() -> Bool {
+        ZeitConfig.load().schedule.contains(Date())
     }
 }

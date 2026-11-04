@@ -5,7 +5,7 @@ import Foundation
 /// Step 1: Permissions (Screen Recording + Accessibility)
 /// Step 2: Model Download (Vision + Text models)
 /// Step 3: Activity Types (Customize tracked activity categories)
-/// Step 4: Other Settings (Work hours)
+/// Step 4: Other Settings (Tracking schedule)
 @Reducer
 struct OnboardingFeature {
     @ObservableState

@@ -39,8 +39,8 @@ struct SettingsView: View {
             settingsPermissionsTab
         case .models:
             settingsModelsTab
-        case .workHours:
-            settingsWorkHoursTab
+        case .schedule:
+            settingsScheduleTab
         case .activityTypes:
             settingsActivityTypesTab
         case .about:
@@ -92,36 +92,31 @@ struct SettingsView: View {
         )
     }
 
-    // MARK: - Work Hours Tab
+    // MARK: - Schedule Tab
 
-    private var settingsWorkHoursTab: some View {
+    private var settingsScheduleTab: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Work Hours")
+            Text("Schedule")
                 .font(.title2)
                 .fontWeight(.bold)
 
-            Text("Set your typical work schedule. Tracking only runs during these hours on the selected days.")
+            Text("Track always, or only inside a list of windows. A moment is tracked when any window contains it.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
             Divider()
 
-            VStack(spacing: 12) {
-                WorkHoursPickerView(
-                    startHour: store.workHours.startHour,
-                    startMinute: store.workHours.startMinute,
-                    endHour: store.workHours.endHour,
-                    endMinute: store.workHours.endMinute,
-                    workDays: store.workHours.workDays,
-                    onSetStartHour: { store.send(.setStartHour($0)) },
-                    onSetStartMinute: { store.send(.setStartMinute($0)) },
-                    onSetEndHour: { store.send(.setEndHour($0)) },
-                    onSetEndMinute: { store.send(.setEndMinute($0)) },
-                    onToggleWorkDay: { store.send(.toggleWorkDay($0)) }
+            ScrollView {
+                ScheduleEditorView(
+                    state: store.schedule.editor,
+                    onSetAlways: { store.send(.setAlways($0)) },
+                    onAddWindow: { store.send(.addWindow) },
+                    onRemoveWindow: { store.send(.removeWindow($0)) },
+                    onChangeWindow: { store.send(.changeWindow($0)) }
                 )
             }
 
-            if let error = store.workHours.saveError {
+            if let error = store.schedule.saveError {
                 Text(error)
                     .font(.caption)
                     .foregroundStyle(.red)
@@ -130,12 +125,10 @@ struct SettingsView: View {
             HStack {
                 Spacer()
                 Button("Save") {
-                    store.send(.saveWorkHours)
+                    store.send(.saveSchedule)
                 }
                 .buttonStyle(.borderedProminent)
             }
-
-            Spacer()
         }
         .padding(22)
     }

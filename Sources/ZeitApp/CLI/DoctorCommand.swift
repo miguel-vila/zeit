@@ -25,6 +25,19 @@ struct DoctorCommand: AsyncParsableCommand {
             checks.append(await checkLocalModel(textInfo))
         }
 
+        // Schedule: when this machine tracks, and whether it is tracking now.
+        // Being outside the schedule is not a failure, so this check passes
+        // either way.
+        let scheduleForm = config.schedule == .always
+            ? config.schedule.formDescription
+            : "\(config.schedule.formDescription) (\(config.schedule.summary))"
+        checks.append(Check(
+            name: "Schedule",
+            passed: true,
+            details: "\(scheduleForm) — "
+                + (config.schedule.contains(Date()) ? "tracking now" : "not tracking now")
+        ))
+
         // Classification: the group this machine is judged by.
         checks.append(Check(
             name: "Primary group",

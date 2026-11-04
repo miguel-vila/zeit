@@ -4,8 +4,10 @@ import Foundation
 enum TrackingState: Equatable, Sendable {
     case active
     case pausedManual
-    case beforeWorkHours(message: String)
-    case afterWorkHours(message: String)
+    /// Now is outside the configured tracking schedule. One case rather than a
+    /// before/after pair: with several windows, and windows that run overnight,
+    /// "before" and "after" no longer name anything.
+    case outsideSchedule(message: String)
 
     /// Status message to display in the menu
     var statusMessage: String {
@@ -14,9 +16,7 @@ enum TrackingState: Equatable, Sendable {
             return "Tracking active"
         case .pausedManual:
             return "Tracking paused (manual)"
-        case .beforeWorkHours(let message):
-            return message
-        case .afterWorkHours(let message):
+        case .outsideSchedule(let message):
             return message
         }
     }
@@ -26,7 +26,7 @@ enum TrackingState: Equatable, Sendable {
         switch self {
         case .active, .pausedManual:
             return true
-        case .beforeWorkHours, .afterWorkHours:
+        case .outsideSchedule:
             return false
         }
     }
@@ -36,10 +36,10 @@ enum TrackingState: Equatable, Sendable {
         self == .active
     }
 
-    /// Whether the app is outside work hours (before or after)
-    var isOutsideWorkHours: Bool {
+    /// Whether the app is outside its tracking schedule
+    var isOutsideSchedule: Bool {
         switch self {
-        case .beforeWorkHours, .afterWorkHours:
+        case .outsideSchedule:
             return true
         case .active, .pausedManual:
             return false

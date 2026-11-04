@@ -9,11 +9,11 @@ struct TrackingClient: Sendable {
     /// Check if tracking is currently active (stop flag doesn't exist)
     var isTrackingActive: @Sendable () -> Bool = { false }
 
-    /// Check if current time is within configured work hours
-    var isWithinWorkHours: @Sendable () -> Bool = { false }
+    /// Check if the current moment is inside the configured tracking schedule
+    var isWithinSchedule: @Sendable () -> Bool = { false }
 
-    /// Get a message describing work hours status
-    var getWorkHoursMessage: @Sendable () -> String = { "" }
+    /// Get a message describing the schedule status
+    var getScheduleMessage: @Sendable () -> String = { "" }
 
     /// Start tracking (remove stop flag)
     var startTracking: @Sendable () async throws -> Void
@@ -44,11 +44,11 @@ extension TrackingClient: DependencyKey {
             isTrackingActive: {
                 helper.isTrackingActive()
             },
-            isWithinWorkHours: {
-                helper.isWithinWorkHours()
+            isWithinSchedule: {
+                helper.isWithinSchedule()
             },
-            getWorkHoursMessage: {
-                helper.getWorkHoursMessage()
+            getScheduleMessage: {
+                helper.getScheduleMessage()
             },
             startTracking: {
                 try helper.startTracking()
@@ -78,60 +78,12 @@ private struct TrackingHelper: Sendable {
         !FileManager.default.fileExists(atPath: Self.stopFlagPath.path)
     }
 
-    func isWithinWorkHours() -> Bool {
-        let config = loadConfig()
-
-        let calendar = Calendar.current
-        let now = Date()
-        let hour = calendar.component(.hour, from: now)
-        let minute = calendar.component(.minute, from: now)
-        let weekday = calendar.component(.weekday, from: now)
-
-        // Check if today is a configured work day
-        guard let day = ZeitConfig.Weekday(rawValue: weekday),
-              config.workDays.contains(day) else {
-            return false
-        }
-
-        let currentMinutes = hour * 60 + minute
-        let startMinutes = config.startHour * 60 + config.startMinute
-        let endMinutes = config.endHour * 60 + config.endMinute
-
-        return currentMinutes >= startMinutes && currentMinutes < endMinutes
+    func isWithinSchedule() -> Bool {
+        loadSchedule().contains(Date())
     }
 
-    func getWorkHoursMessage() -> String {
-        let config = loadConfig()
-
-        let calendar = Calendar.current
-        let now = Date()
-        let hour = calendar.component(.hour, from: now)
-        let minute = calendar.component(.minute, from: now)
-        let weekday = calendar.component(.weekday, from: now)
-
-        guard let day = ZeitConfig.Weekday(rawValue: weekday),
-              config.workDays.contains(day) else {
-            let dayNames = config.workDays.sorted().map(\.shortName).joined(separator: ", ")
-            return "Outside work days (\(dayNames))"
-        }
-
-        let currentMinutes = hour * 60 + minute
-        let startMinutes = config.startHour * 60 + config.startMinute
-        let endMinutes = config.endHour * 60 + config.endMinute
-
-        if currentMinutes < startMinutes {
-            return "Before work hours (starts \(formatTime(config.startHour, config.startMinute)))"
-        }
-
-        if currentMinutes >= endMinutes {
-            return "After work hours (ended \(formatTime(config.endHour, config.endMinute)))"
-        }
-
-        return "Within work hours"
-    }
-
-    private func formatTime(_ hour: Int, _ minute: Int) -> String {
-        String(format: "%d:%02d", hour, minute)
+    func getScheduleMessage() -> String {
+        loadSchedule().statusMessage(at: Date())
     }
 
     func startTracking() throws {
@@ -147,48 +99,23 @@ private struct TrackingHelper: Sendable {
     }
 
     func getTrackingState() -> TrackingState {
-        let withinWorkHours = isWithinWorkHours()
-        let manuallyStopped = !isTrackingActive()
+        let schedule = loadSchedule()
+        let now = Date()
 
-        if !withinWorkHours {
-            let message = getWorkHoursMessage()
-            if isBeforeWorkHours() {
-                return .beforeWorkHours(message: message)
-            } else {
-                return .afterWorkHours(message: message)
-            }
+        if !schedule.contains(now) {
+            return .outsideSchedule(message: schedule.statusMessage(at: now))
         }
 
-        if manuallyStopped {
+        if !isTrackingActive() {
             return .pausedManual
         }
 
         return .active
     }
 
-    /// Whether the current time is before work hours start (on a work day)
-    func isBeforeWorkHours() -> Bool {
-        let config = loadConfig()
-        let calendar = Calendar.current
-        let now = Date()
-        let hour = calendar.component(.hour, from: now)
-        let minute = calendar.component(.minute, from: now)
-        let weekday = calendar.component(.weekday, from: now)
-
-        guard let day = ZeitConfig.Weekday(rawValue: weekday),
-              config.workDays.contains(day) else {
-            return false
-        }
-
-        let currentMinutes = hour * 60 + minute
-        let startMinutes = config.startHour * 60 + config.startMinute
-
-        return currentMinutes < startMinutes
-    }
-
     // MARK: - Config Loading
 
-    private func loadConfig() -> ZeitConfig.WorkHoursConfig {
-        ZeitConfig.load().workHours
+    private func loadSchedule() -> ZeitConfig.ScheduleConfig {
+        ZeitConfig.load().schedule
     }
 }

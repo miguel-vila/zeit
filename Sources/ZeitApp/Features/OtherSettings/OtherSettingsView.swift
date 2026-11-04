@@ -9,11 +9,11 @@ struct OtherSettingsView: View {
             // Header
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Settings")
+                    Text("Schedule")
                         .font(.title2)
                         .fontWeight(.bold)
 
-                    Text("Configure your work schedule and other options.")
+                    Text("When should this machine track? Always, or only inside a list of windows.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -24,23 +24,13 @@ struct OtherSettingsView: View {
             Divider()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    // MARK: - Work Hours
-
-                    WorkHoursPickerView(
-                        startHour: store.startHour,
-                        startMinute: store.startMinute,
-                        endHour: store.endHour,
-                        endMinute: store.endMinute,
-                        workDays: store.workDays,
-                        onSetStartHour: { store.send(.setStartHour($0)) },
-                        onSetStartMinute: { store.send(.setStartMinute($0)) },
-                        onSetEndHour: { store.send(.setEndHour($0)) },
-                        onSetEndMinute: { store.send(.setEndMinute($0)) },
-                        onToggleWorkDay: { store.send(.toggleWorkDay($0)) }
-                    )
-
-                }
+                ScheduleEditorView(
+                    state: store.editor,
+                    onSetAlways: { store.send(.setAlways($0)) },
+                    onAddWindow: { store.send(.addWindow) },
+                    onRemoveWindow: { store.send(.removeWindow($0)) },
+                    onChangeWindow: { store.send(.changeWindow($0)) }
+                )
             }
 
             // Buttons

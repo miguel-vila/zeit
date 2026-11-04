@@ -52,7 +52,7 @@ struct ServiceStatusCommand: ParsableCommand {
         print("")
         print("Tracking:")
         print("  Active: \(tracking.isTrackingActive() ? "✓ Yes" : "✗ Paused")")
-        print("  Work hours: \(tracking.isWithinWorkHours() ? "✓ Within" : "✗ Outside")")
+        print("  Schedule: \(tracking.isWithinSchedule() ? "✓ Within" : "✗ Outside")")
     }
 }
 

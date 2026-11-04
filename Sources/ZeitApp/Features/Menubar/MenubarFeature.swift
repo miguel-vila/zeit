@@ -191,12 +191,12 @@ struct MenubarFeature {
 
             case .toggleTracking:
                 guard state.trackingState.canToggle else {
-                    // Can't toggle outside work hours
+                    // Can't toggle outside the tracking schedule
                     return .run { _ in
                         await notification.show(
                             "Zeit",
                             "Cannot Toggle",
-                            "Tracking cannot be toggled outside work hours"
+                            "Tracking cannot be toggled outside the tracking schedule"
                         )
                     }
                 }

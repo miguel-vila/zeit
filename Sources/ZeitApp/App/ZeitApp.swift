@@ -165,16 +165,11 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let percentage = Int(primaryGroupPercentage)
 
         switch trackingState {
-        case .beforeWorkHours:
-            button.image = NSImage(
-                systemSymbolName: "sun.max.fill",
-                accessibilityDescription: "Zeit - Before Work Hours"
-            )
         case .active:
             button.image = renderPercentageWithDot(percentage: percentage, dotColor: .systemGreen)
         case .pausedManual:
             button.image = renderPercentageWithDot(percentage: percentage, dotColor: .systemOrange)
-        case .afterWorkHours:
+        case .outsideSchedule:
             button.image = renderPercentageWithSymbol(
                 percentage: percentage,
                 symbolName: "moon.fill"

@@ -13,6 +13,7 @@ struct ZeitCLI: ParsableCommand {
             StatsCommand.self,
             DBCommand.self,
             ServiceCommand.self,
+            ScheduleCommand.self,
             SetWorkHoursCommand.self,
             ListActivityTypesCommand.self,
             SetActivityTypesCommand.self,

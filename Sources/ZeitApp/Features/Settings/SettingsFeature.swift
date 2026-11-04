@@ -2,7 +2,7 @@ import ComposableArchitecture
 import Foundation
 
 /// Settings window feature with tabbed navigation.
-/// Tabs: Permissions, Models, Work Hours, Debug, About.
+/// Tabs: Permissions, Models, Schedule, Activity Types, About.
 @Reducer
 struct SettingsFeature {
     @ObservableState
@@ -10,14 +10,14 @@ struct SettingsFeature {
         var selectedTab: Tab = .permissions
         var permissions: SettingsPermissionsState = .init()
         var models: ModelDownloadFeature.State = .init()
-        var workHours: WorkHoursState = .init()
+        var schedule: ScheduleState = .init()
         var activityTypes: ActivityTypesFeature.State = .init()
         var isCompleted: Bool = false
 
         enum Tab: String, CaseIterable, Equatable {
             case permissions = "Permissions"
             case models = "Models"
-            case workHours = "Work Hours"
+            case schedule = "Schedule"
             case activityTypes = "Activity Types"
             case about = "About"
 
@@ -25,7 +25,7 @@ struct SettingsFeature {
                 switch self {
                 case .permissions: return "lock.shield"
                 case .models: return "cpu"
-                case .workHours: return "clock.fill"
+                case .schedule: return "clock.fill"
                 case .activityTypes: return "list.bullet.rectangle"
                 case .about: return "info.circle"
                 }
@@ -40,14 +40,10 @@ struct SettingsFeature {
         var accessibilityGranted: Bool = false
     }
 
-    // MARK: - Work Hours tab state
+    // MARK: - Schedule tab state
 
-    struct WorkHoursState: Equatable {
-        var startHour: Int = ZeitConfig.defaultWorkHours.startHour
-        var startMinute: Int = ZeitConfig.defaultWorkHours.startMinute
-        var endHour: Int = ZeitConfig.defaultWorkHours.endHour
-        var endMinute: Int = ZeitConfig.defaultWorkHours.endMinute
-        var workDays: Set<ZeitConfig.Weekday> = ZeitConfig.defaultWorkDays
+    struct ScheduleState: Equatable {
+        var editor: ScheduleEditorState = .init()
         var saveError: String?
     }
 
@@ -61,16 +57,15 @@ struct SettingsFeature {
         // Models — delegated to the shared model-download reducer
         case models(ModelDownloadFeature.Action)
 
-        // Work Hours
-        case workHoursLoaded(ZeitConfig.WorkHoursConfig)
-        case setStartHour(Int)
-        case setStartMinute(Int)
-        case setEndHour(Int)
-        case setEndMinute(Int)
-        case toggleWorkDay(ZeitConfig.Weekday)
-        case saveWorkHours
-        case workHoursSaved
-        case workHoursSaveFailed(String)
+        // Schedule
+        case scheduleLoaded(ZeitConfig.ScheduleConfig)
+        case setAlways(Bool)
+        case addWindow
+        case removeWindow(UUID)
+        case changeWindow(ScheduleWindowDraft)
+        case saveSchedule
+        case scheduleSaved
+        case scheduleSaveFailed(String)
 
         // Activity Types
         case activityTypes(ActivityTypesFeature.Action)
@@ -106,7 +101,7 @@ struct SettingsFeature {
                     .send(.models(.task)),
                     .run { send in
                         let config = ZeitConfig.load()
-                        await send(.workHoursLoaded(config.workHours))
+                        await send(.scheduleLoaded(config.schedule))
                     }
                 )
 
@@ -122,71 +117,47 @@ struct SettingsFeature {
             case .models:
                 return .none
 
-            case .workHoursLoaded(let config):
-                state.workHours.startHour = config.startHour
-                state.workHours.startMinute = config.startMinute
-                state.workHours.endHour = config.endHour
-                state.workHours.endMinute = config.endMinute
-                state.workHours.workDays = config.workDays
+            case .scheduleLoaded(let schedule):
+                state.schedule.editor.load(schedule)
                 return .none
 
-            case .setStartHour(let hour):
-                state.workHours.startHour = hour
-                state.workHours.saveError = nil
+            case .setAlways(let isAlways):
+                state.schedule.editor.isAlways = isAlways
+                state.schedule.saveError = nil
                 return .none
 
-            case .setStartMinute(let minute):
-                state.workHours.startMinute = minute
-                state.workHours.saveError = nil
+            case .addWindow:
+                state.schedule.editor.addWindow()
+                state.schedule.saveError = nil
                 return .none
 
-            case .setEndHour(let hour):
-                state.workHours.endHour = hour
-                state.workHours.saveError = nil
+            case .removeWindow(let id):
+                state.schedule.editor.removeWindow(id: id)
+                state.schedule.saveError = nil
                 return .none
 
-            case .setEndMinute(let minute):
-                state.workHours.endMinute = minute
-                state.workHours.saveError = nil
+            case .changeWindow(let window):
+                state.schedule.editor.update(window)
+                state.schedule.saveError = nil
                 return .none
 
-            case .toggleWorkDay(let day):
-                if state.workHours.workDays.contains(day) {
-                    // Don't allow removing the last work day
-                    if state.workHours.workDays.count > 1 {
-                        state.workHours.workDays.remove(day)
-                    }
-                } else {
-                    state.workHours.workDays.insert(day)
-                }
-                state.workHours.saveError = nil
-                return .none
-
-            case .saveWorkHours:
-                let startHour = state.workHours.startHour
-                let startMinute = state.workHours.startMinute
-                let endHour = state.workHours.endHour
-                let endMinute = state.workHours.endMinute
-                let workDays = state.workHours.workDays
+            case .saveSchedule:
+                let schedule = state.schedule.editor.schedule
                 return .run { send in
                     do {
-                        try ZeitConfig.saveWorkHours(
-                            startHour: startHour, startMinute: startMinute,
-                            endHour: endHour, endMinute: endMinute,
-                            workDays: workDays
-                        )
-                        await send(.workHoursSaved)
+                        try ZeitConfig.saveSchedule(schedule)
+                        await send(.scheduleSaved)
                     } catch {
-                        await send(.workHoursSaveFailed(error.localizedDescription))
+                        await send(.scheduleSaveFailed(error.localizedDescription))
                     }
                 }
 
-            case .workHoursSaved:
-                state.workHours.saveError = nil
+            case .scheduleSaved:
+                state.schedule.saveError = nil
                 return .none
 
-            case .workHoursSaveFailed(let error):
-                state.workHours.saveError = error
+            case .scheduleSaveFailed(let error):
+                state.schedule.saveError = error
                 return .none
 
             case .activityTypes:

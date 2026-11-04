@@ -393,7 +393,7 @@ struct MenubarView: View {
             return .green
         case .pausedManual:
             return .orange
-        case .beforeWorkHours, .afterWorkHours:
+        case .outsideSchedule:
             return .purple
         }
     }
