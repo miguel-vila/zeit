@@ -269,7 +269,7 @@ struct MenubarFeature {
                             textProvider: config.models.text.provider
                         )
                         let result = try await identifier.identifyCurrentActivity()
-                        let entry = result.toActivityEntry()
+                        let entry = result.toActivityEntry(device: config.device.name)
                         let db = try DatabaseHelper()
                         try await db.insertActivity(entry)
                         await send(.forceTrackCompleted(.success(
@@ -357,7 +357,7 @@ struct MenubarFeature {
                             textProvider: config.models.text.provider
                         )
                         let result = try await identifier.identifyCurrentActivity(sample: true)
-                        let entry = result.toActivityEntry()
+                        let entry = result.toActivityEntry(device: config.device.name)
                         let db = try DatabaseHelper()
                         try await db.insertActivity(entry)
                         await send(.sampleCompleted(.success(
@@ -395,7 +395,7 @@ struct MenubarFeature {
                             textProvider: config.models.text.provider
                         )
                         let result = try await identifier.identifyCurrentActivity(sample: true)
-                        let entry = result.toActivityEntry()
+                        let entry = result.toActivityEntry(device: config.device.name)
                         let db = try DatabaseHelper()
                         try await db.insertActivity(entry)
                         await send(.sampleCompleted(.success(

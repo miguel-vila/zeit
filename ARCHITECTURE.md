@@ -91,6 +91,8 @@ All components read and write to the same SQLite database and YAML configuration
 
 Activities are stored one row per day, keyed `YYYY-MM-DD`. `DayAttribution` (`Sources/ZeitApp/Core/DayAttribution.swift`) is the only place that key is computed: an entry belongs to the day that started at `tracking.day_start_hour` local time, so `4` keeps a session that runs past midnight on the day it began. The default `0` is the calendar day. The write path attributes an entry by its own timestamp and every read — the menubar, `zeit view today`, `zeit stats` — resolves "today" the same way, so storage and views cannot disagree about where a late entry landed.
 
+A day's entries live as a JSON array inside the row, so an optional field on `ActivityEntry` needs no migration: an absent key decodes as `nil`. `device` is such a field — the machine that produced the entry, from `device.name` or this machine's name, stamped at capture. It exists so two machines' data stays separable if it is ever exported and merged; nothing reads it across machines, and there is no device table and no sync.
+
 ## How Components Connect
 
 ```

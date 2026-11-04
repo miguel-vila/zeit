@@ -263,13 +263,18 @@ struct IdentificationResult {
     }
     #endif
 
-    /// Convert to ActivityEntry for database storage
-    func toActivityEntry() -> ActivityEntry {
+    /// Convert to ActivityEntry for database storage.
+    ///
+    /// The producing machine is passed in rather than read here, so a capture
+    /// stamps the same config the rest of the run used, and a caller cannot
+    /// forget it.
+    func toActivityEntry(device: String) -> ActivityEntry {
         ActivityEntry(
             timestamp: ISO8601DateFormatter().string(from: Date()),
             activity: activity,
             reasoning: reasoning,
-            description: description
+            description: description,
+            device: device
         )
     }
 }

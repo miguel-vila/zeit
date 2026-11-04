@@ -29,6 +29,10 @@ struct TrackCommand: AsyncParsableCommand {
         let shouldForce = force
         #endif
 
+        // Loaded once, so the idle entry and a classified one are stamped
+        // with the same device name.
+        let config = ZeitConfig.load()
+
         // 1. Schedule, stop flag, battery and cadence (unless --force or --sample)
         if !shouldForce {
             let decision = await CLITrackingHelper().decideTick()
@@ -46,7 +50,8 @@ struct TrackCommand: AsyncParsableCommand {
                 timestamp: ISO8601DateFormatter().string(from: Date()),
                 activity: .idle,
                 reasoning: nil,
-                description: "System idle for \(seconds) seconds"
+                description: "System idle for \(seconds) seconds",
+                device: config.device.name
             )
             let db = try DatabaseHelper()
             try await db.insertActivity(entry)
@@ -63,7 +68,6 @@ struct TrackCommand: AsyncParsableCommand {
         print("Capturing screenshots...")
 
         do {
-            let config = ZeitConfig.load()
             let identifier = ActivityIdentifier(
                 visionModel: config.models.vision,
                 textModel: config.models.text.model,
@@ -97,7 +101,7 @@ struct TrackCommand: AsyncParsableCommand {
             #endif
 
             // Save to database
-            let entry = result.toActivityEntry()
+            let entry = result.toActivityEntry(device: config.device.name)
             let db = try DatabaseHelper()
             try await db.insertActivity(entry)
             print("Saved to database")

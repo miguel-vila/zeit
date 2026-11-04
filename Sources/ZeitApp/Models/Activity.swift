@@ -64,6 +64,30 @@ struct ActivityEntry: Codable, Equatable, Sendable {
     let reasoning: String?
     let description: String?
 
+    /// Which machine produced this entry: `device.name` as it was at capture.
+    ///
+    /// Optional, and `nil` on every entry written before the field existed:
+    /// entries live as a JSON array, so an absent key decodes as `nil` and no
+    /// migration is needed. It is recorded so a later export and import of two
+    /// machines can still be split apart — nothing reads it across machines.
+    let device: String?
+
+    /// `device` has a default so the entries that are not a capture — a test
+    /// fixture, a hand-built row — do not have to claim a machine.
+    init(
+        timestamp: String,
+        activity: Activity,
+        reasoning: String?,
+        description: String?,
+        device: String? = nil
+    ) {
+        self.timestamp = timestamp
+        self.activity = activity
+        self.reasoning = reasoning
+        self.description = description
+        self.device = device
+    }
+
     /// Parse the timestamp as a Date
     var date: Date? {
         ISO8601DateFormatter().date(from: timestamp)

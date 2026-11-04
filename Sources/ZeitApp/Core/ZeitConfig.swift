@@ -10,6 +10,7 @@ struct ZeitConfig: Sendable {
     let tracking: TrackingConfig
     let models: ModelsConfig
     let classification: ClassificationConfig
+    let device: DeviceConfig
 
     /// Days of the week, matching Calendar.component(.weekday) values.
     /// Sunday=1, Monday=2, ..., Saturday=7
@@ -87,6 +88,31 @@ struct ZeitConfig: Sendable {
         }
     }
 
+    /// What this machine calls itself on the entries it writes.
+    ///
+    /// A name and nothing else: there is no device table, no identity and no
+    /// sync. It is stamped on each entry so two machines' data stays separable
+    /// if it is ever exported and merged.
+    struct DeviceConfig: Sendable, Equatable {
+        let name: String
+
+        /// The machine's name as macOS shows it ("Miguel's MacBook Pro"),
+        /// falling back to the host name when there is no localized name.
+        static var hostName: String {
+            let localized = Host.current().localizedName?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if let localized, !localized.isEmpty { return localized }
+            return ProcessInfo.processInfo.hostName
+        }
+
+        /// A blank name is the same as no name at all: an entry always carries
+        /// something that identifies the machine that wrote it.
+        init(name: String? = nil) {
+            let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            self.name = trimmed.isEmpty ? Self.hostName : trimmed
+        }
+    }
+
     /// How this machine groups the time it tracks.
     struct ClassificationConfig: Sendable {
         /// The group this machine is judged by: the share the menubar icon shows.
@@ -127,6 +153,10 @@ struct ZeitConfig: Sendable {
 
     static let defaultClassification = ClassificationConfig(primaryGroup: .work)
 
+    /// Computed, not stored: the host name is only known at runtime, and a
+    /// machine renamed in System Settings should follow without an edit.
+    static var defaultDevice: DeviceConfig { DeviceConfig() }
+
     static let defaultModels = ModelsConfig(
         vision: "qwen3-vl:4b",
         text: .init(provider: "mlx", model: "qwen3:8b")
@@ -146,6 +176,9 @@ struct ZeitConfig: Sendable {
 
     /// What `ensureSetup()` writes when there is no config file yet.
     static let defaultConfigYAML = """
+        # device:
+        #   name: 'Work MBP'     # label stamped on each entry; defaults to this machine's name
+
         tracking:
           schedule:              # 'always', or a list of windows
             windows:
@@ -206,7 +239,8 @@ struct ZeitConfig: Sendable {
                 schedule: defaultSchedule,
                 tracking: defaultTracking,
                 models: defaultModels,
-                classification: defaultClassification
+                classification: defaultClassification,
+                device: defaultDevice
             )
         }
 
@@ -223,7 +257,8 @@ struct ZeitConfig: Sendable {
             schedule: parseSchedule(from: yaml),
             tracking: parseTracking(from: yaml),
             models: parseModels(from: yaml),
-            classification: parseClassification(from: yaml)
+            classification: parseClassification(from: yaml),
+            device: parseDevice(from: yaml)
         )
     }
 
@@ -391,6 +426,13 @@ struct ZeitConfig: Sendable {
         }
 
         return ClassificationConfig(primaryGroup: group)
+    }
+
+    /// `device.name`, with this machine's name as the default. A missing
+    /// block, a name that is not a string and a blank name all read the same:
+    /// there is nothing to warn about, since the default is always usable.
+    static func parseDevice(from yaml: [String: Any]) -> DeviceConfig {
+        DeviceConfig(name: (yaml["device"] as? [String: Any])?["name"] as? String)
     }
 
     private static func parseModels(from yaml: [String: Any]) -> ModelsConfig {
