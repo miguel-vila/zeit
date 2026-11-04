@@ -19,7 +19,7 @@ struct MenubarFeatureTests {
 
         await store.send(.toggleTracking)
 
-        await store.receive(.trackingToggled(.success(()))) {
+        await store.receive(\.trackingToggled) {
             $0.trackingState = .pausedManual
         }
     }
@@ -46,10 +46,10 @@ struct ActivityStatTests {
     @Test
     func computeActivityBreakdown_calculatesPercentages() {
         let activities = [
-            ActivityEntry(timestamp: "2025-01-01T10:00:00", activity: .workCoding, reasoning: nil),
-            ActivityEntry(timestamp: "2025-01-01T10:01:00", activity: .workCoding, reasoning: nil),
-            ActivityEntry(timestamp: "2025-01-01T10:02:00", activity: .slack, reasoning: nil),
-            ActivityEntry(timestamp: "2025-01-01T10:03:00", activity: .personalBrowsing, reasoning: nil),
+            ActivityEntry(timestamp: "2025-01-01T10:00:00", activity: .workCoding, reasoning: nil, description: nil),
+            ActivityEntry(timestamp: "2025-01-01T10:01:00", activity: .workCoding, reasoning: nil, description: nil),
+            ActivityEntry(timestamp: "2025-01-01T10:02:00", activity: .slack, reasoning: nil, description: nil),
+            ActivityEntry(timestamp: "2025-01-01T10:03:00", activity: .personalBrowsing, reasoning: nil, description: nil),
         ]
 
         let stats = computeActivityBreakdown(from: activities)
@@ -63,9 +63,9 @@ struct ActivityStatTests {
     @Test
     func workPercentage_sumsWorkActivities() {
         let stats = [
-            ActivityStat(activity: .workCoding, count: 5, percentage: 50.0),
-            ActivityStat(activity: .slack, count: 2, percentage: 20.0),
-            ActivityStat(activity: .personalBrowsing, count: 3, percentage: 30.0),
+            ActivityStat(activity: .workCoding, count: 5, percentage: 50.0, isWork: true),
+            ActivityStat(activity: .slack, count: 2, percentage: 20.0, isWork: true),
+            ActivityStat(activity: .personalBrowsing, count: 3, percentage: 30.0, isWork: false),
         ]
 
         let result = workPercentage(from: stats)
