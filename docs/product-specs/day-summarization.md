@@ -11,7 +11,7 @@ Day summarization is a two-step process: **condensation** (grouping raw data) fo
 Raw activity entries (one per minute) are condensed before being sent to the LLM:
 
 - **Idle filtering** - All idle entries are excluded.
-- **Consecutive grouping** - Adjacent entries with the same activity type are merged into `ActivityGroup`s, each with a start/end time, duration in minutes, and collected reasonings from the vision model.
+- **Consecutive grouping** - Adjacent entries with the same activity type are merged into `ActivityRun`s, each with a start/end time, duration in minutes, and collected reasonings from the vision model.
 - **Percentage breakdown** - A per-activity percentage is computed over non-idle entries, sorted by proportion.
 
 For example, 45 raw entries might condense into 8 groups like:

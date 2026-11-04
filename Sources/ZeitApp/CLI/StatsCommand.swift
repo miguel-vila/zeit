@@ -17,6 +17,9 @@ struct StatsCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Include idle time in statistics")
     var includeIdle: Bool = false
 
+    @Option(name: .long, help: "Only count activities in this group")
+    var group: ActivityGroup?
+
     func run() async throws {
         let targetDate = date ?? DateHelpers.todayString()
         let db = try DatabaseHelper()
@@ -30,9 +33,17 @@ struct StatsCommand: AsyncParsableCommand {
             return
         }
 
-        let activities = includeIdle ? record.activities : record.nonIdleActivities
         let activityTypes = try await db.getActivityTypes()
-        let stats = computeActivityBreakdown(from: activities, activityTypes: activityTypes)
+        var activities = includeIdle ? record.activities : record.nonIdleActivities
+
+        if let group {
+            let groupIDs = Set(activityTypes.filter { $0.group == group }.map(\.id))
+            activities = activities.filter { groupIDs.contains($0.activity.rawValue) }
+        }
+
+        let stats = computeActivityBreakdown(
+            from: activities, activityTypes: activityTypes, includeIdle: includeIdle
+        )
 
         if json {
             try printStatsJSON(date: targetDate, stats: stats, total: activities.count)
@@ -46,16 +57,16 @@ struct StatsCommand: AsyncParsableCommand {
             let date: String
             let totalSamples: Int
             let activities: [ActivityStatOutput]
-            let workPercentage: Double
-            let personalPercentage: Double
+            let groupPercentages: [String: Double]
+            let unclassifiedPercentage: Double
             let idlePercentage: Double
 
             enum CodingKeys: String, CodingKey {
                 case date
                 case totalSamples = "total_samples"
                 case activities
-                case workPercentage = "work_percentage"
-                case personalPercentage = "personal_percentage"
+                case groupPercentages = "group_percentages"
+                case unclassifiedPercentage = "unclassified_percentage"
                 case idlePercentage = "idle_percentage"
             }
         }
@@ -64,12 +75,8 @@ struct StatsCommand: AsyncParsableCommand {
             let activity: String
             let count: Int
             let percentage: Double
-            let category: String
+            let group: String?
         }
-
-        let workPct = stats.filter { $0.category == "work" }.reduce(0.0) { $0 + $1.percentage }
-        let personalPct = stats.filter { $0.category == "personal" }.reduce(0.0) { $0 + $1.percentage }
-        let idlePct = stats.filter { $0.category == "system" }.reduce(0.0) { $0 + $1.percentage }
 
         let output = StatsOutput(
             date: date,
@@ -79,12 +86,16 @@ struct StatsCommand: AsyncParsableCommand {
                     activity: $0.activity.rawValue,
                     count: $0.count,
                     percentage: $0.percentage,
-                    category: $0.category
+                    group: $0.group?.rawValue
                 )
             },
-            workPercentage: workPct,
-            personalPercentage: personalPct,
-            idlePercentage: idlePct
+            groupPercentages: Dictionary(
+                uniqueKeysWithValues: ActivityGroup.allCases.map {
+                    ($0.rawValue, share(of: $0, in: stats))
+                }
+            ),
+            unclassifiedPercentage: unclassifiedShare(in: stats),
+            idlePercentage: idleShare(in: stats)
         )
 
         let encoder = JSONEncoder()
@@ -94,19 +105,25 @@ struct StatsCommand: AsyncParsableCommand {
     }
 
     private func printStatsTable(date: String, stats: [ActivityStat], total: Int) {
-        print("Activity Statistics for \(date)")
+        let heading = group.map { "Activity Statistics for \(date) — \($0.displayName)" }
+            ?? "Activity Statistics for \(date)"
+        print(heading)
         print("=" .repeated(50))
         print("")
 
-        let workPct = stats.filter { $0.category == "work" }.reduce(0.0) { $0 + $1.percentage }
-        let personalPct = stats.filter { $0.category == "personal" }.reduce(0.0) { $0 + $1.percentage }
-        let idlePct = stats.filter { $0.category == "system" }.reduce(0.0) { $0 + $1.percentage }
-
         print("Summary:")
         print("  Total samples: \(total)")
-        print("  Work:     \(String(format: "%5.1f", workPct))%")
-        print("  Personal: \(String(format: "%5.1f", personalPct))%")
-        print("  Idle:     \(String(format: "%5.1f", idlePct))%")
+        for group in ActivityGroup.allCases {
+            let label = "\(group.displayName):".padding(
+                toLength: 18, withPad: " ", startingAt: 0
+            )
+            print("  \(label)\(String(format: "%5.1f", share(of: group, in: stats)))%")
+        }
+        let unclassifiedLabel = "\(ActivityGroup.unclassifiedLabel):".padding(
+            toLength: 18, withPad: " ", startingAt: 0
+        )
+        print("  \(unclassifiedLabel)\(String(format: "%5.1f", unclassifiedShare(in: stats)))%")
+        print("  \("Idle:".padding(toLength: 18, withPad: " ", startingAt: 0))\(String(format: "%5.1f", idleShare(in: stats)))%")
         print("")
 
         print("Breakdown:")

@@ -27,7 +27,7 @@ For detailed documentation see:
 | Add menubar features | `Sources/ZeitApp/Features/Menubar/` (MenubarFeature + MenubarView) |
 | Add new UI feature | `Sources/ZeitApp/Features/` (TCA reducer + SwiftUI view) |
 | Add dependency client | `Sources/ZeitApp/Clients/` (use @DependencyClient) |
-| Change database schema | `Sources/ZeitApp/Clients/DatabaseClient.swift` |
+| Change database schema | `Sources/ZeitApp/Clients/DatabaseSchema.swift` (migrator shared by GUI and CLI) |
 | Change data paths | `Sources/ZeitApp/Core/ZeitConfig.swift` |
 | Add LLM provider | `Sources/ZeitApp/LLM/` (conform to LLMProvider/VisionLLMProvider) |
 | Modify build process | `build.sh` |

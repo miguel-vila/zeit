@@ -11,12 +11,15 @@ struct ActivityTypesFeature {
         var isLoading: Bool = true
         var saveError: String?
 
-        /// Whether the current configuration is valid for saving/continuing
+        /// Whether the current configuration is valid for saving/continuing.
+        ///
+        /// Groups are not required to be populated: only the selection as a whole
+        /// has to be non-empty.
         var isValid: Bool {
-            !workTypes.isEmpty && !personalTypes.isEmpty
-                && workTypes.count + personalTypes.count <= ActivityTypeValidator.maxTotalTypes
-                && workTypes.allSatisfy({ ActivityTypeValidator.validateField($0) == nil })
-                && personalTypes.allSatisfy({ ActivityTypeValidator.validateField($0) == nil })
+            let allTypes = workTypes + personalTypes
+            return !allTypes.isEmpty
+                && allTypes.count <= ActivityTypeValidator.maxTotalTypes
+                && allTypes.allSatisfy({ ActivityTypeValidator.validateField($0) == nil })
         }
     }
 
@@ -57,8 +60,8 @@ struct ActivityTypesFeature {
 
             case .typesLoaded(let types):
                 state.isLoading = false
-                state.workTypes = types.filter(\.isWork)
-                state.personalTypes = types.filter { !$0.isWork }
+                state.workTypes = types.filter { $0.group == .work }
+                state.personalTypes = types.filter { $0.group != .work }
                 return .none
 
             // MARK: - Work types
@@ -68,7 +71,7 @@ struct ActivityTypesFeature {
                     id: "new_work_\(UUID().uuidString.prefix(8).lowercased())",
                     name: "",
                     description: "",
-                    isWork: true
+                    group: .work
                 )
                 state.workTypes.append(newType)
                 return .none
@@ -97,7 +100,7 @@ struct ActivityTypesFeature {
                     id: "new_personal_\(UUID().uuidString.prefix(8).lowercased())",
                     name: "",
                     description: "",
-                    isWork: false
+                    group: .personal
                 )
                 state.personalTypes.append(newType)
                 return .none
@@ -122,8 +125,8 @@ struct ActivityTypesFeature {
             // MARK: - Bulk
 
             case .resetToDefaults:
-                state.workTypes = ActivityType.defaultWorkTypes
-                state.personalTypes = ActivityType.defaultPersonalTypes
+                state.workTypes = ActivityType.defaultTypes(in: .work)
+                state.personalTypes = ActivityType.defaultTypes.filter { $0.group != .work }
                 state.saveError = nil
                 return .none
 
@@ -148,16 +151,14 @@ struct ActivityTypesFeature {
                     )
                 }
 
-                let errors = ActivityTypeValidator.validateAll(
-                    work: state.workTypes,
-                    personal: state.personalTypes
-                )
+                let allTypes = state.workTypes + state.personalTypes
+
+                let errors = ActivityTypeValidator.validateAll(allTypes)
                 if let firstError = errors.first {
                     state.saveError = firstError.localizedDescription
                     return .none
                 }
 
-                let allTypes = state.workTypes + state.personalTypes
                 return .run { send in
                     do {
                         try await database.saveActivityTypes(allTypes)

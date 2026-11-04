@@ -1,111 +1,122 @@
 import ArgumentParser
 import Foundation
 
-/// CLI command to set activity types.
+/// CLI command to set activity types for one or more groups.
 ///
-/// Each entry is "Name: Description" separated by semicolons.
-/// When only --work or only --personal is provided, the other category
-/// is preserved from the existing database.
+/// `--group` and `--types` are repeatable and paired by position. Each `--types`
+/// value is a semicolon-separated list of "Name: Description" entries. A group
+/// named on the command line is replaced; a group not named is preserved.
 struct SetActivityTypesCommand: AsyncParsableCommand {
     static var configuration = CommandConfiguration(
         commandName: "set-activity-types",
-        abstract: "Set activity types for tracking"
+        abstract: "Set activity types for tracking",
+        discussion: """
+            Groups: \(ActivityGroup.allCases.map(\.rawValue).joined(separator: ", ")).
+
+            Each --group must be followed by a --types value:
+
+              zeit set-activity-types \\
+                --group work --types "Coding: Code in company repos" \\
+                --group personal --types "Social Media: X, Reddit"
+
+            Groups that are not named keep the types they have.
+            """
     )
 
-    @Option(name: .long, help: "Work activity types as semicolon-separated 'Name: Description' entries")
-    var work: String?
+    @Option(
+        name: .long,
+        parsing: .singleValue,
+        help: "Group to replace. Repeatable; pair each with a --types value"
+    )
+    var group: [ActivityGroup] = []
 
-    @Option(name: .long, help: "Personal activity types as semicolon-separated 'Name: Description' entries")
-    var personal: String?
+    @Option(
+        name: .long,
+        parsing: .singleValue,
+        help: "Activity types for the preceding --group as semicolon-separated 'Name: Description' entries"
+    )
+    var types: [String] = []
 
     func validate() throws {
-        guard work != nil || personal != nil else {
-            throw ValidationError("At least one of --work or --personal must be specified")
+        guard !group.isEmpty else {
+            throw ValidationError("At least one --group with a --types value must be specified")
         }
 
-        if let work = work {
-            let parsed = try parseEntries(work, label: "work")
-            try validateEntries(parsed, label: "work")
+        guard group.count == types.count else {
+            throw ValidationError(
+                "Each --group needs one --types value (got \(group.count) --group and \(types.count) --types)"
+            )
         }
 
-        if let personal = personal {
-            let parsed = try parseEntries(personal, label: "personal")
-            try validateEntries(parsed, label: "personal")
-        }
-
-        // Cross-category checks
-        if let work = work, let personal = personal {
-            let workParsed = try parseEntries(work, label: "work")
-            let personalParsed = try parseEntries(personal, label: "personal")
-
-            let workNames = Set(workParsed.map { $0.name.lowercased() })
-            let personalNames = Set(personalParsed.map { $0.name.lowercased() })
-            let overlap = workNames.intersection(personalNames)
-            if let dup = overlap.first {
-                throw ValidationError("Activity name '\(dup)' appears in both --work and --personal")
+        var seenGroups = Set<ActivityGroup>()
+        for named in group {
+            if seenGroups.contains(named) {
+                throw ValidationError("Group '\(named.rawValue)' is named more than once")
             }
-
-            let total = workParsed.count + personalParsed.count
-            if total > ActivityTypeValidator.maxTotalTypes {
-                throw ValidationError(
-                    "Too many activity types (\(total)). Maximum is \(ActivityTypeValidator.maxTotalTypes)"
-                )
-            }
+            seenGroups.insert(named)
         }
+
+        // Parse eagerly so a malformed entry fails before any write.
+        _ = try parseReplacements()
     }
 
     func run() async throws {
         let db = try DatabaseHelper()
         let existingTypes = try await db.getActivityTypes()
+        let allTypes = Self.merge(try parseReplacements(), into: existingTypes)
 
-        var workTypes: [ActivityType]
-        var personalTypes: [ActivityType]
-
-        if let workStr = work {
-            workTypes = try parseEntries(workStr, label: "work").map {
-                ActivityType(id: $0.id, name: $0.name, description: $0.description, isWork: true)
-            }
-        } else {
-            // Preserve existing work types
-            workTypes = existingTypes.filter(\.isWork)
+        if let error = allTypes.compactMap(ActivityTypeValidator.validateField).first {
+            throw ValidationError(error.localizedDescription)
+        }
+        if let error = ActivityTypeValidator.validateAll(allTypes).first {
+            throw ValidationError(error.localizedDescription)
         }
 
-        if let personalStr = personal {
-            personalTypes = try parseEntries(personalStr, label: "personal").map {
-                ActivityType(id: $0.id, name: $0.name, description: $0.description, isWork: false)
-            }
-        } else {
-            // Preserve existing personal types
-            personalTypes = existingTypes.filter { !$0.isWork }
-        }
-
-        let allTypes = workTypes + personalTypes
         try await db.saveActivityTypes(allTypes)
 
         print("Activity types updated!")
-        print("")
-        print("WORK (\(workTypes.count)):")
-        for type in workTypes {
-            print("  \(type.id): \(type.description)")
+        for group in ActivityGroup.allCases {
+            let groupTypes = allTypes.filter { $0.group == group }
+            print("")
+            print("\(group.displayName.uppercased()) (\(groupTypes.count)):")
+            if groupTypes.isEmpty {
+                print("  (none)")
+            }
+            for type in groupTypes {
+                print("  \(type.id): \(type.description)")
+            }
         }
-        print("")
-        print("PERSONAL (\(personalTypes.count)):")
-        for type in personalTypes {
-            print("  \(type.id): \(type.description)")
+    }
+
+    // MARK: - Merging
+
+    /// Replace the named groups and keep every group that was not named.
+    static func merge(
+        _ replacements: [ActivityGroup: [ActivityType]],
+        into existing: [ActivityType]
+    ) -> [ActivityType] {
+        ActivityGroup.allCases.flatMap { group in
+            replacements[group] ?? existing.filter { $0.group == group }
         }
     }
 
     // MARK: - Parsing
 
-    private struct ParsedEntry {
-        let name: String
-        let description: String
-        let id: String
+    /// The types supplied on the command line, keyed by the group they replace.
+    private func parseReplacements() throws -> [ActivityGroup: [ActivityType]] {
+        var replacements: [ActivityGroup: [ActivityType]] = [:]
+
+        for (named, spec) in zip(group, types) {
+            replacements[named] = try Self.parseEntries(spec, group: named)
+        }
+
+        return replacements
     }
 
-    private func parseEntries(_ str: String, label: String) throws -> [ParsedEntry] {
+    static func parseEntries(_ str: String, group: ActivityGroup) throws -> [ActivityType] {
         let entries = str.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }
-        var result: [ParsedEntry] = []
+        var result: [ActivityType] = []
+        var seenNames = Set<String>()
 
         for entry in entries where !entry.isEmpty {
             guard entry.contains(":") else {
@@ -121,39 +132,31 @@ struct SetActivityTypesCommand: AsyncParsableCommand {
                 : ""
 
             guard !name.isEmpty else {
-                throw ValidationError("Empty activity name found in --\(label) argument")
+                throw ValidationError("Empty activity name found in --group \(group.rawValue)")
             }
 
             guard !description.isEmpty else {
                 throw ValidationError("Empty description for activity '\(name)'")
             }
 
-            let id = ActivityType.generateID(from: name)
-
-            result.append(ParsedEntry(name: name, description: description, id: id))
-        }
-
-        return result
-    }
-
-    private func validateEntries(_ entries: [ParsedEntry], label: String) throws {
-        var seenNames = Set<String>()
-        for entry in entries {
-            if entry.name.count > ActivityTypeValidator.maxNameLength {
-                throw ValidationError("Activity name '\(entry.name)' exceeds \(ActivityTypeValidator.maxNameLength) characters")
-            }
-            if entry.description.count > ActivityTypeValidator.maxDescriptionLength {
-                throw ValidationError("Description for '\(entry.name)' exceeds \(ActivityTypeValidator.maxDescriptionLength) characters")
-            }
-            let lower = entry.name.lowercased()
+            let lower = name.lowercased()
             if seenNames.contains(lower) {
-                throw ValidationError("Duplicate \(label) activity name: '\(entry.name)'")
+                throw ValidationError(
+                    "Duplicate activity name in --group \(group.rawValue): '\(name)'"
+                )
             }
             seenNames.insert(lower)
 
-            if entry.id == "idle" {
-                throw ValidationError("Activity name '\(entry.name)' conflicts with reserved system type 'idle'")
-            }
+            result.append(
+                ActivityType(
+                    id: ActivityType.generateID(from: name),
+                    name: name,
+                    description: description,
+                    group: group
+                )
+            )
         }
+
+        return result
     }
 }

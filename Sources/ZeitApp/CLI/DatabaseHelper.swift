@@ -15,114 +15,32 @@ final class DatabaseHelper: @unchecked Sendable {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
         self.dbQueue = try DatabaseQueue(path: dbPath.path)
-        try DatabaseHelper.createTablesIfNeeded(dbQueue)
+        try ZeitDatabase.prepare(dbQueue)
     }
 
     /// Initialize with explicit path (for testing)
     init(path: String) throws {
         self.dbQueue = try DatabaseQueue(path: path)
+        try ZeitDatabase.prepare(dbQueue)
     }
 
-    private static func createTablesIfNeeded(_ dbQueue: DatabaseQueue) throws {
-        try dbQueue.write { db in
-            try db.execute(sql: """
-                CREATE TABLE IF NOT EXISTS daily_activities (
-                    date TEXT PRIMARY KEY,
-                    activities TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                )
-                """)
-            try db.execute(sql: """
-                CREATE TABLE IF NOT EXISTS day_objectives (
-                    date TEXT PRIMARY KEY,
-                    main_objective TEXT NOT NULL,
-                    secondary_objectives TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                )
-                """)
-            try db.execute(sql: """
-                CREATE TABLE IF NOT EXISTS activity_types (
-                    id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    description TEXT NOT NULL,
-                    is_work INTEGER NOT NULL,
-                    sort_order INTEGER NOT NULL DEFAULT 0,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                )
-                """)
-        }
-
-        // Auto-populate defaults if the activity_types table is empty
-        try ensureDefaultActivityTypes(dbQueue)
-    }
-
-    private static func ensureDefaultActivityTypes(_ dbQueue: DatabaseQueue) throws {
-        let count: Int = try dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM activity_types") ?? 0
-        }
-
-        if count == 0 {
-            let now = ISO8601DateFormatter().string(from: Date())
-            try dbQueue.write { db in
-                for (index, type) in ActivityType.defaultTypes.enumerated() {
-                    try db.execute(
-                        sql: """
-                            INSERT INTO activity_types
-                            (id, name, description, is_work, sort_order, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                            """,
-                        arguments: [
-                            type.id, type.name, type.description,
-                            type.isWork ? 1 : 0, index, now, now,
-                        ]
-                    )
-                }
-            }
-        }
+    /// Initialize against an already-prepared queue (for testing)
+    init(queue: DatabaseQueue) {
+        self.dbQueue = queue
     }
 
     // MARK: - Activity Types
 
     func getActivityTypes() async throws -> [ActivityType] {
         try await dbQueue.read { db in
-            let rows = try Row.fetchAll(
-                db,
-                sql: "SELECT id, name, description, is_work FROM activity_types ORDER BY sort_order, id"
-            )
-
-            return rows.map { row in
-                ActivityType(
-                    id: row["id"],
-                    name: row["name"],
-                    description: row["description"],
-                    isWork: (row["is_work"] as Int) != 0
-                )
-            }
+            try ZeitDatabase.fetchActivityTypes(db)
         }
     }
 
     func saveActivityTypes(_ types: [ActivityType]) async throws {
-        let now = ISO8601DateFormatter().string(from: Date())
-
         try await dbQueue.write { db in
             try db.execute(sql: "DELETE FROM activity_types")
-
-            for (index, type) in types.enumerated() {
-                try db.execute(
-                    sql: """
-                        INSERT INTO activity_types
-                        (id, name, description, is_work, sort_order, created_at, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """,
-                    arguments: [
-                        type.id, type.name, type.description,
-                        type.isWork ? 1 : 0, index, now, now,
-                    ]
-                )
-            }
+            try ZeitDatabase.insertActivityTypes(types, into: db)
         }
     }
 

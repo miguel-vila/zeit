@@ -27,9 +27,12 @@ struct ViewTodayCommand: AsyncParsableCommand {
         abstract: "View today's activities"
     )
 
+    @Option(name: .long, help: "Only show activities in this group")
+    var group: ActivityGroup?
+
     func run() async throws {
         let today = DateHelpers.todayString()
-        try await ViewHelpers.printDayActivities(date: today)
+        try await ViewHelpers.printDayActivities(date: today, group: group)
     }
 }
 
@@ -41,9 +44,12 @@ struct ViewYesterdayCommand: AsyncParsableCommand {
         abstract: "View yesterday's activities"
     )
 
+    @Option(name: .long, help: "Only show activities in this group")
+    var group: ActivityGroup?
+
     func run() async throws {
         let yesterday = DateHelpers.yesterdayString()
-        try await ViewHelpers.printDayActivities(date: yesterday)
+        try await ViewHelpers.printDayActivities(date: yesterday, group: group)
     }
 }
 
@@ -58,8 +64,11 @@ struct ViewDayCommand: AsyncParsableCommand {
     @Argument(help: "Date in YYYY-MM-DD format")
     var date: String
 
+    @Option(name: .long, help: "Only show activities in this group")
+    var group: ActivityGroup?
+
     func run() async throws {
-        try await ViewHelpers.printDayActivities(date: date)
+        try await ViewHelpers.printDayActivities(date: date, group: group)
     }
 }
 
@@ -325,7 +334,7 @@ enum DateHelpers {
 }
 
 enum ViewHelpers {
-    static func printDayActivities(date: String) async throws {
+    static func printDayActivities(date: String, group: ActivityGroup? = nil) async throws {
         let db = try DatabaseHelper()
 
         guard let record = try await db.getDayRecord(date: date) else {
@@ -333,18 +342,36 @@ enum ViewHelpers {
             return
         }
 
-        print("Activities for \(date)")
+        let activityTypes = try await db.getActivityTypes()
+        let groupsByID = Dictionary(
+            activityTypes.map { ($0.id, $0.group) },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        let entries: [ActivityEntry]
+        if let group {
+            entries = record.activities.filter { groupsByID[$0.activity.rawValue] == group }
+        } else {
+            entries = record.activities
+        }
+
+        let heading = group.map { "Activities for \(date) — \($0.displayName)" }
+            ?? "Activities for \(date)"
+        print(heading)
         print("=" .repeated(40))
         print("")
+
+        if entries.isEmpty {
+            print("No activities in this group for \(date)")
+            return
+        }
 
         let timeFormatter = DateFormatter()
         timeFormatter.dateFormat = "HH:mm"
 
         let isoFormatter = ISO8601DateFormatter()
-        let activityTypes = try await db.getActivityTypes()
-        let workIDs = Set(activityTypes.filter(\.isWork).map(\.id))
 
-        for entry in record.activities {
+        for entry in entries {
             let timeStr: String
             if let entryDate = isoFormatter.date(from: entry.timestamp) {
                 timeStr = timeFormatter.string(from: entryDate)
@@ -352,7 +379,7 @@ enum ViewHelpers {
                 timeStr = "??:??"
             }
 
-            let icon = workIDs.contains(entry.activity.rawValue) ? "💼" : (entry.activity == .idle ? "😴" : "🏠")
+            let icon = icon(for: entry, groupsByID: groupsByID)
             if let description = entry.description {
                 print("\(timeStr) \(icon) \(entry.activity.displayName) — \(description)")
             } else {
@@ -361,15 +388,34 @@ enum ViewHelpers {
         }
 
         print("")
-        print("Total: \(record.count) activities")
+        print("Total: \(entries.count) activities")
 
-        // Calculate breakdown
-        let stats = computeActivityBreakdown(from: record.activities, activityTypes: activityTypes)
-        let workPct = stats.filter { $0.category == "work" }.reduce(0.0) { $0 + $1.percentage }
-        let personalPct = stats.filter { $0.category == "personal" }.reduce(0.0) { $0 + $1.percentage }
-        let idlePct = stats.filter { $0.category == "system" }.reduce(0.0) { $0 + $1.percentage }
+        // Calculate breakdown over the entries shown
+        let stats = computeActivityBreakdown(
+            from: entries, activityTypes: activityTypes, includeIdle: true
+        )
+        let shares = ActivityGroup.allCases.map {
+            "\($0.displayName): \(String(format: "%.1f", share(of: $0, in: stats)))%"
+        }
+        let extras = [
+            "\(ActivityGroup.unclassifiedLabel): \(String(format: "%.1f", unclassifiedShare(in: stats)))%",
+            "Idle: \(String(format: "%.1f", idleShare(in: stats)))%",
+        ]
 
-        print("Work: \(String(format: "%.1f", workPct))% | Personal: \(String(format: "%.1f", personalPct))% | Idle: \(String(format: "%.1f", idlePct))%")
+        print((shares + extras).joined(separator: " | "))
+    }
+
+    private static func icon(
+        for entry: ActivityEntry,
+        groupsByID: [String: ActivityGroup]
+    ) -> String {
+        if entry.activity == .idle { return "😴" }
+        switch groupsByID[entry.activity.rawValue] {
+        case .work: return "💼"
+        case .personalProjects: return "🚀"
+        case .personal: return "🏠"
+        case nil: return "❓"
+        }
     }
 }
 

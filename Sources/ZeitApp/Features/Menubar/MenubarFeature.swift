@@ -57,7 +57,7 @@ struct MenubarFeature {
         case modelsCheckCompleted(allDownloaded: Bool)
 
         // Data responses
-        case dataLoaded(DayRecord?, DayObjectives?)
+        case dataLoaded(DayRecord?, DayObjectives?, [ActivityType])
         case trackingStateUpdated(TrackingState)
 
         // User actions
@@ -146,18 +146,21 @@ struct MenubarFeature {
                 return .run { send in
                     let record = try? await database.getDayRecord(today)
                     let objectives = try? await database.getDayObjectives(today)
-                    await send(.dataLoaded(record, objectives))
+                    let activityTypes = (try? await database.getActivityTypes()) ?? []
+                    await send(.dataLoaded(record, objectives, activityTypes))
                 }
 
-            case .dataLoaded(let record, let objectives):
+            case .dataLoaded(let record, let objectives, let activityTypes):
                 state.isLoading = false
                 state.trackingState = tracking.getTrackingState()
                 state.dayObjectives = objectives
 
                 if let record {
                     state.totalActivities = record.count
-                    state.todayStats = computeActivityBreakdown(from: record.activities)
-                    state.workPercentage = workPercentage(from: state.todayStats)
+                    state.todayStats = computeActivityBreakdown(
+                        from: record.activities, activityTypes: activityTypes
+                    )
+                    state.workPercentage = share(of: .work, in: state.todayStats)
                 } else {
                     state.totalActivities = 0
                     state.todayStats = []

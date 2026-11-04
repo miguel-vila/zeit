@@ -61,11 +61,21 @@ With `--json`, outputs machine-readable JSON instead of the formatted table.
 
 Show activities for today or yesterday.
 
-Output: timestamped list of activities with icons (work/personal/idle), followed by a summary with work/personal/idle percentages.
+```bash
+zeit view today [--group GROUP]
+```
+
+Output: timestamped list of activities with a per-group icon (💼 work, 🚀 personal projects, 🏠 personal, ❓ unclassified, 😴 idle), followed by a summary with one percentage per group plus unclassified and idle.
+
+`--group work|personal_projects|personal` restricts the listing and the summary to that group.
 
 ### `zeit view day <YYYY-MM-DD>`
 
 Show activities for a specific date.
+
+```bash
+zeit view day <YYYY-MM-DD> [--group GROUP]
+```
 
 ### `zeit view all`
 
@@ -128,7 +138,7 @@ zeit view delete-objectives <YYYY-MM-DD> [--force]
 Show activity statistics for a day.
 
 ```bash
-zeit stats [YYYY-MM-DD] [--json] [--include-idle]
+zeit stats [YYYY-MM-DD] [--json] [--include-idle] [--group GROUP]
 ```
 
 | Flag | Description |
@@ -136,8 +146,9 @@ zeit stats [YYYY-MM-DD] [--json] [--include-idle]
 | `YYYY-MM-DD` | Date (default: today) |
 | `--json` | Output as JSON |
 | `--include-idle` | Include idle time in statistics (excluded by default) |
+| `--group GROUP` | Only count activities in `work`, `personal_projects` or `personal` |
 
-Output includes total sample count, work/personal/idle percentages, and a per-activity breakdown with bar chart visualization.
+Output includes total sample count, one percentage per group plus unclassified and idle, and a per-activity breakdown with bar chart visualization.
 
 ---
 
@@ -234,21 +245,23 @@ zeit set-work-hours --start HH:MM --end HH:MM [--days DAYS]
 
 ### `zeit list-activity-types`
 
-List all configured activity types grouped by work/personal.
+List all configured activity types, one section per group.
 
 ### `zeit set-activity-types`
 
 ```bash
-zeit set-activity-types [--work TYPES] [--personal TYPES]
+zeit set-activity-types --group GROUP --types TYPES [--group GROUP --types TYPES ...]
 ```
 
-Types are semicolon-separated `Name: Description` pairs:
+`--group` and `--types` are repeatable and paired by position. Types are semicolon-separated `Name: Description` pairs:
 
 ```bash
-zeit set-activity-types --work "Coding: Writing code; Design: UI work"
+zeit set-activity-types \
+  --group work --types "Coding: Writing code; Design: UI work" \
+  --group personal_projects --types "Project Coding: Code in ~/repos/me"
 ```
 
-If only `--work` is provided, existing personal types are preserved (and vice versa).
+A group named on the command line is replaced; a group not named keeps the types it has.
 
 ---
 

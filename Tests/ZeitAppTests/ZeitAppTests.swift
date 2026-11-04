@@ -61,14 +61,14 @@ struct ActivityStatTests {
     }
 
     @Test
-    func workPercentage_sumsWorkActivities() {
+    func share_sumsWorkActivities() {
         let stats = [
-            ActivityStat(activity: .workCoding, count: 5, percentage: 50.0, isWork: true),
-            ActivityStat(activity: .slack, count: 2, percentage: 20.0, isWork: true),
-            ActivityStat(activity: .personalBrowsing, count: 3, percentage: 30.0, isWork: false),
+            ActivityStat(activity: .workCoding, count: 5, percentage: 50.0, group: .work),
+            ActivityStat(activity: .slack, count: 2, percentage: 20.0, group: .work),
+            ActivityStat(activity: .personalBrowsing, count: 3, percentage: 30.0, group: .personal),
         ]
 
-        let result = workPercentage(from: stats)
+        let result = share(of: .work, in: stats)
 
         #expect(result == 70.0)  // workCoding + slack
     }

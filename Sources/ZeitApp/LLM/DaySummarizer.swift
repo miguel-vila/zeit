@@ -47,8 +47,8 @@ struct DaySummarizer: Sendable {
         )
 
         // Format condensed activities for prompt
-        let activitiesText = condensed.groups
-            .map { formatGroup($0) }
+        let activitiesText = condensed.runs
+            .map { formatRun($0) }
             .joined(separator: "\n")
 
         // Format percentage breakdown
@@ -149,13 +149,13 @@ struct DaySummarizer: Sendable {
         return "\(formatter.string(from: start))-\(formatter.string(from: end))"
     }
 
-    private func formatGroup(_ group: ActivityGroup) -> String {
-        let timeRange = formatTimeRange(start: group.startTime, end: group.endTime)
-        let reasoning = group.reasonings.isEmpty
+    private func formatRun(_ run: ActivityRun) -> String {
+        let timeRange = formatTimeRange(start: run.startTime, end: run.endTime)
+        let reasoning = run.reasonings.isEmpty
             ? "No description"
-            : group.reasonings.joined(separator: "; ")
-        let activityName = group.activity.displayName.lowercased()
-        return "\(timeRange) - \(activityName) (\(group.durationMinutes) min): \"\(reasoning)\""
+            : run.reasonings.joined(separator: "; ")
+        let activityName = run.activity.displayName.lowercased()
+        return "\(timeRange) - \(activityName) (\(run.durationMinutes) min): \"\(reasoning)\""
     }
 }
 

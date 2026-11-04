@@ -2,10 +2,10 @@ import Foundation
 
 /// A user-configurable activity type used for classification.
 struct ActivityType: Codable, Equatable, Sendable, Identifiable {
-    var id: String           // snake_case identifier (e.g. "work_coding")
-    var name: String         // display name (e.g. "Work Coding")
-    var description: String  // context for LLM (e.g. "Writing code, using IDEs")
-    var isWork: Bool         // true = work, false = personal
+    var id: String            // snake_case identifier (e.g. "work_coding")
+    var name: String          // display name (e.g. "Work Coding")
+    var description: String   // context for LLM (e.g. "Writing code, using IDEs")
+    var group: ActivityGroup  // which group this type belongs to
 }
 
 // MARK: - ID Generation
@@ -36,11 +36,9 @@ enum ActivityTypeValidationError: LocalizedError, Equatable {
     case emptyDescription
     case descriptionTooLong(String)
     case duplicateName(String)
-    case duplicateNameInOtherCategory(String, String)
     case reservedID(String)
     case duplicateID(String)
-    case noWorkTypes
-    case noPersonalTypes
+    case noTypes
     case tooManyTypes(Int)
 
     var errorDescription: String? {
@@ -55,16 +53,12 @@ enum ActivityTypeValidationError: LocalizedError, Equatable {
             return "Description for '\(name)' must be 200 characters or less"
         case .duplicateName(let name):
             return "An activity with this name already exists: '\(name)'"
-        case .duplicateNameInOtherCategory(let name, let category):
-            return "An activity with name '\(name)' already exists in \(category)"
         case .reservedID(let name):
             return "Activity name '\(name)' conflicts with reserved system type 'idle'"
         case .duplicateID(let id):
             return "Duplicate activity type identifiers found: '\(id)'"
-        case .noWorkTypes:
-            return "You must have at least one work activity type"
-        case .noPersonalTypes:
-            return "You must have at least one personal activity type"
+        case .noTypes:
+            return "You must have at least one activity type"
         case .tooManyTypes(let count):
             return "Maximum of 30 activity types allowed (currently \(count), to keep LLM prompts within token limits)"
         }
@@ -93,48 +87,28 @@ enum ActivityTypeValidator {
         return nil
     }
 
-    /// Validate a complete list of activity types.
-    static func validateAll(
-        work: [ActivityType],
-        personal: [ActivityType]
-    ) -> [ActivityTypeValidationError] {
+    /// Validate a complete selection of activity types.
+    ///
+    /// Groups are not required to be populated: a machine has a group when it has
+    /// types in that group. Only the selection as a whole has to be non-empty.
+    static func validateAll(_ types: [ActivityType]) -> [ActivityTypeValidationError] {
         var errors: [ActivityTypeValidationError] = []
 
-        if work.isEmpty { errors.append(.noWorkTypes) }
-        if personal.isEmpty { errors.append(.noPersonalTypes) }
+        if types.isEmpty { errors.append(.noTypes) }
+        if types.count > maxTotalTypes { errors.append(.tooManyTypes(types.count)) }
 
-        let total = work.count + personal.count
-        if total > maxTotalTypes { errors.append(.tooManyTypes(total)) }
-
-        // Check duplicates within each category
-        var workNames = Set<String>()
-        for type in work {
+        // Names are unique across all groups
+        var seenNames = Set<String>()
+        for type in types {
             let lower = type.name.lowercased()
-            if workNames.contains(lower) {
+            if seenNames.contains(lower) {
                 errors.append(.duplicateName(type.name))
             }
-            workNames.insert(lower)
+            seenNames.insert(lower)
         }
 
-        var personalNames = Set<String>()
-        for type in personal {
-            let lower = type.name.lowercased()
-            if personalNames.contains(lower) {
-                errors.append(.duplicateName(type.name))
-            }
-            personalNames.insert(lower)
-        }
-
-        // Check duplicates across categories
-        for name in workNames {
-            if personalNames.contains(name) {
-                errors.append(.duplicateNameInOtherCategory(name, "personal"))
-            }
-        }
-
-        // Check duplicate IDs
         var seenIDs = Set<String>()
-        for type in work + personal {
+        for type in types {
             if seenIDs.contains(type.id) {
                 errors.append(.duplicateID(type.id))
             }
@@ -148,107 +122,111 @@ enum ActivityTypeValidator {
 // MARK: - Default Activity Types
 
 extension ActivityType {
-    static let defaultTypes: [ActivityType] = defaultPersonalTypes + defaultWorkTypes
-
-    static let defaultPersonalTypes: [ActivityType] = [
-        ActivityType(
-            id: "personal_browsing",
-            name: "Personal Browsing",
-            description: "General web browsing not related to work",
-            isWork: false
-        ),
-        ActivityType(
-            id: "social_media",
-            name: "Social Media",
-            description: "Facebook, Twitter/X, Instagram, TikTok, etc.",
-            isWork: false
-        ),
-        ActivityType(
-            id: "youtube_entertainment",
-            name: "YouTube Entertainment",
-            description: "Watching YouTube for entertainment",
-            isWork: false
-        ),
-        ActivityType(
-            id: "personal_email",
-            name: "Personal Email",
-            description: "Personal email (Gmail, etc.)",
-            isWork: false
-        ),
-        ActivityType(
-            id: "personal_ai_use",
-            name: "Personal AI Use",
-            description: "Using AI tools for personal projects",
-            isWork: false
-        ),
-        ActivityType(
-            id: "personal_finances",
-            name: "Personal Finances",
-            description: "Banking, budgeting, crypto, investments",
-            isWork: false
-        ),
-        ActivityType(
-            id: "professional_development",
-            name: "Professional Development",
-            description: "Learning, courses, tutorials",
-            isWork: false
-        ),
-        ActivityType(
-            id: "online_shopping",
-            name: "Online Shopping",
-            description: "Amazon, eBay, other shopping sites",
-            isWork: false
-        ),
-        ActivityType(
-            id: "personal_calendar",
-            name: "Personal Calendar",
-            description: "Personal calendar/scheduling",
-            isWork: false
-        ),
-        ActivityType(
-            id: "entertainment",
-            name: "Entertainment",
-            description: "Games, movies, music, streaming",
-            isWork: false
-        ),
-    ]
-
-    static let defaultWorkTypes: [ActivityType] = [
+    /// The starter set written when the activity type table is empty.
+    ///
+    /// Auto-seeding exists for the machine where nobody opens the GUI; onboarding
+    /// replaces the whole set one screen later.
+    static let defaultTypes: [ActivityType] = [
         ActivityType(
             id: "slack",
             name: "Slack",
             description: "Using Slack for work communication",
-            isWork: true
+            group: .work
         ),
         ActivityType(
             id: "work_email",
             name: "Work Email",
             description: "Work email (Outlook, company email)",
-            isWork: true
+            group: .work
         ),
         ActivityType(
             id: "zoom_meeting",
             name: "Zoom Meeting",
             description: "Video calls, meetings",
-            isWork: true
+            group: .work
         ),
         ActivityType(
             id: "work_coding",
             name: "Work Coding",
             description: "Writing code, using IDE",
-            isWork: true
+            group: .work
         ),
         ActivityType(
             id: "work_browsing",
             name: "Work Browsing",
             description: "Work-related web browsing, documentation",
-            isWork: true
+            group: .work
         ),
         ActivityType(
             id: "work_calendar",
             name: "Work Calendar",
             description: "Work calendar/scheduling",
-            isWork: true
+            group: .work
+        ),
+        ActivityType(
+            id: "professional_development",
+            name: "Professional Development",
+            description: "Learning, courses, tutorials",
+            group: .personalProjects
+        ),
+        ActivityType(
+            id: "personal_ai_use",
+            name: "Personal AI Use",
+            description: "Using AI tools for personal projects",
+            group: .personalProjects
+        ),
+        ActivityType(
+            id: "personal_browsing",
+            name: "Personal Browsing",
+            description: "General web browsing not related to work",
+            group: .personal
+        ),
+        ActivityType(
+            id: "social_media",
+            name: "Social Media",
+            description: "Facebook, Twitter/X, Instagram, TikTok, etc.",
+            group: .personal
+        ),
+        ActivityType(
+            id: "youtube_entertainment",
+            name: "YouTube Entertainment",
+            description: "Watching YouTube for entertainment",
+            group: .personal
+        ),
+        ActivityType(
+            id: "personal_email",
+            name: "Personal Email",
+            description: "Personal email (Gmail, etc.)",
+            group: .personal
+        ),
+        ActivityType(
+            id: "personal_finances",
+            name: "Personal Finances",
+            description: "Banking, budgeting, crypto, investments",
+            group: .personal
+        ),
+        ActivityType(
+            id: "online_shopping",
+            name: "Online Shopping",
+            description: "Amazon, eBay, other shopping sites",
+            group: .personal
+        ),
+        ActivityType(
+            id: "personal_calendar",
+            name: "Personal Calendar",
+            description: "Personal calendar/scheduling",
+            group: .personal
+        ),
+        ActivityType(
+            id: "entertainment",
+            name: "Entertainment",
+            description: "Games, movies, music, streaming",
+            group: .personal
         ),
     ]
+
+    /// The default types belonging to `group`, in declaration order.
+    static func defaultTypes(in group: ActivityGroup) -> [ActivityType] {
+        defaultTypes.filter { $0.group == group }
+    }
 }

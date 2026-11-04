@@ -5,21 +5,26 @@ struct ActivityStat: Equatable, Identifiable, Sendable {
     let activity: Activity
     let count: Int
     let percentage: Double
-    let isWork: Bool
+    /// The group of the activity type behind this stat, or `nil` when the type is
+    /// no longer configured (or for the reserved `idle` type).
+    let group: ActivityGroup?
 
     var id: String { activity.rawValue }
 
-    /// Category label for grouping
-    var category: String {
-        if activity == .idle { return "system" }
-        return isWork ? "work" : "personal"
+    var isIdle: Bool { activity == .idle }
+
+    /// Label used wherever this stat is shown outside of a group section.
+    var groupLabel: String {
+        if isIdle { return "Idle" }
+        return group?.displayName ?? ActivityGroup.unclassifiedLabel
     }
 }
 
 /// Compute activity breakdown from a list of entries.
 ///
-/// Uses the provided `activityTypes` to determine work/personal classification.
-/// Unknown types default to personal.
+/// The group of each stat comes from the matching entry in `activityTypes`. An id
+/// that is not in the type table has no group and reports as Unclassified — it is
+/// never folded into a group it was not labelled with.
 func computeActivityBreakdown(
     from activities: [ActivityEntry],
     activityTypes: [ActivityType] = ActivityType.defaultTypes,
@@ -31,8 +36,10 @@ func computeActivityBreakdown(
 
     guard !filtered.isEmpty else { return [] }
 
-    // Build lookup for isWork
-    let workIDs = Set(activityTypes.filter(\.isWork).map(\.id))
+    let groupsByID = Dictionary(
+        activityTypes.map { ($0.id, $0.group) },
+        uniquingKeysWith: { first, _ in first }
+    )
 
     // Count occurrences of each activity
     var counts: [Activity: Int] = [:]
@@ -49,15 +56,29 @@ func computeActivityBreakdown(
                 activity: activity,
                 count: count,
                 percentage: (Double(count) / total) * 100.0,
-                isWork: workIDs.contains(activity.rawValue)
+                group: activity == .idle ? nil : groupsByID[activity.rawValue]
             )
         }
         .sorted { $0.percentage > $1.percentage }
 }
 
-/// Calculate work percentage from activity stats
-func workPercentage(from stats: [ActivityStat]) -> Double {
+/// Sum the percentages of the stats belonging to `group`.
+func share(of group: ActivityGroup, in stats: [ActivityStat]) -> Double {
     stats
-        .filter { $0.category == "work" }
+        .filter { $0.group == group }
+        .reduce(0.0) { $0 + $1.percentage }
+}
+
+/// Sum the percentages of the stats whose type is no longer configured.
+func unclassifiedShare(in stats: [ActivityStat]) -> Double {
+    stats
+        .filter { !$0.isIdle && $0.group == nil }
+        .reduce(0.0) { $0 + $1.percentage }
+}
+
+/// Sum the percentages of the idle stats, if idle was included in the breakdown.
+func idleShare(in stats: [ActivityStat]) -> Double {
+    stats
+        .filter(\.isIdle)
         .reduce(0.0) { $0 + $1.percentage }
 }

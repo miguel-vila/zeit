@@ -125,7 +125,7 @@ Provider options:
 
 ### Activity Types
 
-Stored in the `activity_types` database table. Each type has an ID, name, description, and work/personal flag. Configurable via Settings > Activity Types tab or `zeit set-activity-types` CLI command.
+Stored in the `activity_types` database table. Each type has an ID, name, description, and group (work, personal projects or personal). Configurable via Settings > Activity Types tab or `zeit set-activity-types` CLI command.
 
 The activity types directly shape the classification prompt: the LLM is given the list of types with descriptions and must pick one.
 

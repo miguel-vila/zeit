@@ -150,6 +150,8 @@ External services are abstracted behind `@DependencyClient` interfaces:
 
 The GUI's `DatabaseClient` uses an actor (`DatabaseActor`) for thread-safe GRDB access. The CLI's `DatabaseHelper` uses simpler synchronous access since CLI commands are short-lived.
 
+Both open the same file and both bring it up to date through `ZeitDatabase` (`Sources/ZeitApp/Clients/DatabaseSchema.swift`), a GRDB `DatabaseMigrator` whose first migration is a baseline matching the original `CREATE TABLE IF NOT EXISTS` schema. Schema changes go there, so the two paths cannot disagree.
+
 ### Two-Stage LLM Pipeline
 
 Activity identification always uses two models:

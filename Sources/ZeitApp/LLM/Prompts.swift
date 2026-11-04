@@ -34,29 +34,27 @@ enum Prompts {
 
     /// Prompt for text model to classify activity into category.
     ///
-    /// Dynamically builds the category list from user-configured activity types.
+    /// Dynamically builds the category list from user-configured activity types,
+    /// one section per group that has types in it.
     static func activityClassification(
         description: String,
         activityTypes: [ActivityType] = ActivityType.defaultTypes
     ) -> String {
-        let personalTypes = activityTypes.filter { !$0.isWork }
-        let workTypes = activityTypes.filter { $0.isWork }
+        let sections = ActivityGroup.allCases.compactMap { group -> String? in
+            let types = activityTypes.filter { $0.group == group }
+            guard !types.isEmpty else { return nil }
 
-        var personalSection = "PERSONAL ACTIVITIES:\n"
-        for type in personalTypes {
-            personalSection += "- \(type.id): \(type.description)\n"
-        }
-
-        var workSection = "WORK ACTIVITIES:\n"
-        for type in workTypes {
-            workSection += "- \(type.id): \(type.description)\n"
+            var section = "\(group.promptHeading):\n"
+            for type in types {
+                section += "- \(type.id): \(type.description)\n"
+            }
+            return section
         }
 
         return """
         Based on the following description of a user's screen activity, classify it into one of these categories:
 
-        \(personalSection)
-        \(workSection)
+        \(sections.joined(separator: "\n"))
         Activity description:
         \(description)
 
@@ -68,7 +66,7 @@ enum Prompts {
             "secondary_context": "Any secondary activity if applicable (optional)"
         }
 
-        Choose the single most appropriate category. If unsure between work and personal, consider the context and applications visible.
+        Choose the single most appropriate category. Categories in different groups can look alike on screen — work coding and project coding are both an editor and a terminal — so when two categories fit, decide from the content visible (which repository, which domain, which account) and pick the one whose description matches it.
         """
     }
 
