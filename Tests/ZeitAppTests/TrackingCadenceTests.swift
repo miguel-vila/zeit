@@ -26,8 +26,16 @@ private let workHours = ZeitConfig.ScheduleConfig.windows([
     ZeitConfig.ScheduleWindow(days: weekdays, startHour: 9, endHour: 17, endMinute: 30)
 ])
 
-private func cadence(_ seconds: Int, skipOnBattery: Bool = false) -> ZeitConfig.TrackingConfig {
-    ZeitConfig.TrackingConfig(intervalSeconds: seconds, skipOnBattery: skipOnBattery)
+private func cadence(
+    _ seconds: Int,
+    skipOnBattery: Bool = false,
+    dayStartHour: Int = 0
+) -> ZeitConfig.TrackingConfig {
+    ZeitConfig.TrackingConfig(
+        intervalSeconds: seconds,
+        skipOnBattery: skipOnBattery,
+        dayStartHour: dayStartHour
+    )
 }
 
 /// launchd fires every 60 seconds whatever the config says, so the tracker
@@ -173,7 +181,7 @@ struct TrackingConfigParsingTests {
             """
         )
 
-        #expect(parsed == ZeitConfig.TrackingConfig(intervalSeconds: 300, skipOnBattery: true))
+        #expect(parsed == cadence(300, skipOnBattery: true))
     }
 
     /// A cadence under the launchd tick cannot be honoured, so it is raised
@@ -318,10 +326,7 @@ struct CadenceSettingsTests {
         await store.send(.setInterval(600))
         await store.send(.setSkipOnBattery(true))
 
-        #expect(
-            store.state.editor.tracking
-                == ZeitConfig.TrackingConfig(intervalSeconds: 600, skipOnBattery: true)
-        )
+        #expect(store.state.editor.tracking == cadence(600, skipOnBattery: true))
     }
 }
 

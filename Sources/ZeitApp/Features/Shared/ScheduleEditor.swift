@@ -49,8 +49,8 @@ struct ScheduleWindowDraft: Equatable, Identifiable, Sendable {
 }
 
 /// The schedule as the onboarding step and the Schedule settings tab edit it:
-/// a form (Always or Windows) plus the window rows, and under them the cadence
-/// and the battery gate.
+/// a form (Always or Windows) plus the window rows, and under them the cadence,
+/// the battery gate and the hour a day starts at.
 ///
 /// The rows survive switching to Always and back, so the choice is not
 /// destructive while the sheet is open.
@@ -59,6 +59,7 @@ struct ScheduleEditorState: Equatable, Sendable {
     var windows: [ScheduleWindowDraft] = [.default]
     var intervalSeconds: Int = ZeitConfig.defaultTracking.intervalSeconds
     var skipOnBattery: Bool = ZeitConfig.defaultTracking.skipOnBattery
+    var dayStartHour: Int = ZeitConfig.defaultTracking.dayStartHour
 
     init(
         schedule: ZeitConfig.ScheduleConfig = ZeitConfig.defaultSchedule,
@@ -73,6 +74,7 @@ struct ScheduleEditorState: Equatable, Sendable {
     ) {
         intervalSeconds = Self.clamped(tracking.intervalSeconds)
         skipOnBattery = tracking.skipOnBattery
+        dayStartHour = DayAttribution.clamped(dayStartHour: tracking.dayStartHour)
 
         switch schedule {
         case .always:
@@ -97,7 +99,8 @@ struct ScheduleEditorState: Equatable, Sendable {
     var tracking: ZeitConfig.TrackingConfig {
         ZeitConfig.TrackingConfig(
             intervalSeconds: intervalSeconds,
-            skipOnBattery: skipOnBattery
+            skipOnBattery: skipOnBattery,
+            dayStartHour: dayStartHour
         )
     }
 
@@ -120,6 +123,16 @@ struct ScheduleEditorState: Equatable, Sendable {
     /// "5 min" for a round cadence, "90s" for a hand-edited one.
     static func intervalLabel(_ seconds: Int) -> String {
         seconds % 60 == 0 ? "\(seconds / 60) min" : "\(seconds)s"
+    }
+
+    /// Every hour a day can start at. Unlike the cadence there is nothing to
+    /// clamp against beyond the hours themselves, so the picker offers them all.
+    static let dayStartHourOptions = Array(0...23)
+
+    /// "Midnight" names what `0` means, since "12 AM" reads as a choice rather
+    /// than as the behaviour a day has always had.
+    static func dayStartHourLabel(_ hour: Int) -> String {
+        hour == 0 ? "Midnight" : ScheduleWindowPickerView.formatHour(hour)
     }
 
     mutating func addWindow() {

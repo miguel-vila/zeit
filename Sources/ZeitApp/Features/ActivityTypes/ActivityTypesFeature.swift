@@ -237,9 +237,7 @@ struct ActivityTypesFeature {
     /// reports zero: a failed count must not block the user from editing their
     /// own selection.
     private func todaysEntryCount(for id: String) async -> Int {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let today = formatter.string(from: Date())
+        let today = DayAttribution.current.today()
 
         guard let record = try? await database.getDayRecord(today) else { return 0 }
         return record.activities.filter { $0.activity.rawValue == id }.count

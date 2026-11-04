@@ -65,6 +65,7 @@ struct SettingsFeature {
         case changeWindow(ScheduleWindowDraft)
         case setInterval(Int)
         case setSkipOnBattery(Bool)
+        case setDayStartHour(Int)
         case saveSchedule
         case scheduleSaved
         case scheduleSaveFailed(String)
@@ -150,6 +151,11 @@ struct SettingsFeature {
 
             case .setSkipOnBattery(let skip):
                 state.schedule.editor.skipOnBattery = skip
+                state.schedule.saveError = nil
+                return .none
+
+            case .setDayStartHour(let hour):
+                state.schedule.editor.dayStartHour = DayAttribution.clamped(dayStartHour: hour)
                 state.schedule.saveError = nil
                 return .none
 

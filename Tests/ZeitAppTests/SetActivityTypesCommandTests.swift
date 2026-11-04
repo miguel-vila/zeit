@@ -1,8 +1,16 @@
 import ArgumentParser
+import Foundation
 import GRDB
 import Testing
 
 @testable import ZeitApp
+
+/// So a fixed `Z` timestamp lands on the same day key wherever the tests run.
+private let utcCalendar: Calendar = {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "UTC")!
+    return calendar
+}()
 
 @Suite
 struct SetActivityTypesCommandTests {
@@ -113,9 +121,9 @@ struct MigratedDatabaseWriteTests {
             reasoning: "An IDE with company code",
             description: "Editing a Swift file"
         )
-        try await db.insertActivity(entry)
+        try await db.insertActivity(entry, attribution: .calendarDay, calendar: utcCalendar)
 
-        let record = try await db.getDayRecord(date: DateHelpers.todayString())
+        let record = try await db.getDayRecord(date: "2026-01-01")
         #expect(record?.activities.map(\.activity) == [.workCoding])
 
         let types = try await db.getActivityTypes()

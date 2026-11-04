@@ -318,18 +318,17 @@ struct DeleteObjectivesCommand: AsyncParsableCommand {
 
 // MARK: - Helpers
 
+/// The day keys the CLI defaults to, attributed per `tracking.day_start_hour`.
+///
+/// Both come from `DayAttribution`, the one place a day key is computed, so a
+/// `zeit view today` cannot name a different day than `zeit track` wrote to.
 enum DateHelpers {
     static func todayString() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: Date())
+        DayAttribution.current.today()
     }
 
     static func yesterdayString() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date())!
-        return formatter.string(from: yesterday)
+        DayAttribution.current.yesterday()
     }
 }
 

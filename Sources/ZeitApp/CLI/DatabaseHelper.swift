@@ -104,8 +104,18 @@ final class DatabaseHelper: @unchecked Sendable {
         }
     }
 
-    func insertActivity(_ entry: ActivityEntry) async throws {
-        let today = DateHelpers.todayString()
+    /// Append an entry to the day it belongs to.
+    ///
+    /// The day comes from the entry's own timestamp rather than from the
+    /// moment of the write, so an entry captured just before the day start is
+    /// not pulled over the boundary by a slow classification. `attribution` is
+    /// a parameter so the boundary can be exercised without a config on disk.
+    func insertActivity(
+        _ entry: ActivityEntry,
+        attribution: DayAttribution = .current,
+        calendar: Calendar = .current
+    ) async throws {
+        let today = attribution.dayString(for: entry.date ?? Date(), calendar: calendar)
         let now = ISO8601DateFormatter().string(from: Date())
 
         try await dbQueue.write { db in

@@ -89,6 +89,8 @@ All components read and write to the same SQLite database and YAML configuration
 └── .zeit_stop       Flag file (presence = tracking paused)
 ```
 
+Activities are stored one row per day, keyed `YYYY-MM-DD`. `DayAttribution` (`Sources/ZeitApp/Core/DayAttribution.swift`) is the only place that key is computed: an entry belongs to the day that started at `tracking.day_start_hour` local time, so `4` keeps a session that runs past midnight on the day it began. The default `0` is the calendar day. The write path attributes an entry by its own timestamp and every read — the menubar, `zeit view today`, `zeit stats` — resolves "today" the same way, so storage and views cannot disagree about where a late entry landed.
+
 ## How Components Connect
 
 ```

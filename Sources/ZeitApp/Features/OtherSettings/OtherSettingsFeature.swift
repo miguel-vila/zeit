@@ -18,6 +18,7 @@ struct OtherSettingsFeature {
         case changeWindow(ScheduleWindowDraft)
         case setInterval(Int)
         case setSkipOnBattery(Bool)
+        case setDayStartHour(Int)
         case done
     }
 
@@ -56,6 +57,10 @@ struct OtherSettingsFeature {
 
             case .setSkipOnBattery(let skip):
                 state.editor.skipOnBattery = skip
+                return .none
+
+            case .setDayStartHour(let hour):
+                state.editor.dayStartHour = DayAttribution.clamped(dayStartHour: hour)
                 return .none
 
             case .done:

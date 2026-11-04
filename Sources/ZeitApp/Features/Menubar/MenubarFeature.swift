@@ -553,10 +553,10 @@ struct MenubarFeature {
         .cancellable(id: CancelID.timer)
     }
 
+    /// The day the menubar shows, attributed per `tracking.day_start_hour` so
+    /// that at 01:00 it shows the day the tracker is still writing to.
     private func todayString() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: Date())
+        DayAttribution.current.today()
     }
 }
 

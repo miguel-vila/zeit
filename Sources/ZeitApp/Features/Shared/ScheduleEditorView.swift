@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// The schedule editor used by both onboarding and settings: Always or Windows,
-/// and under Windows a list of window rows with add and remove. The cadence and
-/// the battery gate sit under both forms, since they apply to either.
+/// and under Windows a list of window rows with add and remove. The cadence, the
+/// battery gate and the day start sit under both forms, since they apply to
+/// either.
 struct ScheduleEditorView: View {
     let state: ScheduleEditorState
 
@@ -12,6 +13,7 @@ struct ScheduleEditorView: View {
     let onChangeWindow: (ScheduleWindowDraft) -> Void
     let onSetInterval: (Int) -> Void
     let onSetSkipOnBattery: (Bool) -> Void
+    let onSetDayStartHour: (Int) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -96,6 +98,8 @@ struct ScheduleEditorView: View {
             cadenceRow
 
             batteryRow
+
+            dayStartRow
         }
     }
 
@@ -158,6 +162,45 @@ struct ScheduleEditorView: View {
             ))
             .labelsHidden()
             .toggleStyle(.switch)
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.primary.opacity(0.015))
+        )
+    }
+
+    /// Which day an entry counts towards. Worth setting when a window crosses
+    /// midnight, so a late session stays on the day it began.
+    private var dayStartRow: some View {
+        HStack(spacing: 12) {
+            ScheduleSettingsIcon(name: "sunrise", color: .orange)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Day Starts At")
+                    .fontWeight(.semibold)
+
+                Text(
+                    state.dayStartHour == 0
+                        ? "Each day is a calendar day"
+                        : "Entries before this hour count towards the previous day"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Picker("", selection: Binding(
+                get: { DayAttribution.clamped(dayStartHour: state.dayStartHour) },
+                set: { onSetDayStartHour($0) }
+            )) {
+                ForEach(ScheduleEditorState.dayStartHourOptions, id: \.self) { hour in
+                    Text(ScheduleEditorState.dayStartHourLabel(hour)).tag(hour)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 100)
         }
         .padding(10)
         .background(

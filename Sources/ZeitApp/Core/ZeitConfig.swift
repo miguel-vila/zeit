@@ -66,15 +66,24 @@ struct ZeitConfig: Sendable {
         /// Whether to skip a tick while the machine runs on battery.
         let skipOnBattery: Bool
 
+        /// The local hour a tracked day starts at. `0` is the calendar day.
+        ///
+        /// It lives here rather than next to the windows because it is not
+        /// part of "when does this machine track": an entry is attributed by
+        /// it whatever window produced it.
+        let dayStartHour: Int
+
         /// The launchd tick, and so the shortest cadence that can be honoured.
         static let minimumIntervalSeconds = 60
 
         /// A shorter interval than the tick is raised here, so no caller — the
         /// config reader, the editor, the writer — can hold a cadence that
-        /// cannot be honoured.
-        init(intervalSeconds: Int, skipOnBattery: Bool) {
+        /// cannot be honoured. The day start is bounded to a real hour for the
+        /// same reason.
+        init(intervalSeconds: Int, skipOnBattery: Bool, dayStartHour: Int) {
             self.intervalSeconds = max(intervalSeconds, Self.minimumIntervalSeconds)
             self.skipOnBattery = skipOnBattery
+            self.dayStartHour = DayAttribution.clamped(dayStartHour: dayStartHour)
         }
     }
 
@@ -112,7 +121,8 @@ struct ZeitConfig: Sendable {
 
     static let defaultTracking = TrackingConfig(
         intervalSeconds: TrackingConfig.minimumIntervalSeconds,
-        skipOnBattery: false
+        skipOnBattery: false,
+        dayStartHour: 0
     )
 
     static let defaultClassification = ClassificationConfig(primaryGroup: .work)
@@ -144,6 +154,7 @@ struct ZeitConfig: Sendable {
                 to: '17:30'
           interval_seconds: 60   # seconds between entries, minimum 60
           skip_on_battery: false # hold off while running on battery
+          day_start_hour: 0      # hour a tracked day starts; 0 is midnight
 
         classification:
           primary_group: 'work'   # 'work', 'personal_projects' or 'personal'
@@ -340,9 +351,11 @@ struct ZeitConfig: Sendable {
         }
 
         let configured = tracking["interval_seconds"] as? Int
+        let configuredDayStart = tracking["day_start_hour"] as? Int
         let parsed = TrackingConfig(
             intervalSeconds: configured ?? defaultTracking.intervalSeconds,
-            skipOnBattery: tracking["skip_on_battery"] as? Bool ?? defaultTracking.skipOnBattery
+            skipOnBattery: tracking["skip_on_battery"] as? Bool ?? defaultTracking.skipOnBattery,
+            dayStartHour: configuredDayStart ?? defaultTracking.dayStartHour
         )
 
         if let configured, configured != parsed.intervalSeconds {
@@ -351,6 +364,15 @@ struct ZeitConfig: Sendable {
                 tracking.interval_seconds: \(configured, privacy: .public)s is below the \
                 \(TrackingConfig.minimumIntervalSeconds, privacy: .public)s tick, \
                 using \(parsed.intervalSeconds, privacy: .public)s
+                """
+            )
+        }
+
+        if let configuredDayStart, configuredDayStart != parsed.dayStartHour {
+            logger.warning(
+                """
+                tracking.day_start_hour: \(configuredDayStart, privacy: .public) is not an hour \
+                of the day, using \(parsed.dayStartHour, privacy: .public)
                 """
             )
         }
@@ -489,8 +511,8 @@ struct ZeitConfig: Sendable {
     /// settings.
     ///
     /// `tracking` is written only when given: `zeit schedule` changes the
-    /// windows without touching the cadence, while the editor saves both in
-    /// one pass.
+    /// windows without touching the cadence or the day start, while the editor
+    /// saves both in one pass.
     static func saveSchedule(_ schedule: ScheduleConfig, tracking: TrackingConfig? = nil) throws {
         ensureSetup()
 
@@ -544,6 +566,7 @@ struct ZeitConfig: Sendable {
         if let cadence {
             tracking["interval_seconds"] = cadence.intervalSeconds
             tracking["skip_on_battery"] = cadence.skipOnBattery
+            tracking["day_start_hour"] = cadence.dayStartHour
         }
 
         yaml["tracking"] = tracking
