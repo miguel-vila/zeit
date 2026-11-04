@@ -11,14 +11,16 @@ struct ListActivityTypesCommand: AsyncParsableCommand {
     func run() async throws {
         let db = try DatabaseHelper()
         let types = try await db.getActivityTypes()
+        let primaryGroup = ZeitConfig.load().classification.primaryGroup
 
         print("Activity Types")
         print("=" .repeated(50))
 
         for group in ActivityGroup.allCases {
             let groupTypes = types.filter { $0.group == group }
+            let marker = group == primaryGroup ? " [primary]" : ""
             print("")
-            print("\(group.displayName.uppercased()) (\(groupTypes.count)):")
+            print("\(group.displayName.uppercased()) (\(groupTypes.count))\(marker):")
             if groupTypes.isEmpty {
                 print("  (none)")
             }

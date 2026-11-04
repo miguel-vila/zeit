@@ -23,12 +23,51 @@ enum ActivityGroup: String, Codable, Sendable, CaseIterable {
         }
     }
 
+    /// Short label for places with no room for the full name, such as the
+    /// menubar's primary-group line ("Projects 41%").
+    var shortName: String {
+        switch self {
+        case .work: return "Work"
+        case .personalProjects: return "Projects"
+        case .personal: return "Personal"
+        }
+    }
+
     /// Section heading used in the classification prompt.
     var promptHeading: String {
         switch self {
         case .work: return "WORK ACTIVITIES"
         case .personalProjects: return "PERSONAL PROJECT ACTIVITIES"
         case .personal: return "PERSONAL ACTIVITIES"
+        }
+    }
+}
+
+// MARK: - Primary group
+
+extension ActivityGroup {
+    /// The answers onboarding offers to "What do you want to spend your time on?".
+    ///
+    /// `personal` is missing on purpose: it is the residual group, measured
+    /// against and never for. The asymmetry lives in this copy and in the seed
+    /// defaults only — the enum stays flat and settings offers all three.
+    static let goals: [ActivityGroup] = [.work, .personalProjects]
+
+    /// How this group reads as an answer to the onboarding question.
+    var goalLabel: String {
+        switch self {
+        case .work: return "My job"
+        case .personalProjects: return "My own projects"
+        case .personal: return "Everything else"
+        }
+    }
+
+    /// What picking this group as primary means, shown under its answer.
+    var goalDetail: String {
+        switch self {
+        case .work: return "Zeit measures the share of your day spent on work"
+        case .personalProjects: return "Zeit measures the share of your day spent on side projects"
+        case .personal: return "Zeit measures the share of your day spent on personal time"
         }
     }
 }

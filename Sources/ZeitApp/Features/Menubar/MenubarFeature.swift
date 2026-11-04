@@ -20,9 +20,21 @@ struct MenubarFeature {
         var trackingState: TrackingState = .pausedManual
         var todayStats: [ActivityStat] = []
         var totalActivities: Int = 0
-        var workPercentage: Double = 0
+        /// The group this machine is judged by, read from the config on refresh.
+        var primaryGroup: ActivityGroup = ZeitConfig.defaultClassification.primaryGroup
         var todayDate: String = ""
         var dayObjectives: DayObjectives?
+
+        /// Share of today's non-idle tracked entries that fall in `group`.
+        func percentage(of group: ActivityGroup) -> Double {
+            share(of: group, in: todayStats)
+        }
+
+        /// The number the menubar icon shows.
+        var primaryGroupPercentage: Double { percentage(of: primaryGroup) }
+
+        /// Share of today's entries whose type is no longer configured.
+        var unclassifiedPercentage: Double { unclassifiedShare(in: todayStats) }
 
         // Child feature states
         @Presents var details: DetailsFeature.State?
@@ -57,7 +69,7 @@ struct MenubarFeature {
         case modelsCheckCompleted(allDownloaded: Bool)
 
         // Data responses
-        case dataLoaded(DayRecord?, DayObjectives?, [ActivityType])
+        case dataLoaded(DayRecord?, DayObjectives?, [ActivityType], primaryGroup: ActivityGroup)
         case trackingStateUpdated(TrackingState)
 
         // User actions
@@ -88,6 +100,7 @@ struct MenubarFeature {
     }
 
     @Dependency(\.databaseClient) var database
+    @Dependency(\.classificationClient) var classification
     @Dependency(\.trackingClient) var tracking
     @Dependency(\.launchAgentClient) var launchAgent
     @Dependency(\.notificationClient) var notification
@@ -147,24 +160,28 @@ struct MenubarFeature {
                     let record = try? await database.getDayRecord(today)
                     let objectives = try? await database.getDayObjectives(today)
                     let activityTypes = (try? await database.getActivityTypes()) ?? []
-                    await send(.dataLoaded(record, objectives, activityTypes))
+                    await send(
+                        .dataLoaded(
+                            record, objectives, activityTypes,
+                            primaryGroup: classification.primaryGroup()
+                        )
+                    )
                 }
 
-            case .dataLoaded(let record, let objectives, let activityTypes):
+            case .dataLoaded(let record, let objectives, let activityTypes, let primaryGroup):
                 state.isLoading = false
                 state.trackingState = tracking.getTrackingState()
                 state.dayObjectives = objectives
+                state.primaryGroup = primaryGroup
 
                 if let record {
                     state.totalActivities = record.count
                     state.todayStats = computeActivityBreakdown(
                         from: record.activities, activityTypes: activityTypes
                     )
-                    state.workPercentage = share(of: .work, in: state.todayStats)
                 } else {
                     state.totalActivities = 0
                     state.todayStats = []
-                    state.workPercentage = 0
                 }
                 return .none
 

@@ -145,6 +145,7 @@ External services are abstracted behind `@DependencyClient` interfaces:
 | `PermissionsClient` | Screen Recording and Accessibility permission checks |
 | `LaunchAgentClient` | Service install, load, unload, restart |
 | `NotificationClient` | macOS notification delivery |
+| `ClassificationClient` | Read/write `classification.primary_group` in `conf.yml` |
 
 ### Actor-Based Database Access
 

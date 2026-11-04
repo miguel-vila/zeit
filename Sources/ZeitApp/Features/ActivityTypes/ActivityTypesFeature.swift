@@ -10,16 +10,19 @@ struct ActivityTypesFeature {
     @ObservableState
     struct State: Equatable {
         var types: [ActivityType] = []
+        /// The group this machine is judged by, saved to the config on `done`.
+        var primaryGroup: ActivityGroup = ZeitConfig.defaultClassification.primaryGroup
         var isLoading: Bool = true
         var saveError: String?
 
         /// Whether the current configuration is valid for saving/continuing.
         ///
-        /// Groups are not required to be populated: only the selection as a whole
-        /// has to be non-empty.
+        /// Groups other than the primary one are not required to be populated: a
+        /// machine has a group when it has types in that group.
         var isValid: Bool {
             !types.isEmpty
                 && types.count <= ActivityTypeValidator.maxTotalTypes
+                && types.contains { $0.group == primaryGroup }
                 && types.allSatisfy({ ActivityTypeValidator.validateField($0) == nil })
         }
 
@@ -31,9 +34,10 @@ struct ActivityTypesFeature {
 
     enum Action {
         case task
-        case typesLoaded([ActivityType])
+        case typesLoaded([ActivityType], primaryGroup: ActivityGroup)
 
         // Editing
+        case setPrimaryGroup(ActivityGroup)
         case addType(group: ActivityGroup)
         case updateType(id: String, name: String?, description: String?)
         case deleteType(id: String)
@@ -48,6 +52,7 @@ struct ActivityTypesFeature {
     }
 
     @Dependency(\.databaseClient) var database
+    @Dependency(\.classificationClient) var classification
     @Dependency(\.uuid) var uuid
 
     var body: some ReducerOf<Self> {
@@ -57,15 +62,21 @@ struct ActivityTypesFeature {
                 state.isLoading = true
                 return .run { send in
                     let types = try await database.getActivityTypes()
-                    await send(.typesLoaded(types))
+                    await send(.typesLoaded(types, primaryGroup: classification.primaryGroup()))
                 }
 
-            case .typesLoaded(let types):
+            case .typesLoaded(let types, let primaryGroup):
                 state.isLoading = false
                 state.types = types
+                state.primaryGroup = primaryGroup
                 return .none
 
             // MARK: - Editing
+
+            case .setPrimaryGroup(let group):
+                state.primaryGroup = group
+                state.saveError = nil
+                return .none
 
             case .addType(let group):
                 state.types.append(
@@ -118,8 +129,11 @@ struct ActivityTypesFeature {
                 }
 
                 let allTypes = state.types
+                let primaryGroup = state.primaryGroup
 
-                let errors = ActivityTypeValidator.validateAll(allTypes)
+                let errors = ActivityTypeValidator.validateAll(
+                    allTypes, primaryGroup: primaryGroup
+                )
                 if let firstError = errors.first {
                     state.saveError = firstError.localizedDescription
                     return .none
@@ -127,6 +141,7 @@ struct ActivityTypesFeature {
 
                 return .run { send in
                     do {
+                        try classification.savePrimaryGroup(primaryGroup)
                         try await database.saveActivityTypes(allTypes)
                         await send(.saveCompleted(.success(())))
                     } catch {

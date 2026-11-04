@@ -81,7 +81,10 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = statusItem.button {
-            updateStatusItemIcon(trackingState: store.trackingState, workPercentage: store.workPercentage)
+            updateStatusItemIcon(
+                trackingState: store.trackingState,
+                primaryGroupPercentage: store.primaryGroupPercentage
+            )
             button.action = #selector(statusItemClicked(_:))
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
             button.target = self
@@ -141,8 +144,11 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func startIconObservation() {
         withObservationTracking {
             let trackingState = store.trackingState
-            let workPercentage = store.workPercentage
-            updateStatusItemIcon(trackingState: trackingState, workPercentage: workPercentage)
+            let primaryGroupPercentage = store.primaryGroupPercentage
+            updateStatusItemIcon(
+                trackingState: trackingState,
+                primaryGroupPercentage: primaryGroupPercentage
+            )
         } onChange: {
             Task { @MainActor [weak self] in
                 self?.startIconObservation()
@@ -150,10 +156,13 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    private func updateStatusItemIcon(trackingState: TrackingState, workPercentage: Double) {
+    private func updateStatusItemIcon(
+        trackingState: TrackingState,
+        primaryGroupPercentage: Double
+    ) {
         guard let button = statusItem.button else { return }
 
-        let percentage = Int(workPercentage)
+        let percentage = Int(primaryGroupPercentage)
 
         switch trackingState {
         case .beforeWorkHours:

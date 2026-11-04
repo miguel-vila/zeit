@@ -26,10 +26,13 @@ struct ActivityTypesFeatureTests {
     }
 
     private func store(
-        _ types: [ActivityType]
+        _ types: [ActivityType],
+        primaryGroup: ActivityGroup = .work
     ) -> TestStore<ActivityTypesFeature.State, ActivityTypesFeature.Action> {
         TestStore(
-            initialState: ActivityTypesFeature.State(types: types, isLoading: false)
+            initialState: ActivityTypesFeature.State(
+                types: types, primaryGroup: primaryGroup, isLoading: false
+            )
         ) {
             ActivityTypesFeature()
         } withDependencies: {
@@ -48,9 +51,10 @@ struct ActivityTypesFeatureTests {
 
         let store = self.store([])
 
-        await store.send(.typesLoaded(loaded)) {
+        await store.send(.typesLoaded(loaded, primaryGroup: .work)) {
             $0.isLoading = false
             $0.types = loaded
+            $0.primaryGroup = .work
         }
 
         #expect(store.state.types(in: .work).map(\.id) == ["work_coding", "slack"])
@@ -135,6 +139,7 @@ struct ActivityTypesFeatureTests {
             ActivityTypesFeature()
         } withDependencies: {
             $0.uuid = .incrementing
+            $0.classificationClient.savePrimaryGroup = { _ in }
             $0.databaseClient.saveActivityTypes = { types in
                 saved.setValue(types)
             }
@@ -152,10 +157,103 @@ struct ActivityTypesFeatureTests {
         #expect(saved.value.map(\.group) == [.work, .personalProjects, .personal])
     }
 
-    /// A single group is a valid selection: groups are not individually required.
+    // MARK: - Primary group
+
+    /// Whatever the editor loads is what the config holds, so the number the
+    /// menubar shows and the group being edited cannot drift apart.
     @Test(arguments: ActivityGroup.allCases)
-    func isValid_withTypesInOneGroupOnly(group: ActivityGroup) {
-        #expect(store([type("only_one", group)]).state.isValid)
+    func task_loadsThePrimaryGroupFromTheConfig(primaryGroup: ActivityGroup) async {
+        let loaded = oneTypePerGroup
+        let store = TestStore(initialState: ActivityTypesFeature.State()) {
+            ActivityTypesFeature()
+        } withDependencies: {
+            $0.databaseClient.getActivityTypes = { loaded }
+            $0.classificationClient.primaryGroup = { primaryGroup }
+        }
+
+        await store.send(.task)
+
+        await store.receive(\.typesLoaded) {
+            $0.isLoading = false
+            $0.types = loaded
+            $0.primaryGroup = primaryGroup
+        }
+    }
+
+    /// Settings offers all three groups, so each one has to be reachable from
+    /// another.
+    @Test(arguments: ActivityGroup.allCases)
+    func setPrimaryGroup_picksAnyOfTheThreeGroups(group: ActivityGroup) async {
+        let other = ActivityGroup.allCases.first { $0 != group }!
+        let store = self.store(oneTypePerGroup, primaryGroup: other)
+
+        await store.send(.setPrimaryGroup(group)) {
+            $0.primaryGroup = group
+        }
+    }
+
+    /// The config write and the type write happen together: a saved selection
+    /// that the saved primary group has nothing in would fail validation on the
+    /// next load.
+    @Test(arguments: ActivityGroup.allCases)
+    func done_savesThePrimaryGroupAlongsideTheTypes(group: ActivityGroup) async {
+        let savedGroup = LockIsolated<ActivityGroup?>(nil)
+        let store = TestStore(
+            initialState: ActivityTypesFeature.State(
+                types: [type("existing_\(group.rawValue)", group, name: "Only One")],
+                primaryGroup: group,
+                isLoading: false
+            )
+        ) {
+            ActivityTypesFeature()
+        } withDependencies: {
+            $0.classificationClient.savePrimaryGroup = { savedGroup.setValue($0) }
+            $0.databaseClient.saveActivityTypes = { _ in }
+        }
+
+        await store.send(.done) {
+            $0.types[0].id = "only_one"
+        }
+        await store.receive(\.saveCompleted)
+
+        #expect(savedGroup.value == group)
+    }
+
+    /// Nothing is written when the primary group has no types: the menubar
+    /// number would be stuck at zero.
+    @Test
+    func done_rejectsASelectionWithNothingInThePrimaryGroup() async {
+        let store = TestStore(
+            initialState: ActivityTypesFeature.State(
+                types: [type("social_media", .personal, name: "Social Media")],
+                primaryGroup: .work,
+                isLoading: false
+            )
+        ) {
+            ActivityTypesFeature()
+        } withDependencies: {
+            $0.uuid = .incrementing
+        }
+
+        await store.send(.done) {
+            $0.saveError = ActivityTypeValidationError
+                .noTypesInPrimaryGroup(.work)
+                .localizedDescription
+        }
+    }
+
+    /// A single group is a valid selection as long as it is the primary one:
+    /// other groups are not individually required.
+    @Test(arguments: ActivityGroup.allCases)
+    func isValid_withTypesInThePrimaryGroupOnly(group: ActivityGroup) {
+        #expect(store([type("only_one", group)], primaryGroup: group).state.isValid)
+    }
+
+    @Test(arguments: ActivityGroup.allCases)
+    func isValid_isFalseWhenThePrimaryGroupIsEmpty(primaryGroup: ActivityGroup) {
+        let other = ActivityGroup.allCases.first { $0 != primaryGroup }!
+
+        #expect(!store([type("only_one", other)], primaryGroup: primaryGroup).state.isValid)
     }
 
     @Test

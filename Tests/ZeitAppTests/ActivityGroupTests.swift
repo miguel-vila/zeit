@@ -206,24 +206,62 @@ struct ActivityTypeValidatorGroupTests {
     func aSelectionWithoutWorkTypesIsValid() {
         let types = [type("Project Coding", .personalProjects), type("Social Media", .personal)]
 
-        #expect(ActivityTypeValidator.validateAll(types).isEmpty)
+        #expect(
+            ActivityTypeValidator.validateAll(types, primaryGroup: .personalProjects).isEmpty
+        )
     }
 
     @Test
     func aSingleTypeIsEnough() {
-        #expect(ActivityTypeValidator.validateAll([type("Work Coding", .work)]).isEmpty)
+        #expect(
+            ActivityTypeValidator
+                .validateAll([type("Work Coding", .work)], primaryGroup: .work)
+                .isEmpty
+        )
     }
 
     @Test
     func anEmptySelectionIsRejected() {
-        #expect(ActivityTypeValidator.validateAll([]) == [.noTypes])
+        #expect(ActivityTypeValidator.validateAll([], primaryGroup: .work) == [.noTypes])
     }
 
     @Test
     func namesMustBeUniqueAcrossGroups() {
         let types = [type("Coding", .work), type("Coding", .personalProjects)]
 
-        #expect(ActivityTypeValidator.validateAll(types).contains(.duplicateName("Coding")))
+        #expect(
+            ActivityTypeValidator
+                .validateAll(types, primaryGroup: .work)
+                .contains(.duplicateName("Coding"))
+        )
+    }
+
+    /// The group the day is judged by has to have something in it, or the
+    /// menubar number is always zero.
+    @Test(arguments: ActivityGroup.allCases)
+    func thePrimaryGroupMustHaveAtLeastOneType(primaryGroup: ActivityGroup) {
+        let other = ActivityGroup.allCases.first { $0 != primaryGroup }!
+        let types = [type("Only One", other)]
+
+        #expect(
+            ActivityTypeValidator.validateAll(types, primaryGroup: primaryGroup)
+                == [.noTypesInPrimaryGroup(primaryGroup)]
+        )
+        #expect(
+            ActivityTypeValidator
+                .validateAll(types + [type("In Primary", primaryGroup)], primaryGroup: primaryGroup)
+                .isEmpty
+        )
+    }
+
+    /// An empty selection is already rejected by `noTypes`; saying the primary
+    /// group is empty as well would be the same error twice.
+    @Test
+    func anEmptySelectionIsNotAlsoReportedAsAnEmptyPrimaryGroup() {
+        #expect(
+            !ActivityTypeValidator.validateAll([], primaryGroup: .work)
+                .contains(.noTypesInPrimaryGroup(.work))
+        )
     }
 }
 

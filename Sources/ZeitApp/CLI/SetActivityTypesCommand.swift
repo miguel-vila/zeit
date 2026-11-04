@@ -68,7 +68,10 @@ struct SetActivityTypesCommand: AsyncParsableCommand {
         if let error = allTypes.compactMap(ActivityTypeValidator.validateField).first {
             throw ValidationError(error.localizedDescription)
         }
-        if let error = ActivityTypeValidator.validateAll(allTypes).first {
+        let primaryGroup = ZeitConfig.load().classification.primaryGroup
+        if let error = ActivityTypeValidator.validateAll(
+            allTypes, primaryGroup: primaryGroup
+        ).first {
             throw ValidationError(error.localizedDescription)
         }
 

@@ -4,8 +4,15 @@ import SwiftUI
 struct ActivityTypesView: View {
     @Bindable var store: StoreOf<ActivityTypesFeature>
 
-    /// Whether to show the Done button (used in onboarding; settings has its own save flow)
-    var showDoneButton: Bool = true
+    /// Where this editor is shown. Onboarding asks the primary group as a
+    /// question with two answers and owns the Continue button; settings offers
+    /// all three groups in a picker and has its own save flow.
+    enum Mode {
+        case onboarding
+        case settings
+    }
+
+    var mode: Mode = .onboarding
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -19,6 +26,8 @@ struct ActivityTypesView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
+
+            primaryGroupSection
 
             Divider()
 
@@ -59,7 +68,7 @@ struct ActivityTypesView: View {
 
                     Spacer()
 
-                    if showDoneButton {
+                    if mode == .onboarding {
                         Button("Continue") {
                             store.send(.done)
                         }
@@ -74,6 +83,79 @@ struct ActivityTypesView: View {
         .task {
             await store.send(.task).finish()
         }
+    }
+
+    // MARK: - Primary Group
+
+    /// The group the day is judged by: the number the menubar icon shows.
+    @ViewBuilder
+    private var primaryGroupSection: some View {
+        switch mode {
+        case .onboarding:
+            VStack(alignment: .leading, spacing: 8) {
+                Text("What do you want to spend your time on?")
+                    .font(.headline)
+
+                HStack(spacing: 10) {
+                    // Only the two groups that can be a goal; `personal` is the
+                    // residual group, measured against and never for.
+                    ForEach(ActivityGroup.goals, id: \.self) { group in
+                        goalButton(group)
+                    }
+                }
+            }
+        case .settings:
+            HStack(spacing: 8) {
+                Text("Measure my day by")
+                    .font(.subheadline)
+
+                // Settings offers all three: a machine may legitimately be
+                // judged by its personal time.
+                Picker("", selection: Binding(
+                    get: { store.primaryGroup },
+                    set: { store.send(.setPrimaryGroup($0)) }
+                )) {
+                    ForEach(ActivityGroup.allCases, id: \.self) { group in
+                        Text(group.displayName).tag(group)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .fixedSize()
+            }
+        }
+    }
+
+    private func goalButton(_ group: ActivityGroup) -> some View {
+        let isSelected = store.primaryGroup == group
+
+        return Button {
+            store.send(.setPrimaryGroup(group))
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: group.iconName)
+                    .foregroundStyle(isSelected ? group.color : .secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(group.goalLabel)
+                        .fontWeight(.medium)
+                    Text(group.goalDetail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isSelected ? group.color.opacity(0.12) : Color.primary.opacity(0.02))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? group.color : Color.clear, lineWidth: 1.5)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Activity Section
@@ -93,6 +175,15 @@ struct ActivityTypesView: View {
                 Text(group.displayName)
                     .font(.subheadline)
                     .fontWeight(.semibold)
+
+                if group == store.primaryGroup {
+                    Text("primary")
+                        .font(.caption2)
+                        .foregroundStyle(color)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(color.opacity(0.12), in: Capsule())
+                }
 
                 Spacer()
 

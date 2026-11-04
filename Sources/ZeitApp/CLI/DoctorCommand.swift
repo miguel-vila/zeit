@@ -25,6 +25,14 @@ struct DoctorCommand: AsyncParsableCommand {
             checks.append(await checkLocalModel(textInfo))
         }
 
+        // Classification: the group this machine is judged by.
+        checks.append(Check(
+            name: "Primary group",
+            passed: true,
+            details: "\(config.classification.primaryGroup.rawValue) "
+                + "(\(config.classification.primaryGroup.displayName))"
+        ))
+
         // Permission checks
         checks.append(checkScreenRecordingPermission())
         checks.append(checkAccessibilityPermission())

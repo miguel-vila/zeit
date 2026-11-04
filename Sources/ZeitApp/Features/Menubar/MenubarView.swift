@@ -101,15 +101,16 @@ struct MenubarView: View {
 
     private var statsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Work percentage with inline bar
+            // The primary group's share — the same number the icon shows — with
+            // the group's label, which the icon has no room for.
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    Text("Work")
+                    Text(store.primaryGroup.shortName)
                         .font(.caption)
                         .fontWeight(.medium)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text("\(Int(store.workPercentage))%")
+                    Text("\(Int(store.primaryGroupPercentage))%")
                         .font(.caption)
                         .fontWeight(.semibold)
                         .monospacedDigit()
@@ -120,15 +121,44 @@ struct MenubarView: View {
                         RoundedRectangle(cornerRadius: 3)
                             .fill(.quaternary)
                         RoundedRectangle(cornerRadius: 3)
-                            .fill(Color.accentColor.opacity(0.7))
+                            .fill(store.primaryGroup.color.opacity(0.8))
                             .frame(
-                                width: max(0, geometry.size.width * store.workPercentage / 100)
+                                width: max(
+                                    0,
+                                    geometry.size.width * store.primaryGroupPercentage / 100
+                                )
                             )
                     }
                 }
                 .frame(height: 5)
             }
             .padding(.horizontal, 14)
+
+            // Every group, primary or not, so the day can be read against the
+            // groups it was not judged by. Unclassified joins them once a type
+            // has gone missing.
+            VStack(spacing: 2) {
+                ForEach(ActivityGroup.allCases, id: \.self) { group in
+                    groupShareRow(
+                        title: group.displayName,
+                        color: group.color,
+                        percentage: store.state.percentage(of: group),
+                        isPrimary: group == store.primaryGroup
+                    )
+                }
+
+                if store.unclassifiedPercentage > 0 {
+                    groupShareRow(
+                        title: ActivityGroup.unclassifiedLabel,
+                        color: ActivityGroup.unclassifiedColor,
+                        percentage: store.unclassifiedPercentage,
+                        isPrimary: false
+                    )
+                }
+            }
+
+            Divider()
+                .padding(.horizontal, 14)
 
             // Activity breakdown
             VStack(spacing: 2) {
@@ -157,6 +187,33 @@ struct MenubarView: View {
 
         }
         .padding(.vertical, 8)
+    }
+
+    /// One group's share of the day. The primary group is set in bold, so the
+    /// icon's number can be found in the list.
+    private func groupShareRow(
+        title: String,
+        color: Color,
+        percentage: Double,
+        isPrimary: Bool
+    ) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: isPrimary ? "largecircle.fill.circle" : "circle.fill")
+                .font(.system(size: isPrimary ? 8 : 6))
+                .foregroundStyle(color)
+                .frame(width: 8)
+            Text(title)
+                .font(.caption)
+                .fontWeight(isPrimary ? .semibold : .regular)
+            Spacer()
+            Text("\(String(format: "%.0f", percentage))%")
+                .font(.caption)
+                .fontWeight(isPrimary ? .semibold : .regular)
+                .monospacedDigit()
+                .foregroundStyle(isPrimary ? .primary : .secondary)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 2)
     }
 
     private func objectivesSection(_ objectives: DayObjectives) -> some View {

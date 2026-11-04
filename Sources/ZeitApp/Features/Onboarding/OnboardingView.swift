@@ -17,7 +17,7 @@ struct OnboardingView: View {
         case .activityTypes:
             ActivityTypesView(
                 store: store.scope(state: \.activityTypes, action: \.activityTypes),
-                showDoneButton: true
+                mode: .onboarding
             )
         case .otherSettings:
             OtherSettingsView(

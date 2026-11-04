@@ -145,7 +145,7 @@ struct SettingsView: View {
     private var settingsActivityTypesTab: some View {
         ActivityTypesView(
             store: store.scope(state: \.activityTypes, action: \.activityTypes),
-            showDoneButton: false
+            mode: .settings
         )
         .overlay(alignment: .bottomTrailing) {
             Button("Save") {

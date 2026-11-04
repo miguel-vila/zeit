@@ -40,6 +40,7 @@ enum ActivityTypeValidationError: LocalizedError, Equatable {
     case duplicateID(String)
     case noTypes
     case tooManyTypes(Int)
+    case noTypesInPrimaryGroup(ActivityGroup)
 
     var errorDescription: String? {
         switch self {
@@ -61,6 +62,8 @@ enum ActivityTypeValidationError: LocalizedError, Equatable {
             return "You must have at least one activity type"
         case .tooManyTypes(let count):
             return "Maximum of 30 activity types allowed (currently \(count), to keep LLM prompts within token limits)"
+        case .noTypesInPrimaryGroup(let group):
+            return "You must have at least one activity type in \(group.displayName), the group your day is measured by"
         }
     }
 }
@@ -87,15 +90,26 @@ enum ActivityTypeValidator {
         return nil
     }
 
-    /// Validate a complete selection of activity types.
+    /// Validate a complete selection of activity types against the group the
+    /// machine is judged by.
     ///
-    /// Groups are not required to be populated: a machine has a group when it has
-    /// types in that group. Only the selection as a whole has to be non-empty.
-    static func validateAll(_ types: [ActivityType]) -> [ActivityTypeValidationError] {
+    /// Groups other than the primary one are not required to be populated: a
+    /// machine has a group when it has types in that group. The primary group is
+    /// the exception — with nothing in it the menubar number is always zero.
+    static func validateAll(
+        _ types: [ActivityType],
+        primaryGroup: ActivityGroup
+    ) -> [ActivityTypeValidationError] {
         var errors: [ActivityTypeValidationError] = []
 
         if types.isEmpty { errors.append(.noTypes) }
         if types.count > maxTotalTypes { errors.append(.tooManyTypes(types.count)) }
+
+        // Only reported for a non-empty selection: an empty one is already
+        // rejected and does not need a second error saying the same thing.
+        if !types.isEmpty, !types.contains(where: { $0.group == primaryGroup }) {
+            errors.append(.noTypesInPrimaryGroup(primaryGroup))
+        }
 
         // Names are unique across all groups
         var seenNames = Set<String>()

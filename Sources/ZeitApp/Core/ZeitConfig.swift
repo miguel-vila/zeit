@@ -5,6 +5,7 @@ import Yams
 struct ZeitConfig: Sendable {
     let workHours: WorkHoursConfig
     let models: ModelsConfig
+    let classification: ClassificationConfig
 
     struct WorkHoursConfig: Sendable {
         let startHour: Int
@@ -54,6 +55,16 @@ struct ZeitConfig: Sendable {
         }
     }
 
+    /// How this machine groups the time it tracks.
+    struct ClassificationConfig: Sendable {
+        /// The group this machine is judged by: the share the menubar icon shows.
+        ///
+        /// A machine does not declare which groups it uses — it has a group when
+        /// it has types in that group — so this is the only classification
+        /// setting that is stored.
+        let primaryGroup: ActivityGroup
+    }
+
     struct ModelsConfig: Sendable {
         let vision: String
         let text: TextModelConfig
@@ -74,6 +85,8 @@ struct ZeitConfig: Sendable {
         workDays: defaultWorkDays
     )
 
+    static let defaultClassification = ClassificationConfig(primaryGroup: .work)
+
     static let defaultModels = ModelsConfig(
         vision: "qwen3-vl:4b",
         text: .init(provider: "mlx", model: "qwen3:8b")
@@ -91,13 +104,17 @@ struct ZeitConfig: Sendable {
 
     // MARK: - Default Config Content
 
-    private static let defaultConfigYAML = """
+    /// What `ensureSetup()` writes when there is no config file yet.
+    static let defaultConfigYAML = """
         work_hours:
           start_hour: 9
           start_minute: 0
           end_hour: 17
           end_minute: 30
           work_days: ['mon', 'tue', 'wed', 'thu', 'fri']
+
+        classification:
+          primary_group: 'work'   # 'work', 'personal_projects' or 'personal'
 
         models:
           vision: 'qwen3-vl:4b'
@@ -142,13 +159,27 @@ struct ZeitConfig: Sendable {
               let contents = try? String(contentsOf: path, encoding: .utf8),
               let yaml = try? Yams.load(yaml: contents) as? [String: Any]
         else {
-            return ZeitConfig(workHours: defaultWorkHours, models: defaultModels)
+            return ZeitConfig(
+                workHours: defaultWorkHours,
+                models: defaultModels,
+                classification: defaultClassification
+            )
         }
 
-        let workHours = parseWorkHours(from: yaml)
-        let models = parseModels(from: yaml)
+        return parse(yaml: yaml)
+    }
 
-        return ZeitConfig(workHours: workHours, models: models)
+    /// Build a config from an already-parsed YAML mapping, falling back to the
+    /// defaults for anything missing.
+    ///
+    /// Separated from `load()` so parsing can be exercised without a config file
+    /// on disk.
+    static func parse(yaml: [String: Any]) -> ZeitConfig {
+        ZeitConfig(
+            workHours: parseWorkHours(from: yaml),
+            models: parseModels(from: yaml),
+            classification: parseClassification(from: yaml)
+        )
     }
 
     // MARK: - Parsing
@@ -194,6 +225,19 @@ struct ZeitConfig: Sendable {
             endHour: endHour, endMinute: endMinute,
             workDays: workDays
         )
+    }
+
+    /// A missing or unrecognised `primary_group` falls back to the default
+    /// instead of failing the load: the rest of the config is still usable.
+    private static func parseClassification(from yaml: [String: Any]) -> ClassificationConfig {
+        guard let classification = yaml["classification"] as? [String: Any],
+              let raw = classification["primary_group"] as? String,
+              let group = ActivityGroup(rawValue: raw.lowercased())
+        else {
+            return defaultClassification
+        }
+
+        return ClassificationConfig(primaryGroup: group)
     }
 
     private static func parseModels(from yaml: [String: Any]) -> ModelsConfig {
@@ -282,6 +326,28 @@ struct ZeitConfig: Sendable {
                 "model": textModel,
             ],
         ]
+
+        let output = try Yams.dump(object: yaml)
+        try output.write(to: path, atomically: true, encoding: .utf8)
+    }
+
+    /// Update the primary group in the config file, preserving all other settings.
+    static func savePrimaryGroup(_ group: ActivityGroup) throws {
+        ensureSetup()
+
+        let path = configPath
+
+        var yaml: [String: Any] = [:]
+        if FileManager.default.fileExists(atPath: path.path),
+           let contents = try? String(contentsOf: path, encoding: .utf8),
+           let parsed = try? Yams.load(yaml: contents) as? [String: Any]
+        {
+            yaml = parsed
+        }
+
+        var classification = yaml["classification"] as? [String: Any] ?? [:]
+        classification["primary_group"] = group.rawValue
+        yaml["classification"] = classification
 
         let output = try Yams.dump(object: yaml)
         try output.write(to: path, atomically: true, encoding: .utf8)
