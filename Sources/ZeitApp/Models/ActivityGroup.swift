@@ -53,6 +53,13 @@ extension ActivityGroup {
     /// defaults only — the enum stays flat and settings offers all three.
     static let goals: [ActivityGroup] = [.work, .personalProjects]
 
+    /// Every group, the one the day is judged by first. Wherever the groups are
+    /// listed, the primary leads: it is the number the menubar reports and the
+    /// section the reader came to read.
+    static func allCases(primaryFirst primary: ActivityGroup) -> [ActivityGroup] {
+        [primary] + allCases.filter { $0 != primary }
+    }
+
     /// How this group reads as an answer to the onboarding question.
     var goalLabel: String {
         switch self {

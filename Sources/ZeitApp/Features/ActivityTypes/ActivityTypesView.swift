@@ -38,8 +38,8 @@ struct ActivityTypesView: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
-                        // One section per group, in the order the enum declares
-                        ForEach(ActivityGroup.allCases, id: \.self) { group in
+                        // One section per group, the primary one first
+                        ForEach(ActivityGroup.allCases(primaryFirst: store.primaryGroup), id: \.self) { group in
                             activitySection(for: group)
                         }
                     }

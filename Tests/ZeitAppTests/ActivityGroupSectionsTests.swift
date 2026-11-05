@@ -103,3 +103,33 @@ struct ActivityGroupStyleTests {
         #expect(optional.sectionTitle == group.displayName)
     }
 }
+
+/// The order groups are listed in, wherever a view lists them.
+@Suite
+struct ActivityGroupOrderTests {
+    @Test
+    func primaryLeadsAndTheRestKeepDeclarationOrder() {
+        #expect(
+            ActivityGroup.allCases(primaryFirst: .personalProjects)
+                == [.personalProjects, .work, .personal]
+        )
+        #expect(
+            ActivityGroup.allCases(primaryFirst: .personal)
+                == [.personal, .work, .personalProjects]
+        )
+    }
+
+    @Test
+    func aPrimaryThatAlreadyLeadsChangesNothing() {
+        #expect(ActivityGroup.allCases(primaryFirst: .work) == ActivityGroup.allCases)
+    }
+
+    @Test
+    func everyGroupIsListedExactlyOnce() {
+        for primary in ActivityGroup.allCases {
+            let ordered = ActivityGroup.allCases(primaryFirst: primary)
+            #expect(ordered.count == ActivityGroup.allCases.count)
+            #expect(Set(ordered) == Set(ActivityGroup.allCases))
+        }
+    }
+}
