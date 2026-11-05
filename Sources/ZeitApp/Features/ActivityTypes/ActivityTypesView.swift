@@ -66,13 +66,11 @@ struct ActivityTypesView: View {
 
                     selectionCounter
 
-                    if mode == .onboarding {
-                        Button("Continue") {
-                            store.send(.done)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!store.isValid)
+                    Button(mode == .onboarding ? "Continue" : "Save") {
+                        store.send(.done)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!store.isValid)
                 }
             }
         }
@@ -139,7 +137,6 @@ struct ActivityTypesView: View {
                 }
                 .labelsHidden()
                 .pickerStyle(.segmented)
-                .fixedSize()
             }
         }
     }

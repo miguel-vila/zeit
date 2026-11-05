@@ -10,7 +10,7 @@ struct SettingsView: View {
         } detail: {
             detailView
         }
-        .frame(minWidth: 600, minHeight: 400)
+        .frame(minWidth: 740, minHeight: 540)
         .task {
             await store.send(.task).finish()
         }
@@ -139,17 +139,11 @@ struct SettingsView: View {
     // MARK: - Activity Types Tab
 
     private var settingsActivityTypesTab: some View {
+        // Save belongs to the view's own action bar. As an overlay it sat
+        // outside the layout and covered the selection counter.
         ActivityTypesView(
             store: store.scope(state: \.activityTypes, action: \.activityTypes)
         )
-        .overlay(alignment: .bottomTrailing) {
-            Button("Save") {
-                store.send(.activityTypes(.done))
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!store.activityTypes.isValid)
-            .padding(22)
-        }
     }
 
     // MARK: - About Tab
