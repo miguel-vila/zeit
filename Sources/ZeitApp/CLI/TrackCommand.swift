@@ -37,7 +37,7 @@ struct TrackCommand: AsyncParsableCommand {
         if !shouldForce {
             let decision = await CLITrackingHelper().decideTick()
             if let reason = decision.skipReason {
-                print("Skipping this tick: \(reason)")
+                TrackerLog.write("Skipping this tick: \(reason)")
                 return
             }
         }
@@ -45,7 +45,7 @@ struct TrackCommand: AsyncParsableCommand {
         // 2. Check idle
         if let idleTime = IdleDetection.getIdleTimeSeconds(), idleTime > 300 {
             let seconds = Int(idleTime)
-            print("System idle for \(seconds) seconds, recording idle activity")
+            TrackerLog.write("System idle for \(seconds) seconds, recording idle activity")
             let entry = ActivityEntry(
                 timestamp: ISO8601DateFormatter().string(from: Date()),
                 activity: .idle,
@@ -60,12 +60,12 @@ struct TrackCommand: AsyncParsableCommand {
 
         // 3. Delay if requested
         if delay > 0 {
-            print("Waiting \(delay) seconds...")
+            TrackerLog.write("Waiting \(delay) seconds...")
             try await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000_000)
         }
 
         // 4. Capture and identify activity
-        print("Capturing screenshots...")
+        TrackerLog.write("Capturing screenshots...")
 
         do {
             let identifier = ActivityIdentifier(
@@ -79,24 +79,24 @@ struct TrackCommand: AsyncParsableCommand {
             let result = try await identifier.identifyCurrentActivity(keepScreenshots: debug, debug: debug)
             #endif
 
-            print("Activity: \(result.activity.displayName)")
-            print("Reasoning: \(result.reasoning ?? "N/A")")
+            TrackerLog.write("Activity: \(result.activity.displayName)")
+            TrackerLog.write("Reasoning: \(result.reasoning ?? "N/A")")
 
             if debug, let debugInfo = result.screenDebugInfo {
-                print(debugInfo)
+                TrackerLog.write(debugInfo)
             }
 
             if debug, let paths = result.screenshotPaths {
                 for (index, path) in paths.enumerated() {
                     let screenNumber = index + 1
                     let marker = screenNumber == result.activeScreen ? " (active)" : ""
-                    print("Screenshot \(screenNumber)\(marker): \(path.path)")
+                    TrackerLog.write("Screenshot \(screenNumber)\(marker): \(path.path)")
                 }
             }
 
             #if DEBUG
             if let samplePath = result.samplePath {
-                print("Sample saved to: \(samplePath.path)")
+                TrackerLog.write("Sample saved to: \(samplePath.path)")
             }
             #endif
 
@@ -104,9 +104,9 @@ struct TrackCommand: AsyncParsableCommand {
             let entry = result.toActivityEntry(device: config.device.name)
             let db = try DatabaseHelper()
             try await db.insertActivity(entry)
-            print("Saved to database")
+            TrackerLog.write("Saved to database")
         } catch {
-            print("Error: \(error.localizedDescription)")
+            TrackerLog.write("Error: \(error.localizedDescription)")
             throw error
         }
     }

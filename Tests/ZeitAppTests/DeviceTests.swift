@@ -126,6 +126,7 @@ struct ActivityEntryDeviceTests {
             activity: .workCoding,
             reasoning: "An IDE with company code",
             description: "Editing a Swift file",
+            capturedAt: Date(timeIntervalSince1970: 1_767_610_800),
             activeScreen: 1,
             screenshotPaths: nil,
             screenDebugInfo: nil,
@@ -136,6 +137,7 @@ struct ActivityEntryDeviceTests {
             activity: .workCoding,
             reasoning: "An IDE with company code",
             description: "Editing a Swift file",
+            capturedAt: Date(timeIntervalSince1970: 1_767_610_800),
             activeScreen: 1,
             screenshotPaths: nil,
             screenDebugInfo: nil

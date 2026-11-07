@@ -2,16 +2,24 @@ import Foundation
 
 /// LLM prompt templates for activity identification
 enum Prompts {
-    /// Prompt for vision model to describe what's on screen
-    static func visionDescription(activeScreen: Int, screenCount: Int, frontmostApp: String? = nil) -> String {
+    /// Prompt for vision model to describe what's on screen.
+    ///
+    /// `activeScreen` is a hint and may be unknown: the window server can
+    /// decline to say which screen holds the focused window. The model is then
+    /// asked to find the primary screen from the visual cues alone, which it is
+    /// told to check anyway, rather than being handed a guessed screen number
+    /// as though the system had reported it.
+    static func visionDescription(activeScreen: Int?, screenCount: Int, frontmostApp: String? = nil) -> String {
         let frontmostAppHint = frontmostApp.map { "\nThe frontmost application detected was: \($0)." } ?? ""
 
         if screenCount > 1 {
             // Multi-screen: indicate which screen is active
-            return """
-            You are viewing screenshots from the user's multiple monitors. The images are provided in order: Screen 1, Screen 2, etc.
+            let activeScreenHint = activeScreen.map {
+                "\n\nIMPORTANT: Based on system information, Screen \($0) currently contains the focused/active window. Use this as a strong hint for identifying the PRIMARY screen."
+            } ?? ""
 
-            IMPORTANT: Based on system information, Screen \(activeScreen) currently contains the focused/active window. Use this as a strong hint for identifying the PRIMARY screen.\(frontmostAppHint)
+            return """
+            You are viewing screenshots from the user's multiple monitors. The images are provided in order: Screen 1, Screen 2, etc.\(activeScreenHint)\(frontmostAppHint)
 
             Verify the PRIMARY screen by also looking for visual cues:
             - Mouse cursor position

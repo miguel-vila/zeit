@@ -21,6 +21,7 @@ final class ActivityIdentifier: @unchecked Sendable {
     /// - Parameter sample: If true, collect all artifacts and write a sample to disk
     func identifyCurrentActivity(keepScreenshots: Bool = false, debug: Bool = false, sample: Bool = false) async throws -> IdentificationResult {
         // 1. Capture screenshots from all monitors
+        let capturedAt = Date()
         let screenshots = try ScreenCapture.captureAllMonitors()
         let shouldKeep = keepScreenshots || sample
         defer {
@@ -30,8 +31,22 @@ final class ActivityIdentifier: @unchecked Sendable {
         }
 
         // 2. Determine active screen and frontmost app
+        //
+        // Both are hints for the vision prompt, so neither can fail the run.
+        // The active screen comes from System Events, which times out under
+        // load and refuses outright until Zeit holds assistive access — and a
+        // run that already holds the screenshots is the only thing that can
+        // describe this moment. Losing it to a missing hint would cost the
+        // entry outright, so the reason goes to the log and the run continues
+        // without the hint.
         let screenDebugInfo = debug ? ActiveWindow.getScreenDebugInfo() : nil
-        let activeScreen = try ActiveWindow.getActiveScreenNumber()
+        let activeScreen: Int?
+        do {
+            activeScreen = try ActiveWindow.getActiveScreenNumber()
+        } catch {
+            activeScreen = nil
+            TrackerLog.write("Active screen undetermined: \(error.localizedDescription)")
+        }
         let frontmostApp = ActiveWindow.getFrontmostAppName()
 
         // 3. Collect screenshot URLs in screen order
@@ -115,7 +130,7 @@ final class ActivityIdentifier: @unchecked Sendable {
         var samplePath: URL? = nil
         if sample {
             let sampleData = SampleData(
-                timestamp: Date(),
+                timestamp: capturedAt,
                 activeScreen: activeScreen,
                 frontmostApp: frontmostApp,
                 screenshotURLs: imageURLs,
@@ -142,6 +157,7 @@ final class ActivityIdentifier: @unchecked Sendable {
             activity: classification.activity,
             reasoning: classification.reasoning,
             description: description.mainActivityDescription,
+            capturedAt: capturedAt,
             activeScreen: activeScreen,
             screenshotPaths: screenshotPathsResult,
             screenDebugInfo: screenDebugInfo,
@@ -152,6 +168,7 @@ final class ActivityIdentifier: @unchecked Sendable {
             activity: classification.activity,
             reasoning: classification.reasoning,
             description: description.mainActivityDescription,
+            capturedAt: capturedAt,
             activeScreen: activeScreen,
             screenshotPaths: screenshotPathsResult,
             screenDebugInfo: screenDebugInfo
@@ -206,7 +223,7 @@ final class ActivityIdentifier: @unchecked Sendable {
 
 struct DescriptionResponse {
     let thinking: String?
-    let primaryScreen: Int
+    let primaryScreen: Int?
     let mainActivityDescription: String
     let secondaryContext: String?
 }
@@ -235,7 +252,10 @@ struct IdentificationResult {
     let activity: Activity
     let reasoning: String?
     let description: String
-    let activeScreen: Int
+    /// When the screenshots this result describes were taken, not when
+    /// inference finished: the two models run for minutes in between.
+    let capturedAt: Date
+    let activeScreen: Int?
     let screenshotPaths: [URL]?
     let screenDebugInfo: String?
     #if DEBUG
@@ -243,20 +263,22 @@ struct IdentificationResult {
     #endif
 
     #if DEBUG
-    init(activity: Activity, reasoning: String?, description: String, activeScreen: Int, screenshotPaths: [URL]?, screenDebugInfo: String?, samplePath: URL?) {
+    init(activity: Activity, reasoning: String?, description: String, capturedAt: Date, activeScreen: Int?, screenshotPaths: [URL]?, screenDebugInfo: String?, samplePath: URL?) {
         self.activity = activity
         self.reasoning = reasoning
         self.description = description
+        self.capturedAt = capturedAt
         self.activeScreen = activeScreen
         self.screenshotPaths = screenshotPaths
         self.screenDebugInfo = screenDebugInfo
         self.samplePath = samplePath
     }
     #else
-    init(activity: Activity, reasoning: String?, description: String, activeScreen: Int, screenshotPaths: [URL]?, screenDebugInfo: String?) {
+    init(activity: Activity, reasoning: String?, description: String, capturedAt: Date, activeScreen: Int?, screenshotPaths: [URL]?, screenDebugInfo: String?) {
         self.activity = activity
         self.reasoning = reasoning
         self.description = description
+        self.capturedAt = capturedAt
         self.activeScreen = activeScreen
         self.screenshotPaths = screenshotPaths
         self.screenDebugInfo = screenDebugInfo
@@ -268,9 +290,13 @@ struct IdentificationResult {
     /// The producing machine is passed in rather than read here, so a capture
     /// stamps the same config the rest of the run used, and a caller cannot
     /// forget it.
+    ///
+    /// The entry is stamped with `capturedAt`, so an activity is attributed to
+    /// when it happened rather than to whenever the models finished describing
+    /// it, minutes later.
     func toActivityEntry(device: String) -> ActivityEntry {
         ActivityEntry(
-            timestamp: ISO8601DateFormatter().string(from: Date()),
+            timestamp: ISO8601DateFormatter().string(from: capturedAt),
             activity: activity,
             reasoning: reasoning,
             description: description,
@@ -284,7 +310,7 @@ struct IdentificationResult {
 #if DEBUG
 struct SampleData {
     let timestamp: Date
-    let activeScreen: Int
+    let activeScreen: Int?
     let frontmostApp: String?
     let screenshotURLs: [URL]
 
