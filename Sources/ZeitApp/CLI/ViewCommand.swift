@@ -418,9 +418,15 @@ enum ViewHelpers {
     }
 }
 
-// String repetition helper
+// String layout helpers, shared by the commands that print tables
 extension String {
     func repeated(_ times: Int) -> String {
         String(repeating: self, count: times)
+    }
+
+    /// Left-aligned in a column of `width`, and never truncated: a long value
+    /// pushes its line wide rather than losing characters the reader needs.
+    func padded(to width: Int) -> String {
+        count >= width ? self : self + String(repeating: " ", count: width - count)
     }
 }

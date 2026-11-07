@@ -51,7 +51,20 @@ Checks:
 
 Exit code: 0 if all checks pass, 1 if any fail.
 
-With `--json`, outputs machine-readable JSON instead of the formatted table.
+After the checks, a readout of the last 20 stored entries: capture time, the gap
+since the entry before it, the activity type, and the device that wrote it, with
+the median gap across the window. The gap column is what shows whether the
+tracker is keeping its configured cadence, since `tracking.interval_seconds` is
+a request and the gap is what the tracker managed.
+
+An entry stores only its activity type's ID, so the readout marks a type the
+catalog no longer defines — those read as unclassified wherever they are shown.
+
+The readout is evidence, not a check: a thin window or an odd gap never fails
+`doctor` or changes its exit code.
+
+With `--json`, outputs machine-readable JSON instead of the formatted table,
+including `recent_samples` and `median_gap_seconds`.
 
 ---
 

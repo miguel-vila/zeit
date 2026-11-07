@@ -104,6 +104,31 @@ final class DatabaseHelper: @unchecked Sendable {
         }
     }
 
+    /// The newest entries, for a readout of what the tracker has been storing.
+    ///
+    /// Day rows are read newest first and only until `limit` entries are in
+    /// hand, so the cost is the handful of days the window spans rather than
+    /// the whole table. One extra entry is gathered beyond the limit so the
+    /// oldest sample in the window can still report the gap before it.
+    func recentEntries(limit: Int) async throws -> [ActivityEntry] {
+        try await dbQueue.read { db in
+            var entries: [ActivityEntry] = []
+
+            let rows = try Row.fetchCursor(
+                db,
+                sql: "SELECT activities FROM daily_activities ORDER BY date DESC"
+            )
+
+            while let row = try rows.next() {
+                let activitiesJson: String = row["activities"]
+                entries += (try? self.parseActivities(from: activitiesJson)) ?? []
+                if entries.count > limit { break }
+            }
+
+            return entries
+        }
+    }
+
     /// Append an entry to the day it belongs to.
     ///
     /// The day comes from the entry's own timestamp rather than from the
