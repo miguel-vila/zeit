@@ -39,8 +39,7 @@ final class DatabaseHelper: @unchecked Sendable {
 
     func saveActivityTypes(_ types: [ActivityType]) async throws {
         try await dbQueue.write { db in
-            try db.execute(sql: "DELETE FROM activity_types")
-            try ZeitDatabase.insertActivityTypes(types, into: db)
+            try ZeitDatabase.saveActivityTypes(types, into: db)
         }
     }
 

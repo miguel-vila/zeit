@@ -107,6 +107,54 @@ enum ZeitDatabase {
         }
     }
 
+    /// Make `activity_types` hold exactly `types`, keeping the rows it already
+    /// has.
+    ///
+    /// The editor's list is the whole catalog, so a save both updates and
+    /// prunes. A type the user kept is updated in place and kept as the same
+    /// row: `created_at` still says when it first appeared, and a save that
+    /// changes one type cannot disturb the others. A type absent from the list
+    /// was removed in the editor, which is the only way a type leaves the
+    /// catalog, so its row goes.
+    ///
+    /// Writing the table as a delete and a reinsert did all of this by
+    /// coincidence and lost `created_at` every time, so a save that should have
+    /// edited one description rewrote the whole catalog.
+    static func saveActivityTypes(_ types: [ActivityType], into db: Database) throws {
+        let now = ISO8601DateFormatter().string(from: Date())
+
+        for (index, type) in types.enumerated() {
+            try db.execute(
+                sql: """
+                    INSERT INTO activity_types
+                    (id, name, description, activity_group, sort_order, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        name = excluded.name,
+                        description = excluded.description,
+                        activity_group = excluded.activity_group,
+                        sort_order = excluded.sort_order,
+                        updated_at = excluded.updated_at
+                    """,
+                arguments: [
+                    type.id, type.name, type.description,
+                    type.group.rawValue, index, now, now,
+                ]
+            )
+        }
+
+        // An empty list needs its own statement: `NOT IN ()` is not SQL.
+        if types.isEmpty {
+            try db.execute(sql: "DELETE FROM activity_types")
+        } else {
+            let placeholders = databaseQuestionMarks(count: types.count)
+            try db.execute(
+                sql: "DELETE FROM activity_types WHERE id NOT IN (\(placeholders))",
+                arguments: StatementArguments(types.map(\.id))
+            )
+        }
+    }
+
     /// Insert activity types, assigning `sort_order` from the list order.
     static func insertActivityTypes(_ types: [ActivityType], into db: Database) throws {
         let now = ISO8601DateFormatter().string(from: Date())

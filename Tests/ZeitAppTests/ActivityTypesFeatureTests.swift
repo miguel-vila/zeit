@@ -60,6 +60,7 @@ struct ActivityTypesFeatureTests {
             $0.isLoading = false
             $0.types = loaded
             $0.primaryGroup = .work
+            $0.openedOnAChosenSelection = true
         }
 
         #expect(store.state.types(in: .work).map(\.id) == ["work_coding", "slack"])
@@ -184,6 +185,7 @@ struct ActivityTypesFeatureTests {
             $0.isLoading = false
             $0.types = loaded
             $0.primaryGroup = primaryGroup
+            $0.openedOnAChosenSelection = true
         }
     }
 
@@ -307,6 +309,7 @@ struct ActivityTypesFeatureTests {
         await store.receive(\.typesLoaded) {
             $0.isLoading = false
             $0.primaryGroup = .work
+            $0.openedOnAChosenSelection = true
             $0.types = stored
         }
     }

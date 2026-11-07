@@ -118,8 +118,7 @@ private actor DatabaseActor {
         let db = try getDatabase()
 
         try await db.write { db in
-            try db.execute(sql: "DELETE FROM activity_types")
-            try ZeitDatabase.insertActivityTypes(types, into: db)
+            try ZeitDatabase.saveActivityTypes(types, into: db)
         }
     }
 

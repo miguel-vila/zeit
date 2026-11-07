@@ -205,4 +205,20 @@ enum ActivityCatalog {
         "project_coding", "learning",
         "personal_browsing", "social_media", "video_youtube", "personal_messaging",
     ])
+
+    /// Whether a stored catalog is still the one Zeit seeded itself with, and
+    /// so is nobody's choice to lose.
+    ///
+    /// The question cannot be asked of the count: `seedDefaultActivityTypes`
+    /// writes the starter set so a machine where nobody opens the GUI still
+    /// classifies, which leaves the table never empty. It is asked of the
+    /// content instead — the starter set exactly as seeded means nobody has
+    /// chosen, and any edit, rename, addition or removal means somebody has.
+    ///
+    /// Row order is not part of the answer: `sort_order` is the editor's
+    /// layout, not a choice about which types the machine has.
+    static func isUnchosen(_ types: [ActivityType]) -> Bool {
+        let byID: (ActivityType, ActivityType) -> Bool = { $0.id < $1.id }
+        return types.sorted(by: byID) == starterSet.sorted(by: byID)
+    }
 }

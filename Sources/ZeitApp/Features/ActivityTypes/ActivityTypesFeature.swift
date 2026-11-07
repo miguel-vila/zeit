@@ -27,6 +27,25 @@ struct ActivityTypesFeature {
         var primaryGroup: ActivityGroup = ZeitConfig.defaultClassification.primaryGroup
         var isLoading: Bool = true
         var saveError: String?
+
+        /// Whether the suggested set may replace what is on screen.
+        ///
+        /// Onboarding seeds from the primary-group answer, which is right on a
+        /// machine where nobody has chosen types and destructive on one where
+        /// somebody has: `done` writes this list as the whole catalog, and
+        /// onboarding opens whenever a permission is missing rather than only
+        /// on a first run.
+        ///
+        /// It is a fact about the catalog that was loaded, not about which
+        /// screen is open, so the load and a later goal change ask one
+        /// question instead of each deciding for itself.
+        var maySeedFromSuggestions: Bool {
+            mode == .onboarding && !openedOnAChosenSelection
+        }
+
+        /// Whether the catalog this editor opened on was somebody's choice.
+        /// Set when the types load; `false` until then, so a first run seeds.
+        var openedOnAChosenSelection = false
         /// Asks before unselecting a type that today's entries still reference.
         @Presents var alert: AlertState<Action.Alert>?
 
@@ -102,9 +121,11 @@ struct ActivityTypesFeature {
             case .typesLoaded(let types, let primaryGroup):
                 state.isLoading = false
                 state.primaryGroup = primaryGroup
-                // Onboarding opens on the suggested set for the answer, not on
-                // the starter set the database seeded itself with.
-                state.types = state.mode == .onboarding
+                // Onboarding opens on the suggested set for the answer, but
+                // only over the starter set the database seeded itself with:
+                // anything else is a selection somebody chose.
+                state.openedOnAChosenSelection = !ActivityCatalog.isUnchosen(types)
+                state.types = state.maySeedFromSuggestions
                     ? ActivityCatalog.suggestedSelection(for: primaryGroup)
                     : types
                 return .none
@@ -114,7 +135,7 @@ struct ActivityTypesFeature {
             case .setPrimaryGroup(let group):
                 state.primaryGroup = group
                 state.saveError = nil
-                if state.mode == .onboarding {
+                if state.maySeedFromSuggestions {
                     state.types = ActivityCatalog.suggestedSelection(for: group)
                 }
                 return .none
