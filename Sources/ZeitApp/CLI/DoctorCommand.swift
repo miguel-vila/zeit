@@ -268,7 +268,6 @@ struct DoctorCommand: AsyncParsableCommand {
 
         for check in checks {
             let status = check.passed ? "✓" : "✗"
-            let statusColor = check.passed ? "" : ""  // Could add ANSI colors
             print("\(status) \(check.name)")
             print("    \(check.details)")
         }
