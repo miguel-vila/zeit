@@ -18,17 +18,17 @@ macOS activity tracker: periodic screenshots → LLM vision model → activity c
 ## Building
 
 ```bash
+# Once per machine: the signing identity that keeps the privacy grants
+./scripts/make-signing-cert.sh
+
 # Debug build
 ./build.sh
 
 # Release build and install to /Applications
 ./build.sh --release --install
-
-# Signed release with DMG
-./build.sh --release --sign --dmg
 ```
 
-See [docs/BUILD.md](docs/BUILD.md) for signing and notarization details.
+See [docs/BUILD.md](docs/BUILD.md) for code signing details.
 
 ## Usage
 

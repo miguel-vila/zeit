@@ -8,8 +8,6 @@ echo "================================================"
 # Parse arguments
 BUILD_TYPE="debug"
 INSTALL=false
-SIGN=false
-NOTARIZE=false
 CREATE_DMG=false
 CLEAN=false
 
@@ -17,8 +15,6 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --release) BUILD_TYPE="release"; shift ;;
         --install) INSTALL=true; shift ;;
-        --sign) SIGN=true; shift ;;
-        --notarize) NOTARIZE=true; SIGN=true; shift ;;
         --dmg) CREATE_DMG=true; shift ;;
         --clean) CLEAN=true; shift ;;
         -h|--help)
@@ -27,21 +23,17 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --release     Build in release mode (optimized)"
             echo "  --install     Install to /Applications after building"
-            echo "  --sign        Sign with Developer ID (requires DEVELOPER_ID env var)"
-            echo "  --notarize    Notarize with Apple (requires --sign, NOTARIZE_PROFILE env var)"
             echo "  --dmg         Create DMG installer"
             echo "  --clean       Clean build artifacts before building"
             echo "  -h, --help    Show this help message"
             echo ""
-            echo "Environment variables for signing:"
-            echo "  DEVELOPER_ID       Developer ID certificate name"
-            echo "  NOTARIZE_PROFILE   Keychain profile for notarytool credentials"
-            echo "  LOCAL_SIGNING_IDENTITY  Identity for unsigned builds (default: Zeit Local Signing)"
+            echo "Environment variables:"
+            echo "  LOCAL_SIGNING_IDENTITY  Signing identity (default: Zeit Local Signing)"
             echo ""
             echo "Examples:"
             echo "  $0                          # Debug build"
             echo "  $0 --release --install      # Release build and install"
-            echo "  $0 --release --sign --dmg   # Signed release with DMG"
+            echo "  $0 --release --dmg          # Release build with DMG"
             exit 0
             ;;
         *) echo "Unknown option: $1"; exit 1 ;;
@@ -60,30 +52,6 @@ DIST_DIR="dist"
 APP_NAME="Zeit"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 VERSION="0.2.0"
-
-# Load signing environment if available
-if [ -f ../.env.signing ]; then
-    source ../.env.signing
-fi
-
-# Validate signing requirements
-if [ "$SIGN" = true ]; then
-    if [ -z "$DEVELOPER_ID" ]; then
-        echo "Error: --sign requires DEVELOPER_ID environment variable"
-        echo "Example: export DEVELOPER_ID=\"Developer ID Application: Your Name (TEAM_ID)\""
-        exit 1
-    fi
-    echo "Signing with: $DEVELOPER_ID"
-fi
-
-if [ "$NOTARIZE" = true ]; then
-    if [ -z "$NOTARIZE_PROFILE" ]; then
-        echo "Error: --notarize requires NOTARIZE_PROFILE environment variable"
-        echo "Create profile: xcrun notarytool store-credentials \"zeit-notarize\" ..."
-        exit 1
-    fi
-    echo "Notarization profile: $NOTARIZE_PROFILE"
-fi
 
 # Full Xcode is needed for actool (asset catalogs) and the Metal compiler, even
 # when xcode-select points at the Command Line Tools
@@ -280,88 +248,28 @@ echo ""
 echo "Code signing..."
 echo "----------------------------------------"
 
-if [ "$SIGN" = true ]; then
-    # Create entitlements file
-    cat > "$DIST_DIR/entitlements.plist" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>com.apple.security.app-sandbox</key>
-    <false/>
-    <key>com.apple.security.automation.apple-events</key>
-    <true/>
-    <key>com.apple.security.device.camera</key>
-    <false/>
-    <key>com.apple.security.personal-information.photos-library</key>
-    <false/>
-</dict>
-</plist>
-EOF
+# A stable identity is what keeps the privacy grants across reinstalls: the
+# designated requirement then names the certificate instead of the binary, so
+# the grant given to one build still matches the next. See
+# scripts/make-signing-cert.sh. An ad-hoc signature is not a usable fallback —
+# it names a hash of the binary, which every build changes, and the user pays
+# for it by granting both permissions again.
+LOCAL_SIGNING_IDENTITY="${LOCAL_SIGNING_IDENTITY:-Zeit Local Signing}"
 
-    echo "Signing with Developer ID..."
-    # Sign the metallib before signing the main bundle
-    codesign --force --options runtime --sign "$DEVELOPER_ID" \
-        "$APP_BUNDLE/Contents/MacOS/mlx.metallib" 2>/dev/null || true
-    # Sign the main bundle
-    codesign --force --options runtime \
-        --sign "$DEVELOPER_ID" \
-        --entitlements "$DIST_DIR/entitlements.plist" \
-        "$APP_BUNDLE"
-else
-    # A stable identity is what keeps the privacy grants across reinstalls: the
-    # designated requirement then names the certificate instead of the binary,
-    # so the grant given to one build still matches the next. See
-    # scripts/make-signing-cert.sh.
-    LOCAL_SIGNING_IDENTITY="${LOCAL_SIGNING_IDENTITY:-Zeit Local Signing}"
-
-    if security find-identity -p codesigning | grep -qF "$LOCAL_SIGNING_IDENTITY"; then
-        echo "Signing with local identity: $LOCAL_SIGNING_IDENTITY"
-        codesign --force --sign "$LOCAL_SIGNING_IDENTITY" "$APP_BUNDLE/Contents/MacOS/mlx.metallib"
-        codesign --force --sign "$LOCAL_SIGNING_IDENTITY" "$APP_BUNDLE"
-    else
-        echo "Warning: no \"$LOCAL_SIGNING_IDENTITY\" identity in the keychain."
-        echo "         Signing ad-hoc, so screen recording and accessibility have"
-        echo "         to be granted again after every install."
-        echo "         Run scripts/make-signing-cert.sh once to stop that."
-        codesign --force --sign - "$APP_BUNDLE/Contents/MacOS/mlx.metallib" 2>/dev/null || true
-        codesign --force --sign - "$APP_BUNDLE"
-    fi
+if ! security find-identity -p codesigning | grep -qF "$LOCAL_SIGNING_IDENTITY"; then
+    echo "Error: no \"$LOCAL_SIGNING_IDENTITY\" identity in the keychain."
+    echo "  Create it once with ./scripts/make-signing-cert.sh"
+    echo "  Or use swift build, which needs no app bundle."
+    exit 1
 fi
+
+echo "Signing with: $LOCAL_SIGNING_IDENTITY"
+codesign --force --sign "$LOCAL_SIGNING_IDENTITY" "$APP_BUNDLE/Contents/MacOS/mlx.metallib"
+codesign --force --sign "$LOCAL_SIGNING_IDENTITY" "$APP_BUNDLE"
 
 # Verify signature
 codesign --verify --verbose "$APP_BUNDLE"
 echo "Signature verified"
-
-# Notarize if requested
-if [ "$NOTARIZE" = true ]; then
-    echo ""
-    echo "Notarizing..."
-    echo "----------------------------------------"
-
-    # Create zip for notarization
-    echo "Creating zip for notarization..."
-    ditto -c -k --keepParent "$APP_BUNDLE" "$DIST_DIR/$APP_NAME.zip"
-
-    # Submit for notarization
-    echo "Submitting to Apple (this may take a few minutes)..."
-    xcrun notarytool submit "$DIST_DIR/$APP_NAME.zip" \
-        --keychain-profile "$NOTARIZE_PROFILE" \
-        --wait
-
-    # Staple the ticket
-    echo "Stapling notarization ticket..."
-    xcrun stapler staple "$APP_BUNDLE"
-
-    # Clean up zip
-    rm "$DIST_DIR/$APP_NAME.zip"
-
-    # Verify
-    echo "Verifying notarization..."
-    spctl -a -v "$APP_BUNDLE"
-
-    echo "Notarization complete!"
-fi
 
 # Create DMG if requested
 if [ "$CREATE_DMG" = true ]; then
@@ -394,12 +302,6 @@ if [ "$CREATE_DMG" = true ]; then
 
     # Clean up
     rm -rf "$DMG_TEMP"
-
-    # Sign DMG if signing is enabled
-    if [ "$SIGN" = true ]; then
-        echo "Signing DMG..."
-        codesign --force --sign "$DEVELOPER_ID" "$DMG_PATH"
-    fi
 
     echo "DMG created: $DMG_PATH"
 fi
