@@ -1,7 +1,9 @@
 import AppKit
+import CoreGraphics
 import Foundation
 
-/// Detects the active window and which screen it's on
+/// Detects the active window and which screen it's on.
+/// Uses NSWorkspace + CGWindowList — no AppleScript, no System Events, no permissions.
 enum ActiveWindow {
     struct WindowBounds {
         let x: Int
@@ -14,85 +16,71 @@ enum ActiveWindow {
         }
     }
 
-    /// Get the frontmost window's position and size using AppleScript
+    /// Get the frontmost window's position and size via CGWindowList.
+    /// Coordinates are top-left origin, Y-down, anchored to the primary screen
+    /// (same convention AppleScript used previously).
     static func getFrontmostWindowBounds() throws -> WindowBounds {
-        let script = """
-        tell application "System Events"
-            set frontApp to first application process whose frontmost is true
-            tell frontApp
-                if (count of windows) > 0 then
-                    set win to window 1
-                    set winPos to position of win
-                    set winSize to size of win
-                    return (item 1 of winPos as text) & "," & (item 2 of winPos as text) & "," & (item 1 of winSize as text) & "," & (item 2 of winSize as text)
-                end if
-            end tell
-        end tell
-        """
+        guard let frontApp = NSWorkspace.shared.frontmostApplication else {
+            throw ActiveWindowError.noFrontmostApp
+        }
+        let pid = frontApp.processIdentifier
 
-        guard let appleScript = NSAppleScript(source: script) else {
-            throw ActiveWindowError.appleScriptCreationFailed
+        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        guard let windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
+            throw ActiveWindowError.windowListUnavailable
         }
 
-        var error: NSDictionary?
-        let result = appleScript.executeAndReturnError(&error)
-
-        if let error {
-            let message = error[NSAppleScript.errorMessage] as? String ?? "Unknown error"
-            let errorNumber = error[NSAppleScript.errorNumber] as? Int
-            throw ActiveWindowError.appleScriptExecutionFailed(
-                message: message,
-                errorNumber: errorNumber,
-                parentProcess: ProcessInfo.processInfo.processName
-            )
+        // Windows are returned in front-to-back z-order. Pick the first normal-layer
+        // (layer == 0) window owned by the frontmost app.
+        let candidate = windowList.first { info in
+            guard let ownerPid = info[kCGWindowOwnerPID as String] as? pid_t, ownerPid == pid else { return false }
+            guard let layer = info[kCGWindowLayer as String] as? Int, layer == 0 else { return false }
+            return true
         }
 
-        guard let resultString = result.stringValue else {
+        guard let info = candidate,
+              let boundsDict = info[kCGWindowBounds as String] as? NSDictionary,
+              let bounds = CGRect(dictionaryRepresentation: boundsDict)
+        else {
             throw ActiveWindowError.noFrontmostWindow
         }
 
-        let parts = resultString.split(separator: ",").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
-        guard parts.count == 4 else {
-            throw ActiveWindowError.unexpectedAppleScriptOutput(resultString)
-        }
-
-        return WindowBounds(x: parts[0], y: parts[1], width: parts[2], height: parts[3])
+        return WindowBounds(
+            x: Int(bounds.origin.x),
+            y: Int(bounds.origin.y),
+            width: Int(bounds.size.width),
+            height: Int(bounds.size.height)
+        )
     }
 
     /// Get which screen number (1-based) contains the active window
     static func getActiveScreenNumber() throws -> Int {
         let screens = NSScreen.screens
 
-        // Single monitor — no need for AppleScript detection
+        // Single monitor — no need to look at window geometry.
         if screens.count <= 1 {
             return 1
         }
 
         let windowBounds = try getFrontmostWindowBounds()
+        let mainScreenHeight = screens.first?.frame.height ?? 0
 
-        // Check which screen contains the window's top-left corner
-        let mainScreenHeight = NSScreen.screens.first?.frame.height ?? 0
+        // Convert CGWindowList coords (top-left origin, Y-down) to
+        // NSScreen coords (bottom-left origin, Y-up).
+        let convertedY = mainScreenHeight - CGFloat(windowBounds.y)
+        let topLeft = CGPoint(x: CGFloat(windowBounds.x), y: convertedY)
 
-        for (index, screen) in screens.enumerated() {
-            // Convert AppleScript coords (top-left origin, Y-down) to
-            // NSScreen coords (bottom-left origin, Y-up)
-            let convertedY = mainScreenHeight - CGFloat(windowBounds.y)
-            let convertedPoint = CGPoint(x: CGFloat(windowBounds.x), y: convertedY)
-
-            if screen.frame.contains(convertedPoint) {
-                return index + 1
-            }
+        for (index, screen) in screens.enumerated() where screen.frame.contains(topLeft) {
+            return index + 1
         }
 
-        // Fallback: check using window center
+        // Fallback: use the window's center point.
         let center = windowBounds.center
         let convertedCenterY = mainScreenHeight - CGFloat(center.y)
         let centerPoint = CGPoint(x: CGFloat(center.x), y: convertedCenterY)
 
-        for (index, screen) in screens.enumerated() {
-            if screen.frame.contains(centerPoint) {
-                return index + 1
-            }
+        for (index, screen) in screens.enumerated() where screen.frame.contains(centerPoint) {
+            return index + 1
         }
 
         throw ActiveWindowError.windowNotOnAnyScreen(windowBounds)
@@ -115,7 +103,7 @@ enum ActiveWindow {
         }
 
         if let bounds = try? getFrontmostWindowBounds() {
-            lines.append("  Frontmost window (AppleScript coords):")
+            lines.append("  Frontmost window (CGWindowList coords):")
             lines.append("    origin=(\(bounds.x),\(bounds.y)) size=\(bounds.width)x\(bounds.height)")
             lines.append("    center=(\(bounds.center.x),\(bounds.center.y))")
 
@@ -125,7 +113,6 @@ enum ActiveWindow {
             lines.append("    top-left=(\(bounds.x),\(Int(convertedTopLeftY)))")
             lines.append("    center=(\(bounds.center.x),\(Int(convertedCenterY)))")
 
-            // Show which screen each point hits
             for (index, screen) in screens.enumerated() {
                 let topLeftHit = screen.frame.contains(CGPoint(x: CGFloat(bounds.x), y: convertedTopLeftY))
                 let centerHit = screen.frame.contains(CGPoint(x: CGFloat(bounds.center.x), y: convertedCenterY))
@@ -137,7 +124,7 @@ enum ActiveWindow {
                 }
             }
         } else {
-            lines.append("  Frontmost window: not detected (AppleScript failed)")
+            lines.append("  Frontmost window: not detected")
         }
 
         if let appName = getFrontmostAppName() {
@@ -155,67 +142,28 @@ enum ActiveWindow {
 
     /// Get the frontmost application name
     static func getFrontmostAppName() -> String? {
-        let script = """
-        tell application "System Events"
-            set frontApp to first application process whose frontmost is true
-            return name of frontApp
-        end tell
-        """
-
-        guard let appleScript = NSAppleScript(source: script) else {
-            return nil
-        }
-
-        var error: NSDictionary?
-        let result = appleScript.executeAndReturnError(&error)
-
-        if error != nil {
-            return nil
-        }
-
-        return result.stringValue
+        NSWorkspace.shared.frontmostApplication?.localizedName
     }
 }
 
 // MARK: - Errors
 
 enum ActiveWindowError: LocalizedError {
-    case appleScriptCreationFailed
-    case appleScriptExecutionFailed(message: String, errorNumber: Int?, parentProcess: String)
+    case noFrontmostApp
+    case windowListUnavailable
     case noFrontmostWindow
-    case unexpectedAppleScriptOutput(String)
     case windowNotOnAnyScreen(ActiveWindow.WindowBounds)
-
-    /// AppleScript error -1743 means the user denied the Automation permission prompt.
-    /// Error -1728 often means System Events can't access UI elements (Accessibility).
-    private static let permissionErrorNumbers: Set<Int> = [-1743, -1728, -10004]
 
     var errorDescription: String? {
         switch self {
-        case .appleScriptCreationFailed:
-            return "Failed to create AppleScript for window detection"
+        case .noFrontmostApp:
+            return "No frontmost application is currently active"
 
-        case .appleScriptExecutionFailed(let message, let errorNumber, let parentProcess):
-            let base = "AppleScript failed (error \(errorNumber.map(String.init) ?? "unknown")): \(message)"
-            let processHint = "  Running as: \(parentProcess) (pid \(ProcessInfo.processInfo.processIdentifier))"
-
-            if let num = errorNumber, Self.permissionErrorNumbers.contains(num) {
-                return """
-                \(base)
-                \(processHint)
-                  This looks like a permissions issue. The host app '\(parentProcess)' needs Automation access to "System Events".
-                  Fix: System Settings > Privacy & Security > Automation > enable "System Events" for '\(parentProcess)'.
-                  Note: permissions are per-app — Terminal.app, VS Code, and Zeit.app each need their own grant.
-                """
-            }
-
-            return "\(base)\n\(processHint)"
+        case .windowListUnavailable:
+            return "CGWindowListCopyWindowInfo returned no data"
 
         case .noFrontmostWindow:
             return "No frontmost window found (the frontmost app may have no open windows)"
-
-        case .unexpectedAppleScriptOutput(let output):
-            return "Unexpected AppleScript output: '\(output)'"
 
         case .windowNotOnAnyScreen(let bounds):
             return "Window at (\(bounds.x),\(bounds.y) \(bounds.width)x\(bounds.height)) could not be matched to any screen"
