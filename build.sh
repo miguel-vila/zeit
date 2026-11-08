@@ -441,6 +441,9 @@ if [ "$INSTALL" = true ]; then
     echo ""
     echo "Updating LaunchAgents..."
 
+    # Absent on a fresh account, and the plists below are written into it.
+    mkdir -p "$HOME/Library/LaunchAgents"
+
     TRACKER_PLIST="$HOME/Library/LaunchAgents/co.invariante.zeit.plist"
     MENUBAR_PLIST="$HOME/Library/LaunchAgents/co.invariante.zeit.menubar.plist"
 
