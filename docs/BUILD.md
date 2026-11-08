@@ -9,6 +9,16 @@ swift run ZeitApp --help              # CLI help
 swift run ZeitApp view today          # View today's activities
 ```
 
+### Toolchain
+
+`.swift-version` records the Swift version this project is built with. Nothing in
+SPM or Xcode enforces it — `swift-tools-version` in `Package.swift` is only a
+minimum — so `build.sh` warns when the running compiler differs. It matters
+because SPM resolves some transitive dependencies differently between versions,
+which rewrites `Package.resolved` on every build and compiles a different major
+version of a dependency on each machine. The file also serves as the pin for
+anyone using swiftly.
+
 ## App bundle
 
 Everything that produces an app bundle goes through `build.sh`. Output:

@@ -58,6 +58,23 @@ fi
 
 # Auto-clean if Swift compiler version changed
 SWIFT_VERSION=$(swift --version 2>&1 | head -1)
+
+# Every machine that builds Zeit has to agree on the toolchain, because SPM
+# resolves some transitive dependencies differently between versions: 6.3
+# records xctest-dynamic-overlay 1.13, while 6.4 follows that package's rename
+# and records swift-issue-reporting 2.1. A mismatch rewrites Package.resolved on
+# every build and compiles a different major version of a dependency. Nothing in
+# SPM or Xcode pins a toolchain, so .swift-version only states the expectation —
+# and serves as the pin for anyone using swiftly.
+if [ -f .swift-version ]; then
+    EXPECTED_SWIFT=$(tr -d '[:space:]' < .swift-version)
+    CURRENT_SWIFT=$(echo "$SWIFT_VERSION" | sed -n 's/.*Apple Swift version \([0-9][0-9.]*[0-9]\).*/\1/p')
+    if [ -n "$CURRENT_SWIFT" ] && [ "$CURRENT_SWIFT" != "$EXPECTED_SWIFT" ]; then
+        echo ""
+        echo "Warning: this is Swift $CURRENT_SWIFT, and .swift-version says $EXPECTED_SWIFT."
+        echo "         Package.resolved will be rewritten on every build until they match."
+    fi
+fi
 SWIFT_VERSION_FILE="$BUILD_DIR/.swift-version-used"
 if [ -f "$SWIFT_VERSION_FILE" ]; then
     CACHED_VERSION=$(cat "$SWIFT_VERSION_FILE")
