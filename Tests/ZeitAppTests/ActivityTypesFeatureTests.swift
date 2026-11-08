@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import Foundation
 import Testing
 
 @testable import ZeitApp
@@ -506,5 +507,149 @@ struct ActivityTypesFeatureTests {
         }
 
         #expect(store.state.alert == nil)
+    }
+
+    // MARK: - Edit / Save mode
+
+    private struct DiskFull: LocalizedError {
+        var errorDescription: String? { "The disk is full" }
+    }
+
+    /// A store over one valid type, so `done` reaches the write.
+    private func savingStore(
+        mode: ActivityTypesFeature.Mode = .settings,
+        isEditing: Bool = false,
+        saveTypes: @escaping @Sendable ([ActivityType]) async throws -> Void = { _ in }
+    ) -> TestStore<ActivityTypesFeature.State, ActivityTypesFeature.Action> {
+        TestStore(
+            initialState: ActivityTypesFeature.State(
+                mode: mode,
+                types: [type("only_one", .work, name: "Only One")],
+                primaryGroup: .work,
+                isLoading: false,
+                isEditing: isEditing
+            )
+        ) {
+            ActivityTypesFeature()
+        } withDependencies: {
+            $0.classificationClient.savePrimaryGroup = { _ in }
+            $0.databaseClient.saveActivityTypes = saveTypes
+        }
+    }
+
+    /// Settings opens on the selection the machine has, read-only: the user has
+    /// to ask for the rows before they can change them.
+    @Test
+    func inSettings_theEditorOpensReadOnly() {
+        #expect(!store(oneTypePerGroup).state.acceptsEdits)
+    }
+
+    /// Onboarding is the step the user is there to fill in, and it has nothing
+    /// saved to protect.
+    @Test
+    func inOnboarding_theEditorOpensEditable() {
+        #expect(store(oneTypePerGroup, mode: .onboarding).state.acceptsEdits)
+    }
+
+    @Test
+    func edit_makesTheRowsEditable() async {
+        let store = self.store(oneTypePerGroup)
+
+        await store.send(.edit) {
+            $0.isEditing = true
+        }
+
+        #expect(store.state.acceptsEdits)
+    }
+
+    /// The return to read-only is the sign the user gets that the write
+    /// happened.
+    @Test
+    func aSuccessfulSaveInSettings_returnsToReadOnly() async {
+        let store = savingStore(isEditing: true)
+
+        await store.send(.done)
+        await store.receive(\.saveCompleted) {
+            $0.isEditing = false
+        }
+
+        #expect(!store.state.acceptsEdits)
+    }
+
+    /// A failed write leaves the rows editable, with the changes and the
+    /// reason: going read-only would claim a save that did not happen.
+    @Test
+    func aFailedSave_staysEditableAndShowsTheError() async {
+        let store = savingStore(isEditing: true, saveTypes: { _ in throw DiskFull() })
+
+        await store.send(.done)
+        await store.receive(\.saveCompleted) {
+            $0.saveError = "The disk is full"
+        }
+
+        #expect(store.state.acceptsEdits)
+    }
+
+    /// A selection that validation rejects is never written, so the rows stay
+    /// editable for the user to fix it.
+    @Test
+    func aRejectedSave_staysEditable() async {
+        let store = TestStore(
+            initialState: ActivityTypesFeature.State(
+                types: [type("social_media", .personal, name: "Social Media")],
+                primaryGroup: .work,
+                isLoading: false,
+                isEditing: true
+            )
+        ) {
+            ActivityTypesFeature()
+        }
+
+        await store.send(.done) {
+            $0.saveError = ActivityTypeValidationError
+                .noTypesInPrimaryGroup(.work)
+                .localizedDescription
+        }
+
+        #expect(store.state.acceptsEdits)
+    }
+
+    /// Re-showing the pane re-reads the database, so it comes back read-only
+    /// rather than offering rows over data the user did not open for editing.
+    @Test
+    func task_reopensTheSettingsPaneReadOnly() async {
+        let stored = [type("my_own_thing", .work)]
+        let store = TestStore(
+            initialState: ActivityTypesFeature.State(mode: .settings, isEditing: true)
+        ) {
+            ActivityTypesFeature()
+        } withDependencies: {
+            $0.databaseClient.getActivityTypes = { stored }
+            $0.classificationClient.primaryGroup = { .work }
+        }
+
+        await store.send(.task) {
+            $0.isEditing = false
+        }
+        await store.receive(\.typesLoaded) {
+            $0.isLoading = false
+            $0.primaryGroup = .work
+            $0.openedOnAChosenSelection = true
+            $0.types = stored
+        }
+
+        #expect(!store.state.acceptsEdits)
+    }
+
+    /// Onboarding's Continue saves and moves the wizard on; there is no
+    /// read-only state for the step to come back to.
+    @Test
+    func aSuccessfulSaveInOnboarding_leavesTheStepEditable() async {
+        let store = savingStore(mode: .onboarding)
+
+        await store.send(.done)
+        await store.receive(\.saveCompleted)
+
+        #expect(store.state.acceptsEdits)
     }
 }

@@ -28,6 +28,20 @@ struct ActivityTypesFeature {
         var isLoading: Bool = true
         var saveError: String?
 
+        /// Set by `edit`, cleared when a save lands. Settings alone uses it;
+        /// `acceptsEdits` is the question the rest of the editor asks.
+        var isEditing: Bool = false
+
+        /// Whether the rows, the chips and the bulk buttons are live.
+        ///
+        /// Settings opens read-only and returns to read-only when the write
+        /// succeeds: that switch is how the user sees the save happened.
+        /// Onboarding is the step the user is there to fill in and has nothing
+        /// saved to protect, so it is editable throughout.
+        var acceptsEdits: Bool {
+            mode == .onboarding || isEditing
+        }
+
         /// Whether the suggested set may replace what is on screen.
         ///
         /// Onboarding seeds from the primary-group answer, which is right on a
@@ -95,6 +109,7 @@ struct ActivityTypesFeature {
         case clearAll
 
         // Save
+        case edit
         case done
         case saveCompleted(Result<Void, Error>)
 
@@ -113,6 +128,10 @@ struct ActivityTypesFeature {
             switch action {
             case .task:
                 state.isLoading = true
+                // The pane re-reads the database every time it is shown, so it
+                // comes back in the state it opens in: an edit the user never
+                // saved does not survive the reload either way.
+                state.isEditing = false
                 return .run { send in
                     let types = try await database.getActivityTypes()
                     await send(.typesLoaded(types, primaryGroup: classification.primaryGroup()))
@@ -213,6 +232,10 @@ struct ActivityTypesFeature {
 
             // MARK: - Save
 
+            case .edit:
+                state.isEditing = true
+                return .none
+
             case .done:
                 // Regenerate IDs from names before saving
                 for index in state.types.indices {
@@ -244,6 +267,7 @@ struct ActivityTypesFeature {
 
             case .saveCompleted(.success):
                 state.saveError = nil
+                state.isEditing = false
                 return .none
 
             case .saveCompleted(.failure(let error)):

@@ -60,7 +60,7 @@ Only ids Zeit itself shipped are remapped by name — guessing a group for a use
 Activity types can be managed in three places:
 
 - **Onboarding** - A dedicated step after model download, pre-filled with defaults. Two lists — work, and everything else — that can be edited, extended, or cleared entirely.
-- **Settings > Activity Types** - Same editing interface, accessible any time from the menubar.
+- **Settings > Activity Types** - The same editor, accessible any time from the menubar. It opens read-only, over the selection the machine already has: the rows, the suggestion chips, the group picker and the bulk buttons come alive only after the user taps **Edit**, and the button becomes **Save**. A save that succeeds puts the pane back in read-only — that return is how the user sees the write happened. A save that fails keeps the rows open, with the changes and the reason.
 - **CLI** - `zeit list-activity-types` to view, `zeit set-activity-types` to update.
 
 ### CLI Usage

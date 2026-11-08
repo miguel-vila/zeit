@@ -38,8 +38,7 @@ struct ActivityTypesView: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
-                        // One section per group, the primary one first
-                        ForEach(ActivityGroup.allCases(primaryFirst: store.primaryGroup), id: \.self) { group in
+                        ForEach(visibleGroups, id: \.self) { group in
                             activitySection(for: group)
                         }
                     }
@@ -54,23 +53,21 @@ struct ActivityTypesView: View {
 
                 // Action buttons
                 HStack(spacing: 12) {
-                    Button("Reset to suggested set") {
-                        store.send(.resetToSuggestedSet)
-                    }
+                    if store.acceptsEdits {
+                        Button("Reset to suggested set") {
+                            store.send(.resetToSuggestedSet)
+                        }
 
-                    Button("Clear All") {
-                        store.send(.clearAll)
+                        Button("Clear All") {
+                            store.send(.clearAll)
+                        }
                     }
 
                     Spacer()
 
                     selectionCounter
 
-                    Button(mode == .onboarding ? "Continue" : "Save") {
-                        store.send(.done)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!store.isValid)
+                    primaryButton
                 }
             }
         }
@@ -80,6 +77,31 @@ struct ActivityTypesView: View {
         .task {
             await store.send(.task).finish()
         }
+    }
+
+    // MARK: - Primary Button
+
+    /// One button for the state the editor is in: Edit opens the rows, Save
+    /// writes them and closes them again, which is how the user sees that the
+    /// write happened. Onboarding only ever saves.
+    private var primaryButton: some View {
+        let title: String
+        let action: ActivityTypesFeature.Action
+
+        if store.acceptsEdits {
+            title = mode == .onboarding ? "Continue" : "Save"
+            action = .done
+        } else {
+            title = "Edit"
+            action = .edit
+        }
+
+        return Button(title) {
+            store.send(action)
+        }
+        .buttonStyle(.borderedProminent)
+        // Only a save can be invalid; asking to edit never is.
+        .disabled(store.acceptsEdits && !store.isValid)
     }
 
     // MARK: - Selection Counter
@@ -137,6 +159,7 @@ struct ActivityTypesView: View {
                 }
                 .labelsHidden()
                 .pickerStyle(.segmented)
+                .disabled(!store.acceptsEdits)
             }
         }
     }
@@ -175,8 +198,14 @@ struct ActivityTypesView: View {
 
     // MARK: - Activity Section
 
-    /// A group's section: every group is shown, empty or not, so a type can be
-    /// added to a group the machine does not use yet.
+    /// While editing, every group gets a section, empty or not, so a type can be
+    /// added to a group the machine does not use yet. Read-only, an empty group
+    /// has nothing to show.
+    private var visibleGroups: [ActivityGroup] {
+        ActivityGroup.allCases(primaryFirst: store.primaryGroup)
+            .filter { store.acceptsEdits || !store.state.types(in: $0).isEmpty }
+    }
+
     private func activitySection(for group: ActivityGroup) -> some View {
         let types = store.state.types(in: group)
         let color = group.color
@@ -233,6 +262,7 @@ struct ActivityTypesView: View {
                         ActivityTypeRow(
                             type: type,
                             color: color,
+                            isEditable: store.acceptsEdits,
                             onUpdate: { name, desc in
                                 store.send(
                                     .updateType(id: type.id, name: name, description: desc)
@@ -244,20 +274,22 @@ struct ActivityTypesView: View {
                 }
             }
 
-            suggestionChips(for: group)
+            if store.acceptsEdits {
+                suggestionChips(for: group)
 
-            Button {
-                onAdd()
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.caption)
-                    Text("Add")
-                        .font(.caption)
+                Button {
+                    onAdd()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.caption)
+                        Text("Add")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(color)
                 }
-                .foregroundStyle(color)
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
     }
 
@@ -366,6 +398,7 @@ private struct FlowLayout: Layout {
 private struct ActivityTypeRow: View {
     let type: ActivityType
     let color: Color
+    let isEditable: Bool
     let onUpdate: (String?, String?) -> Void
     let onDelete: () -> Void
 
@@ -376,11 +409,13 @@ private struct ActivityTypeRow: View {
     init(
         type: ActivityType,
         color: Color,
+        isEditable: Bool,
         onUpdate: @escaping (String?, String?) -> Void,
         onDelete: @escaping () -> Void
     ) {
         self.type = type
         self.color = color
+        self.isEditable = isEditable
         self.onUpdate = onUpdate
         self.onDelete = onDelete
         _editingName = State(initialValue: type.name)
@@ -400,13 +435,19 @@ private struct ActivityTypeRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    TextField("Name", text: $editingName)
-                        .font(.body)
-                        .fontWeight(.medium)
-                        .textFieldStyle(.plain)
-                        .onChange(of: editingName) { _, newValue in
-                            onUpdate(newValue, nil)
-                        }
+                    if isEditable {
+                        TextField("Name", text: $editingName)
+                            .font(.body)
+                            .fontWeight(.medium)
+                            .textFieldStyle(.plain)
+                            .onChange(of: editingName) { _, newValue in
+                                onUpdate(newValue, nil)
+                            }
+                    } else {
+                        Text(type.name)
+                            .font(.body)
+                            .fontWeight(.medium)
+                    }
 
                     // A twin is only separable by what the description says, so
                     // the row says so rather than letting the pair look fine.
@@ -421,13 +462,19 @@ private struct ActivityTypeRow: View {
                     }
                 }
 
-                TextField("Description (used as context for AI classification)", text: $editingDescription)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .textFieldStyle(.plain)
-                    .onChange(of: editingDescription) { _, newValue in
-                        onUpdate(nil, newValue)
-                    }
+                if isEditable {
+                    TextField("Description (used as context for AI classification)", text: $editingDescription)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textFieldStyle(.plain)
+                        .onChange(of: editingDescription) { _, newValue in
+                            onUpdate(nil, newValue)
+                        }
+                } else {
+                    Text(type.description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
                 if ActivityCatalog.needsTwinDetail(type) {
                     Text(ActivityCatalog.twinHint)
@@ -444,7 +491,7 @@ private struct ActivityTypeRow: View {
 
             Spacer()
 
-            if isHovered {
+            if isEditable, isHovered {
                 Button {
                     onDelete()
                 } label: {
@@ -459,7 +506,11 @@ private struct ActivityTypeRow: View {
         .padding(.vertical, 6)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(isHovered ? Color.primary.opacity(0.04) : Color.primary.opacity(0.015))
+                .fill(
+                    isEditable && isHovered
+                        ? Color.primary.opacity(0.04)
+                        : Color.primary.opacity(0.015)
+                )
         )
         .onHover { hovering in
             isHovered = hovering
