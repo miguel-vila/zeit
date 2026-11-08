@@ -60,8 +60,7 @@ struct DoctorCommand: AsyncParsableCommand {
         ))
 
         // Permission checks
-        checks.append(checkScreenRecordingPermission())
-        checks.append(checkAccessibilityPermission())
+        checks.append(contentsOf: Permission.allCases.map(checkPermission))
 
         // Data directory checks
         checks.append(checkDataDirectory())
@@ -151,21 +150,12 @@ struct DoctorCommand: AsyncParsableCommand {
         )
     }
 
-    private func checkScreenRecordingPermission() -> Check {
-        let hasPermission = Permissions.checkScreenRecording()
+    private func checkPermission(_ permission: Permission) -> Check {
+        let hasPermission = permission.isGranted
         return Check(
-            name: "Permission: Screen Recording",
+            name: "Permission: \(permission.displayName)",
             passed: hasPermission,
-            details: hasPermission ? "Granted" : "Open: x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
-        )
-    }
-
-    private func checkAccessibilityPermission() -> Check {
-        let hasPermission = Permissions.checkAccessibility()
-        return Check(
-            name: "Permission: Accessibility",
-            passed: hasPermission,
-            details: hasPermission ? "Granted" : "Open: x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+            details: hasPermission ? "Granted" : "Open: \(permission.settingsURL.absoluteString)"
         )
     }
 

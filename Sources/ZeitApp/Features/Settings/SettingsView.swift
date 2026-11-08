@@ -56,27 +56,17 @@ struct SettingsView: View {
                 .font(.title2)
                 .fontWeight(.bold)
 
-            Text("Required permissions for Zeit to function properly.")
+            Text("Zeit needs these to see what you are working on.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
             Divider()
 
-            VStack(spacing: 8) {
-                SettingsPermissionRow(
-                    name: "Screen Recording",
-                    icon: "camera.fill",
-                    description: "Required to capture screenshots for activity tracking",
-                    isGranted: store.permissions.screenRecordingGranted
-                )
-
-                SettingsPermissionRow(
-                    name: "Accessibility",
-                    icon: "hand.point.up.fill",
-                    description: "Required to detect which window is currently active",
-                    isGranted: store.permissions.accessibilityGranted
-                )
-            }
+            PermissionRows(
+                granted: store.permissions.granted,
+                guiding: store.permissions.guiding,
+                onGrant: { store.send(.permissions(.grantRequested($0))) }
+            )
 
             Spacer()
         }
@@ -175,54 +165,4 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - Permission Row (read-only)
-
-private struct SettingsPermissionRow: View {
-    let name: String
-    let icon: String
-    let description: String
-    let isGranted: Bool
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isGranted ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
-                    .frame(width: 36, height: 36)
-
-                Image(systemName: isGranted ? "checkmark.circle.fill" : icon)
-                    .foregroundStyle(isGranted ? .green : .secondary)
-                    .font(.body)
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(name)
-                    .fontWeight(.semibold)
-
-                Text(description)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            if isGranted {
-                Text("Granted")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.green)
-            } else {
-                Text("Not Granted")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.red)
-            }
-        }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.primary.opacity(0.015))
-        )
-    }
-}
 

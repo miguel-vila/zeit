@@ -3,14 +3,6 @@ import Dependencies
 import DependenciesMacros
 import Foundation
 
-// MARK: - Permission Status
-
-enum PermissionStatus: Equatable, Sendable {
-    case notDetermined
-    case granted
-    case denied
-}
-
 // MARK: - App Activation Events
 
 enum AppActivation: Sendable {
@@ -18,37 +10,21 @@ enum AppActivation: Sendable {
     case willResignActive
 }
 
-// MARK: - Settings URLs
-
-private enum SettingsURL {
-    static let screenRecording =
-        "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
-    static let accessibility =
-        "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-}
-
 // MARK: - Client Interface
 
-/// NOTE: Permissions are checked for the CLI binary that does the actual tracking,
-/// NOT for this menubar app. The CLI runs via launchd and needs:
-/// - Screen Recording: to capture screenshots
-/// - Accessibility: to detect the active window
+/// Reads and obtains the macOS permissions Zeit tracks with.
 ///
-/// This client checks permissions by invoking the CLI with a check flag,
-/// or by checking if the CLI binary is in the TCC database.
+/// The checks are made in this process. Zeit is a single TCC subject — the
+/// tracker LaunchAgent runs the executable inside the app bundle — so what
+/// this process is allowed to do is what the tracking runs are allowed to do.
 @DependencyClient
 struct PermissionsClient: Sendable {
-    /// Check Screen Recording permission status (for the CLI, not this app)
-    var screenRecordingStatus: @Sendable () -> PermissionStatus = { .notDetermined }
+    /// Whether this process holds `permission`. Never prompts.
+    var isGranted: @Sendable (Permission) -> Bool = { _ in false }
 
-    /// Check Accessibility permission status (for the CLI, not this app)
-    var accessibilityStatus: @Sendable () -> PermissionStatus = { .notDetermined }
-
-    /// Open System Settings to Screen Recording panel
-    var openScreenRecordingSettings: @Sendable () async -> Void
-
-    /// Open System Settings to Accessibility panel
-    var openAccessibilitySettings: @Sendable () async -> Void
+    /// Leads the user through granting `permission`, and returns once the
+    /// grant lands or the user gives up. See `PermissionGrantGuide`.
+    var guideGrant: @Sendable (Permission) async -> Void
 
     /// Observe app activation events (for re-checking permissions after Settings)
     var observeAppActivation: @Sendable () -> AsyncStream<AppActivation> = { .never }
@@ -68,136 +44,23 @@ extension DependencyValues {
 extension PermissionsClient: DependencyKey {
     static let liveValue: PermissionsClient = {
         let observer = AppActivationObserver()
-        let helper = PermissionsHelper()
 
         return PermissionsClient(
-            screenRecordingStatus: {
-                // Check if CLI has screen recording permission by running it
-                // For now, we check the menubar app's permission as a proxy
-                // (both need to be granted separately, but this gives user feedback)
-                helper.checkScreenRecording()
+            isGranted: { permission in
+                if permission.isGranted { return true }
+                // A Screen Recording grant does not reach a process that was
+                // already running, so "no" from this process may be stale.
+                guard permission.appliesOnlyToNewProcesses else { return false }
+                return PermissionCheckCommand.ask(permission)
             },
-            accessibilityStatus: {
-                // Check if CLI has accessibility permission
-                helper.checkAccessibility()
-            },
-            openScreenRecordingSettings: {
-                await MainActor.run {
-                    if let url = URL(string: SettingsURL.screenRecording) {
-                        NSWorkspace.shared.open(url)
-                    }
-                }
-            },
-            openAccessibilitySettings: {
-                await MainActor.run {
-                    if let url = URL(string: SettingsURL.accessibility) {
-                        NSWorkspace.shared.open(url)
-                    }
-                }
+            guideGrant: { permission in
+                await PermissionGrantGuide.shared.run(permission)
             },
             observeAppActivation: {
                 observer.stream
             }
         )
     }()
-}
-
-// MARK: - Permissions Helper
-
-private struct PermissionsHelper: Sendable {
-    /// Path to the CLI binary (bundled or installed)
-    private var cliPath: String? {
-        // Check bundled CLI first
-        if let bundled = Bundle.main.path(forResource: "zeit", ofType: nil, inDirectory: "zeit") {
-            return bundled
-        }
-        // Check installed CLI
-        let installed = FileManager.default
-            .homeDirectoryForCurrentUser
-            .appendingPathComponent(".local/bin/zeit")
-        if FileManager.default.fileExists(atPath: installed.path) {
-            return installed.path
-        }
-        return nil
-    }
-
-    /// Run `zeit doctor --json` and parse the results
-    func runDoctorCheck() -> DoctorResult? {
-        guard let cli = cliPath else { return nil }
-
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: cli)
-        task.arguments = ["doctor", "--json"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = FileHandle.nullDevice
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            // Parse JSON regardless of exit code — doctor exits 1 when any check
-            // fails, but the JSON still contains valid per-check results we need
-            // for permission status.
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            return try JSONDecoder().decode(DoctorResult.self, from: data)
-        } catch {
-            return nil
-        }
-    }
-
-    func checkScreenRecording() -> PermissionStatus {
-        guard let result = runDoctorCheck() else {
-            return .notDetermined
-        }
-
-        if let check = result.checks.first(where: { $0.name.contains("Screen Recording") }) {
-            return check.passed ? .granted : .denied
-        }
-
-        // Dev mode - permissions check was skipped
-        if result.checks.contains(where: { $0.details.contains("Skipped") }) {
-            return .notDetermined
-        }
-
-        return .notDetermined
-    }
-
-    func checkAccessibility() -> PermissionStatus {
-        guard let result = runDoctorCheck() else {
-            return .notDetermined
-        }
-
-        if let check = result.checks.first(where: { $0.name.contains("Accessibility") }) {
-            return check.passed ? .granted : .denied
-        }
-
-        // Dev mode - permissions check was skipped
-        if result.checks.contains(where: { $0.details.contains("Skipped") }) {
-            return .notDetermined
-        }
-
-        return .notDetermined
-    }
-}
-
-// MARK: - Doctor Result Model
-
-private struct DoctorResult: Codable {
-    let checks: [DoctorCheck]
-    let allPassed: Bool
-
-    enum CodingKeys: String, CodingKey {
-        case checks
-        case allPassed = "all_passed"
-    }
-}
-
-private struct DoctorCheck: Codable {
-    let name: String
-    let passed: Bool
-    let details: String
 }
 
 // MARK: - App Activation Observer
@@ -233,8 +96,13 @@ private final class AppActivationObserver: @unchecked Sendable {
 // MARK: - Convenience
 
 extension PermissionsClient {
+    /// The permissions this process holds right now.
+    func grantedPermissions() -> Set<Permission> {
+        Set(Permission.allCases.filter(isGranted))
+    }
+
     /// Check if all required permissions are granted
     func allPermissionsGranted() -> Bool {
-        screenRecordingStatus() == .granted && accessibilityStatus() == .granted
+        Permission.allCases.allSatisfy(isGranted)
     }
 }

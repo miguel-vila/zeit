@@ -5,21 +5,23 @@ import Foundation
 struct PermissionsFeature {
     @ObservableState
     struct State: Equatable {
-        var screenRecordingGranted: Bool = false
-        var accessibilityGranted: Bool = false
+        var granted: Set<Permission> = []
+
+        /// The permission the drop panel is currently open for, if any.
+        var guiding: Permission?
 
         var allGranted: Bool {
-            screenRecordingGranted && accessibilityGranted
+            Permission.allCases.allSatisfy(granted.contains)
         }
     }
 
     enum Action {
         case task
         case checkPermissions
-        case permissionsUpdated(screenRecording: Bool, accessibility: Bool)
+        case permissionsUpdated(Set<Permission>)
         case appBecameActive
-        case openScreenRecordingSettings
-        case openAccessibilitySettings
+        case grantRequested(Permission)
+        case guideFinished
         case continuePressed
         case allPermissionsGranted
     }
@@ -27,7 +29,7 @@ struct PermissionsFeature {
     @Dependency(\.permissionsClient) var permissions
     @Dependency(\.continuousClock) var clock
 
-    private enum CancelID { case appObserver, refreshTimer }
+    private enum CancelID { case appObserver, refreshTimer, guide }
 
     var body: some ReducerOf<Self> {
         Reduce { state, action in
@@ -41,17 +43,11 @@ struct PermissionsFeature {
 
             case .checkPermissions:
                 return .run { send in
-                    let screen = permissions.screenRecordingStatus() == .granted
-                    let accessibility = permissions.accessibilityStatus() == .granted
-                    await send(.permissionsUpdated(
-                        screenRecording: screen,
-                        accessibility: accessibility
-                    ))
+                    await send(.permissionsUpdated(permissions.grantedPermissions()))
                 }
 
-            case let .permissionsUpdated(screen, accessibility):
-                state.screenRecordingGranted = screen
-                state.accessibilityGranted = accessibility
+            case let .permissionsUpdated(granted):
+                state.granted = granted
 
                 if state.allGranted {
                     return .send(.allPermissionsGranted)
@@ -62,34 +58,40 @@ struct PermissionsFeature {
                 // Re-check when user returns from System Settings
                 return .send(.checkPermissions)
 
-            case .openScreenRecordingSettings:
-                return .run { _ in
-                    await permissions.openScreenRecordingSettings()
+            case let .grantRequested(permission):
+                state.guiding = permission
+                return .run { send in
+                    await permissions.guideGrant(permission)
+                    await send(.guideFinished)
                 }
+                .cancellable(id: CancelID.guide, cancelInFlight: true)
 
-            case .openAccessibilitySettings:
-                return .run { _ in
-                    await permissions.openAccessibilitySettings()
-                }
+            case .guideFinished:
+                state.guiding = nil
+                return .send(.checkPermissions)
 
             case .continuePressed:
                 // Parent handles navigation/dismissal
-                return .merge(
-                    .cancel(id: CancelID.appObserver),
-                    .cancel(id: CancelID.refreshTimer)
-                )
+                return stopWork()
 
             case .allPermissionsGranted:
-                // Parent will handle dismissing
-                return .merge(
-                    .cancel(id: CancelID.appObserver),
-                    .cancel(id: CancelID.refreshTimer)
-                )
+                // Only a signal to the parent, which decides whether to move
+                // on. The Settings tab stays on this screen and keeps polling,
+                // so that a grant revoked later still shows up.
+                return .none
             }
         }
     }
 
     // MARK: - Helpers
+
+    private func stopWork() -> Effect<Action> {
+        .merge(
+            .cancel(id: CancelID.appObserver),
+            .cancel(id: CancelID.refreshTimer),
+            .cancel(id: CancelID.guide)
+        )
+    }
 
     private func startAppObserver() -> Effect<Action> {
         .run { send in

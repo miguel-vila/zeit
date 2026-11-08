@@ -8,7 +8,7 @@ struct SettingsFeature {
     @ObservableState
     struct State: Equatable {
         var selectedTab: Tab = .permissions
-        var permissions: SettingsPermissionsState = .init()
+        var permissions: PermissionsFeature.State = .init()
         var models: ModelDownloadFeature.State = .init()
         var schedule: ScheduleState = .init()
         var activityTypes: ActivityTypesFeature.State = .init()
@@ -33,13 +33,6 @@ struct SettingsFeature {
         }
     }
 
-    // MARK: - Permissions tab state
-
-    struct SettingsPermissionsState: Equatable {
-        var screenRecordingGranted: Bool = false
-        var accessibilityGranted: Bool = false
-    }
-
     // MARK: - Schedule tab state
 
     struct ScheduleState: Equatable {
@@ -51,8 +44,8 @@ struct SettingsFeature {
         case task
         case selectTab(State.Tab)
 
-        // Permissions
-        case permissionsUpdated(screenRecording: Bool, accessibility: Bool)
+        // Permissions — delegated to the shared permissions reducer
+        case permissions(PermissionsFeature.Action)
 
         // Models — delegated to the shared model-download reducer
         case models(ModelDownloadFeature.Action)
@@ -77,10 +70,13 @@ struct SettingsFeature {
         case closeSettings
     }
 
-    @Dependency(\.permissionsClient) var permissions
     @Dependency(\.modelClient) var modelClient
 
     var body: some ReducerOf<Self> {
+        Scope(state: \.permissions, action: \.permissions) {
+            PermissionsFeature()
+        }
+
         Scope(state: \.activityTypes, action: \.activityTypes) {
             ActivityTypesFeature()
         }
@@ -93,14 +89,7 @@ struct SettingsFeature {
             switch action {
             case .task:
                 return .merge(
-                    .run { send in
-                        let screen = permissions.screenRecordingStatus() == .granted
-                        let accessibility = permissions.accessibilityStatus() == .granted
-                        await send(.permissionsUpdated(
-                            screenRecording: screen,
-                            accessibility: accessibility
-                        ))
-                    },
+                    .send(.permissions(.task)),
                     .send(.models(.task)),
                     .run { send in
                         let config = ZeitConfig.load()
@@ -112,9 +101,7 @@ struct SettingsFeature {
                 state.selectedTab = tab
                 return .none
 
-            case .permissionsUpdated(let screen, let accessibility):
-                state.permissions.screenRecordingGranted = screen
-                state.permissions.accessibilityGranted = accessibility
+            case .permissions:
                 return .none
 
             case .models:

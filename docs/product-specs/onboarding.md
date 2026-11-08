@@ -18,11 +18,13 @@ Requests two macOS permissions required for the app to function:
 - **Screen Recording** - needed to capture screenshots via CoreGraphics
 - **Accessibility** - needed for AppleScript to detect the active window and frontmost app
 
-Each permission shows a status indicator (granted/not granted) and a button to open the relevant System Settings pane. The step polls permissions every 5 seconds and also re-checks when the app regains focus (after the user returns from System Settings).
+Each permission shows a status indicator (granted/not granted) and a **Grant** button. Grant opens the System Settings pane and floats a small panel over the System Settings window holding a drag chip for Zeit itself. Dropping the chip on the privacy list both adds Zeit to it and switches it on; without it the user has to find an app that is not in the list yet. The panel follows the window, hides while System Settings is away, and closes once the grant lands.
+
+The step polls permissions every 5 seconds and also re-checks when the app regains focus. macOS gives a new Screen Recording grant only to processes started after it, so that one is re-checked by running `zeit permission-check` in a new process. Zeit itself never has to restart: each tracking run is a new process started by launchd.
 
 The user can continue once both permissions are granted.
 
-**Later:** Viewable in Settings > Permissions tab (read-only status display).
+**Later:** Settings > Permissions tab shows the same rows, with the same Grant button.
 
 ### Step 2: Model Download
 

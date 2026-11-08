@@ -18,6 +18,7 @@ struct ZeitCLI: ParsableCommand {
             ListActivityTypesCommand.self,
             SetActivityTypesCommand.self,
             DoctorCommand.self,
+            PermissionCheckCommand.self,
             VersionCommand.self,
         ]
     )

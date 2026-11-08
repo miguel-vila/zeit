@@ -51,6 +51,11 @@ Checks:
 
 Exit code: 0 if all checks pass, 1 if any fail.
 
+Permission checks report what *this* process is allowed to do. Run from a
+terminal, that is what the terminal is allowed to do, not Zeit: macOS credits a
+command to the app that started it. The menubar app and the tracker both run
+from the app bundle, so they share one grant.
+
 After the checks, a readout of the last 20 stored entries: capture time, the gap
 since the entry before it, the activity type, and the device that wrote it, with
 the median gap across the window. The gap column is what shows whether the

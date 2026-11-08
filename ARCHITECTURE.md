@@ -148,7 +148,7 @@ External services are abstracted behind `@DependencyClient` interfaces:
 | `DatabaseClient` | Read/write activities, objectives, activity types |
 | `TrackingClient` | Tracking state, work hours check, start/stop |
 | `ModelClient` | Model download status and downloads |
-| `PermissionsClient` | Screen Recording and Accessibility permission checks |
+| `PermissionsClient` | Read the Screen Recording and Accessibility grants, and guide the user through giving them |
 | `LaunchAgentClient` | Service install, load, unload, restart |
 | `NotificationClient` | macOS notification delivery |
 | `ClassificationClient` | Read/write `classification.primary_group` in `conf.yml` |
