@@ -84,6 +84,13 @@ if [ "$NOTARIZE" = true ]; then
     echo "Notarization profile: $NOTARIZE_PROFILE"
 fi
 
+# Full Xcode is needed for actool (asset catalogs) and the Metal compiler, even
+# when xcode-select points at the Command Line Tools
+XCODE_DEV_DIR="/Applications/Xcode.app/Contents/Developer"
+if [ -d "$XCODE_DEV_DIR" ]; then
+    export DEVELOPER_DIR="$XCODE_DEV_DIR"
+fi
+
 # Auto-clean if Swift compiler version changed
 SWIFT_VERSION=$(swift --version 2>&1 | head -1)
 SWIFT_VERSION_FILE="$BUILD_DIR/.swift-version-used"
@@ -168,7 +175,6 @@ if [ "$METAL_CACHED" = false ]; then
     mkdir -p "$METAL_BUILD_DIR"
 
     # Metal compiler requires full Xcode (not just CommandLineTools)
-    XCODE_DEV_DIR="/Applications/Xcode.app/Contents/Developer"
     if [ ! -d "$XCODE_DEV_DIR" ]; then
         echo "Error: Xcode not found at /Applications/Xcode.app"
         echo "Full Xcode installation is required to compile Metal shaders."
