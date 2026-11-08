@@ -426,6 +426,35 @@ private struct ActivityTypeRow: View {
         ActivityTypeValidator.validateField(type)?.localizedDescription
     }
 
+    /// Both modes size the name to its text, so the twin badge next to it keeps
+    /// the same place whether the row is open for editing or not.
+    @ViewBuilder
+    private var name: some View {
+        if isEditable {
+            TextField("Name", text: $editingName)
+                .textFieldStyle(.plain)
+                .fixedSize(horizontal: true, vertical: false)
+                .onChange(of: editingName) { _, newValue in
+                    onUpdate(newValue, nil)
+                }
+        } else {
+            Text(type.name)
+        }
+    }
+
+    @ViewBuilder
+    private var description: some View {
+        if isEditable {
+            TextField("Description (used as context for AI classification)", text: $editingDescription)
+                .textFieldStyle(.plain)
+                .onChange(of: editingDescription) { _, newValue in
+                    onUpdate(nil, newValue)
+                }
+        } else {
+            Text(type.description)
+        }
+    }
+
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             Circle()
@@ -435,19 +464,10 @@ private struct ActivityTypeRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    if isEditable {
-                        TextField("Name", text: $editingName)
-                            .font(.body)
-                            .fontWeight(.medium)
-                            .textFieldStyle(.plain)
-                            .onChange(of: editingName) { _, newValue in
-                                onUpdate(newValue, nil)
-                            }
-                    } else {
-                        Text(type.name)
-                            .font(.body)
-                            .fontWeight(.medium)
-                    }
+                    name
+                        .font(.body)
+                        .fontWeight(.medium)
+                        .foregroundStyle(isEditable ? .primary : .secondary)
 
                     // A twin is only separable by what the description says, so
                     // the row says so rather than letting the pair look fine.
@@ -462,19 +482,9 @@ private struct ActivityTypeRow: View {
                     }
                 }
 
-                if isEditable {
-                    TextField("Description (used as context for AI classification)", text: $editingDescription)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .textFieldStyle(.plain)
-                        .onChange(of: editingDescription) { _, newValue in
-                            onUpdate(nil, newValue)
-                        }
-                } else {
-                    Text(type.description)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                description
+                    .font(.caption)
+                    .foregroundStyle(isEditable ? .secondary : .tertiary)
 
                 if ActivityCatalog.needsTwinDetail(type) {
                     Text(ActivityCatalog.twinHint)
