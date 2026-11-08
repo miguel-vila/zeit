@@ -35,6 +35,17 @@ All distribution builds go through `build.sh`. Output: `dist/Zeit.app` (macOS ap
 | `--dmg` | Create DMG installer |
 | `--clean` | Clean build artifacts first |
 
+### Code signing
+
+A build with no `--sign` is signed with the local identity `Zeit Local Signing`,
+created once per machine by `scripts/make-signing-cert.sh`. Without it the build
+falls back to an ad-hoc signature, and macOS then drops the screen recording and
+accessibility grants on every install — the script header says why.
+
+```bash
+./scripts/make-signing-cert.sh    # once per machine
+```
+
 ### Debug vs Release
 
 Swift defines the `DEBUG` flag automatically based on build configuration. Several features are gated behind `#if DEBUG` and are only available in debug builds:
@@ -55,3 +66,4 @@ Swift defines the `DEBUG` flag automatically based on build configuration. Sever
 |----------|---------|
 | `DEVELOPER_ID` | Code signing certificate name |
 | `NOTARIZE_PROFILE` | Keychain profile for notarization |
+| `LOCAL_SIGNING_IDENTITY` | Identity used when not signing for distribution (default: `Zeit Local Signing`) |

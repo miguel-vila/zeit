@@ -36,6 +36,7 @@ while [[ $# -gt 0 ]]; do
             echo "Environment variables for signing:"
             echo "  DEVELOPER_ID       Developer ID certificate name"
             echo "  NOTARIZE_PROFILE   Keychain profile for notarytool credentials"
+            echo "  LOCAL_SIGNING_IDENTITY  Identity for unsigned builds (default: Zeit Local Signing)"
             echo ""
             echo "Examples:"
             echo "  $0                          # Debug build"
@@ -308,11 +309,24 @@ EOF
         --entitlements "$DIST_DIR/entitlements.plist" \
         "$APP_BUNDLE"
 else
-    echo "Signing ad-hoc..."
-    # Sign the metallib before signing the main bundle
-    codesign --force --sign - "$APP_BUNDLE/Contents/MacOS/mlx.metallib" 2>/dev/null || true
-    # Sign the main bundle
-    codesign --force --sign - "$APP_BUNDLE"
+    # A stable identity is what keeps the privacy grants across reinstalls: the
+    # designated requirement then names the certificate instead of the binary,
+    # so the grant given to one build still matches the next. See
+    # scripts/make-signing-cert.sh.
+    LOCAL_SIGNING_IDENTITY="${LOCAL_SIGNING_IDENTITY:-Zeit Local Signing}"
+
+    if security find-identity -p codesigning | grep -qF "$LOCAL_SIGNING_IDENTITY"; then
+        echo "Signing with local identity: $LOCAL_SIGNING_IDENTITY"
+        codesign --force --sign "$LOCAL_SIGNING_IDENTITY" "$APP_BUNDLE/Contents/MacOS/mlx.metallib"
+        codesign --force --sign "$LOCAL_SIGNING_IDENTITY" "$APP_BUNDLE"
+    else
+        echo "Warning: no \"$LOCAL_SIGNING_IDENTITY\" identity in the keychain."
+        echo "         Signing ad-hoc, so screen recording and accessibility have"
+        echo "         to be granted again after every install."
+        echo "         Run scripts/make-signing-cert.sh once to stop that."
+        codesign --force --sign - "$APP_BUNDLE/Contents/MacOS/mlx.metallib" 2>/dev/null || true
+        codesign --force --sign - "$APP_BUNDLE"
+    fi
 fi
 
 # Verify signature
