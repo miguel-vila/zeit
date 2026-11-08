@@ -410,6 +410,19 @@ if [ "$INSTALL" = true ]; then
     echo "Installing..."
     echo "----------------------------------------"
 
+    # Take the jobs out of the login session before the bundle goes. launchd
+    # keeps the menubar app alive by path, so replacing the bundle under a
+    # running job leaves launchd with no program to start and it drops the job
+    # from the domain, which is why the app did not come back on its own.
+    LAUNCHD_DOMAIN="gui/$(id -u)"
+    TRACKER_LABEL="co.invariante.zeit"
+    MENUBAR_LABEL="co.invariante.zeit.menubar"
+
+    echo "Stopping services..."
+    for label in "$TRACKER_LABEL" "$MENUBAR_LABEL"; do
+        launchctl bootout "$LAUNCHD_DOMAIN/$label" 2>/dev/null || true
+    done
+
     # Copy to /Applications
     echo "Copying to /Applications..."
     rm -rf "/Applications/$APP_NAME.app"
@@ -497,12 +510,16 @@ EOF
     mkdir -p "$HOME/Library/Logs/zeit"
 
     echo "LaunchAgents updated"
+
+    # The menubar app clears the tracking stop flag as it starts, so tracking
+    # resumes by itself once the job is back.
     echo ""
-    echo "To reload services, run:"
-    echo "  launchctl bootout gui/\$(id -u)/co.invariante.zeit 2>/dev/null || true"
-    echo "  launchctl bootout gui/\$(id -u)/co.invariante.zeit.menubar 2>/dev/null || true"
-    echo "  launchctl bootstrap gui/\$(id -u) $TRACKER_PLIST"
-    echo "  launchctl bootstrap gui/\$(id -u) $MENUBAR_PLIST"
+    echo "Starting services..."
+    launchctl bootstrap "$LAUNCHD_DOMAIN" "$TRACKER_PLIST"
+    launchctl bootstrap "$LAUNCHD_DOMAIN" "$MENUBAR_PLIST"
+    launchctl print "$LAUNCHD_DOMAIN/$MENUBAR_LABEL" >/dev/null 2>&1 \
+        && echo "  $MENUBAR_LABEL running" \
+        || echo "  Warning: $MENUBAR_LABEL did not start"
 fi
 
 echo ""
