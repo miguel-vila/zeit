@@ -457,17 +457,12 @@ EOF
     <string>co.invariante.zeit.menubar</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/open</string>
-        <string>-a</string>
-        <string>/Applications/$APP_NAME.app</string>
+        <string>/Applications/$APP_NAME.app/Contents/MacOS/$APP_NAME</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
-    <dict>
-        <key>SuccessfulExit</key>
-        <false/>
-    </dict>
+    <true/>
     <key>StandardOutPath</key>
     <string>$HOME/Library/Logs/zeit/menubar.out.log</string>
     <key>StandardErrorPath</key>

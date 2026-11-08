@@ -122,16 +122,19 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func showContextMenu() {
         let menu = NSMenu()
-        menu.addItem(
-            NSMenuItem(
-                title: "Quit Zeit",
-                action: #selector(NSApplication.terminate(_:)),
-                keyEquivalent: "q"
-            )
-        )
+        let quit = NSMenuItem(title: "Quit Zeit", action: #selector(quitZeit), keyEquivalent: "q")
+        quit.target = self
+        menu.addItem(quit)
         menu.delegate = self
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
+    }
+
+    /// Both ways out of the app go through `.quitApp`, which stops the launchd
+    /// job before terminating. Calling `NSApplication.terminate` straight from
+    /// here would leave the job running, and launchd would start Zeit again.
+    @objc private func quitZeit() {
+        store.send(.quitApp)
     }
 
     func menuDidClose(_: NSMenu) {

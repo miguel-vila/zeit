@@ -184,9 +184,15 @@ struct ServiceHelper {
     static let trackerLabel = "co.invariante.zeit"
     static let menubarLabel = "co.invariante.zeit.menubar"
 
-    private var launchAgentsDir: URL {
-        FileManager.default.homeDirectoryForCurrentUser
+    /// Where the plists are written. Only a test passes anything but the
+    /// default, which is the one directory launchd reads at login.
+    let launchAgentsDir: URL
+
+    init(
+        launchAgentsDir: URL = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/LaunchAgents")
+    ) {
+        self.launchAgentsDir = launchAgentsDir
     }
 
     func plistPath(label: String) -> URL {
@@ -311,7 +317,19 @@ struct ServiceHelper {
         try plist.write(to: plistPath(label: Self.trackerLabel), atomically: true, encoding: .utf8)
     }
 
+    /// launchd runs the executable inside the bundle rather than `open`, so
+    /// that the menubar app is launchd's own child and `KeepAlive` can bring
+    /// it back when something else kills it — System Settings after a
+    /// permission grant, or a crash. `open` exits as soon as it has launched
+    /// the app, which left launchd with nothing to watch.
+    ///
+    /// `KeepAlive` is unconditional, so the user's Quit has to take the job
+    /// out of the session; see `LaunchAgentClient.stopMenubarService`.
     func installMenubarService(appPath: String) throws {
+        guard let executable = Bundle(path: appPath)?.executableURL?.path else {
+            throw ServiceError.noExecutable(appPath)
+        }
+
         let plist = """
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -321,17 +339,12 @@ struct ServiceHelper {
             <string>\(Self.menubarLabel)</string>
             <key>ProgramArguments</key>
             <array>
-                <string>/usr/bin/open</string>
-                <string>-a</string>
-                <string>\(appPath)</string>
+                <string>\(executable)</string>
             </array>
             <key>RunAtLoad</key>
             <true/>
             <key>KeepAlive</key>
-            <dict>
-                <key>SuccessfulExit</key>
-                <false/>
-            </dict>
+            <true/>
             <key>StandardOutPath</key>
             <string>\(FileManager.default.homeDirectoryForCurrentUser.path)/Library/Logs/zeit/menubar.out.log</string>
             <key>StandardErrorPath</key>
@@ -342,6 +355,7 @@ struct ServiceHelper {
         </plist>
         """
 
+        try FileManager.default.createDirectory(at: launchAgentsDir, withIntermediateDirectories: true)
         try plist.write(to: plistPath(label: Self.menubarLabel), atomically: true, encoding: .utf8)
     }
 }
@@ -349,6 +363,7 @@ struct ServiceHelper {
 enum ServiceError: LocalizedError {
     case loadFailed(String)
     case restartFailed(String)
+    case noExecutable(String)
 
     var errorDescription: String? {
         switch self {
@@ -356,6 +371,8 @@ enum ServiceError: LocalizedError {
             return "Failed to load service: \(label)"
         case .restartFailed(let label):
             return "Failed to restart service: \(label)"
+        case .noExecutable(let path):
+            return "No app bundle with an executable at: \(path)"
         }
     }
 }

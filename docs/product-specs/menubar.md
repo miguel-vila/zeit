@@ -43,11 +43,11 @@ Only present in debug builds (`#if DEBUG`), compiled out entirely in release bui
 - **Clear Today's Data** - deletes all activities for today
 
 ### Settings
-- **Launch at Login** toggle - controls the menubar LaunchAgent
+- **Launch at Login** toggle - whether the menubar LaunchAgent plist is installed. Turning it off removes the plist and leaves the running app alone; it only decides what happens at the next login.
 - **Settings** - opens the settings panel
 
 ### Footer
-- **Quit** button
+- **Quit** button - launchd keeps the menubar app alive, so quitting first takes the job out of the login session (`launchctl bootout`) and then terminates. The plist stays, so Zeit still starts at the next login. The right-click menu's Quit goes through the same path, because terminating without stopping the job would just make launchd start Zeit again.
 
 ## Floating Panels
 

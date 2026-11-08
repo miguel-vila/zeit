@@ -149,7 +149,7 @@ External services are abstracted behind `@DependencyClient` interfaces:
 | `TrackingClient` | Tracking state, work hours check, start/stop |
 | `ModelClient` | Model download status and downloads |
 | `PermissionsClient` | Read the Screen Recording and Accessibility grants, and guide the user through giving them |
-| `LaunchAgentClient` | Service install, load, unload, restart |
+| `LaunchAgentClient` | Install the launchd jobs, read and set launch-at-login, quit the app without launchd restarting it |
 | `NotificationClient` | macOS notification delivery |
 | `ClassificationClient` | Read/write `classification.primary_group` in `conf.yml` |
 

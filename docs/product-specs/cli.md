@@ -235,7 +235,12 @@ zeit service install [--cli PATH] [--app PATH]
 
 Installs two LaunchAgents:
 - `co.invariante.zeit` - runs `zeit track` every 60 seconds
-- `co.invariante.zeit.menubar` - launches the menubar app at login
+- `co.invariante.zeit.menubar` - runs the menubar app, kept alive by launchd
+
+Both run the executable inside the app bundle, so launchd owns the process and
+restarts the menubar app when something else kills it — System Settings does,
+after a Screen Recording grant. Launching it through `open` instead would leave
+launchd watching `open`, which exits as soon as the app is up.
 
 ### `zeit service uninstall`
 

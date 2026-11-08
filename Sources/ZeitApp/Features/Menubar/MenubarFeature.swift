@@ -116,7 +116,7 @@ struct MenubarFeature {
             case .task:
                 // Initial setup
                 state.todayDate = todayString()
-                state.launchAtLogin = launchAgent.isMenubarServiceLoaded()
+                state.launchAtLogin = launchAgent.isLaunchAtLoginEnabled()
 
                 // Show onboarding if permissions aren't granted
                 if !permissions.allPermissionsGranted() {
@@ -451,14 +451,14 @@ struct MenubarFeature {
                 return .run { send in
                     do {
                         if currentlyEnabled {
-                            try await launchAgent.unloadMenubarService()
+                            try await launchAgent.disableLaunchAtLogin()
                             await notification.show(
                                 "Zeit",
                                 "Launch at Login",
                                 "Disabled - Zeit won't start automatically"
                             )
                         } else {
-                            try await launchAgent.loadMenubarService()
+                            try await launchAgent.enableLaunchAtLogin()
                             await notification.show(
                                 "Zeit",
                                 "Launch at Login",
@@ -481,9 +481,7 @@ struct MenubarFeature {
 
             case .quitApp:
                 return .run { _ in
-                    await MainActor.run {
-                        NSApplication.shared.terminate(nil)
-                    }
+                    await launchAgent.quitApp()
                 }
 
             case .details:
