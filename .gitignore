@@ -18,3 +18,6 @@ data/
 implementation-logs/
 
 node_modules/
+
+# SwiftPM / Xcode metadata
+.swiftpm/
