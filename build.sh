@@ -8,14 +8,12 @@ echo "================================================"
 # Parse arguments
 BUILD_TYPE="debug"
 INSTALL=false
-CREATE_DMG=false
 CLEAN=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --release) BUILD_TYPE="release"; shift ;;
         --install) INSTALL=true; shift ;;
-        --dmg) CREATE_DMG=true; shift ;;
         --clean) CLEAN=true; shift ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
@@ -23,7 +21,6 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --release     Build in release mode (optimized)"
             echo "  --install     Install to /Applications after building"
-            echo "  --dmg         Create DMG installer"
             echo "  --clean       Clean build artifacts before building"
             echo "  -h, --help    Show this help message"
             echo ""
@@ -33,7 +30,6 @@ while [[ $# -gt 0 ]]; do
             echo "Examples:"
             echo "  $0                          # Debug build"
             echo "  $0 --release --install      # Release build and install"
-            echo "  $0 --release --dmg          # Release build with DMG"
             exit 0
             ;;
         *) echo "Unknown option: $1"; exit 1 ;;
@@ -271,41 +267,6 @@ codesign --force --sign "$LOCAL_SIGNING_IDENTITY" "$APP_BUNDLE"
 codesign --verify --verbose "$APP_BUNDLE"
 echo "Signature verified"
 
-# Create DMG if requested
-if [ "$CREATE_DMG" = true ]; then
-    echo ""
-    echo "Creating DMG..."
-    echo "----------------------------------------"
-
-    DMG_NAME="$APP_NAME-$VERSION.dmg"
-    DMG_PATH="$DIST_DIR/$DMG_NAME"
-
-    # Remove existing DMG
-    rm -f "$DMG_PATH"
-
-    # Create temporary DMG directory
-    DMG_TEMP="$DIST_DIR/dmg_temp"
-    rm -rf "$DMG_TEMP"
-    mkdir -p "$DMG_TEMP"
-
-    # Copy app to temp directory
-    cp -R "$APP_BUNDLE" "$DMG_TEMP/"
-
-    # Create symlink to Applications
-    ln -s /Applications "$DMG_TEMP/Applications"
-
-    # Create DMG
-    hdiutil create -volname "$APP_NAME" \
-        -srcfolder "$DMG_TEMP" \
-        -ov -format UDZO \
-        "$DMG_PATH"
-
-    # Clean up
-    rm -rf "$DMG_TEMP"
-
-    echo "DMG created: $DMG_PATH"
-fi
-
 # Install if requested
 if [ "$INSTALL" = true ]; then
     echo ""
@@ -433,7 +394,6 @@ echo "Build complete!"
 echo "================================================"
 echo ""
 echo "Output: $APP_BUNDLE"
-[ "$CREATE_DMG" = true ] && echo "DMG: $DIST_DIR/$APP_NAME-$VERSION.dmg"
 echo ""
 echo "To test CLI:"
 echo "  $APP_BUNDLE/Contents/MacOS/$APP_NAME --help"

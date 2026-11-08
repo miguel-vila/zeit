@@ -20,9 +20,6 @@ Everything that produces an app bundle goes through `build.sh`. Output:
 
 # Release build and install to /Applications
 ./build.sh --release --install
-
-# Release build with a DMG, for moving the app to another machine of yours
-./build.sh --release --dmg
 ```
 
 ### Options
@@ -31,7 +28,6 @@ Everything that produces an app bundle goes through `build.sh`. Output:
 |------|---------|
 | `--release` | Optimized build |
 | `--install` | Install to /Applications |
-| `--dmg` | Create DMG installer |
 | `--clean` | Clean build artifacts first |
 
 ### Code signing
