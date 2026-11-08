@@ -30,6 +30,20 @@ struct PermissionTests {
         #expect(!Permission.accessibility.appliesOnlyToNewProcesses)
     }
 
+    /// Each permission has to name its own privacy service, or clearing a
+    /// dead entry would clear a list Zeit was never asked about.
+    @Test
+    func eachPermissionNamesItsOwnPrivacyService() {
+        #expect(
+            Permission.screenRecording.listRemovalArguments(for: "co.invariante.zeit")
+                == ["reset", "ScreenCapture", "co.invariante.zeit"]
+        )
+        #expect(
+            Permission.accessibility.listRemovalArguments(for: "co.invariante.zeit")
+                == ["reset", "Accessibility", "co.invariante.zeit"]
+        )
+    }
+
     /// The drag chip has to carry the file the privacy list accepts: the app
     /// bundle itself, not the executable buried inside it.
     @Test

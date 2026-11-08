@@ -23,6 +23,12 @@ final class PermissionGrantGuide {
     /// Starting a second guide replaces the first.
     func run(_ permission: Permission) async {
         dismiss()
+
+        if !permission.isGranted {
+            // An entry left by an earlier install swallows the drop, so it has
+            // to go before the user is sent to the list. See clearListEntry().
+            await Task.detached { permission.clearListEntry() }.value
+        }
         permission.openSettings()
 
         closedByUser = false
