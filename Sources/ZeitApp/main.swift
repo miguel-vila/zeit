@@ -16,7 +16,9 @@ let args = CommandLine.arguments.dropFirst()
 // If no arguments, or first argument starts with "-psn" (Finder launch), run GUI
 if args.isEmpty || args.first?.hasPrefix("-psn") == true {
     // Run GUI mode — activation policy is handled by LSUIElement=true in Info.plist.
-    ZeitAppGUI.main()
+    let delegate = ZeitAppDelegate()
+    NSApplication.shared.delegate = delegate
+    NSApplication.shared.run()
 } else {
     // Run CLI mode synchronously using a semaphore
     let semaphore = DispatchSemaphore(value: 0)

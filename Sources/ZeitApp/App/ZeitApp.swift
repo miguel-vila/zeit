@@ -3,17 +3,9 @@ import ComposableArchitecture
 import SwiftUI
 import UserNotifications
 
-// Note: @main is in main.swift which decides CLI vs GUI mode
-struct ZeitAppGUI: App {
-    @NSApplicationDelegateAdaptor(ZeitAppDelegate.self) var appDelegate
-
-    var body: some Scene {
-        // No visible window scenes — the menubar is managed by the AppDelegate
-        Settings {
-            EmptyView()
-        }
-    }
-}
+// Note: main.swift decides CLI vs GUI mode and runs ZeitAppDelegate on a plain
+// NSApplication. A SwiftUI `App` is deliberately not used: its only scene would
+// be an empty `Settings` window that shows up as soon as Zeit is activated.
 
 // MARK: - App Delegate
 
@@ -43,6 +35,7 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Register notification delegate for handling click actions
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
 
+        installMainMenu()
         setupStatusItem()
         startIconObservation()
         startOnboardingObservation()
@@ -54,6 +47,37 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationWillTerminate(_: Notification) {
         // Stop background tracking when the menubar app exits
         stopTrackingOnQuit()
+    }
+
+    // MARK: - Main Menu
+
+    /// The panels hold text fields, which only get ⌘X/⌘C/⌘V/⌘A/⌘Z from an Edit menu.
+    /// There is no menu bar to see (LSUIElement), but the key equivalents still work.
+    private func installMainMenu() {
+        let mainMenu = NSMenu()
+
+        let appMenu = NSMenu()
+        let quit = NSMenuItem(title: "Quit Zeit", action: #selector(quitZeit), keyEquivalent: "q")
+        quit.target = self
+        appMenu.addItem(quit)
+        let appItem = NSMenuItem()
+        appItem.submenu = appMenu
+        mainMenu.addItem(appItem)
+
+        let editMenu = NSMenu(title: "Edit")
+        editMenu.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        let redo = editMenu.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "z")
+        redo.keyEquivalentModifierMask = [.command, .shift]
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        let editItem = NSMenuItem()
+        editItem.submenu = editMenu
+        mainMenu.addItem(editItem)
+
+        NSApp.mainMenu = mainMenu
     }
 
     // MARK: - Tracking Lifecycle
