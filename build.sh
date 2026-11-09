@@ -69,7 +69,10 @@ SWIFT_VERSION=$(swift --version 2>&1 | head -1)
 if [ -f .swift-version ]; then
     EXPECTED_SWIFT=$(tr -d '[:space:]' < .swift-version)
     CURRENT_SWIFT=$(echo "$SWIFT_VERSION" | sed -n 's/.*Apple Swift version \([0-9][0-9.]*[0-9]\).*/\1/p')
-    if [ -n "$CURRENT_SWIFT" ] && [ "$CURRENT_SWIFT" != "$EXPECTED_SWIFT" ]; then
+    # Compared on the minor version, which is the granularity that decides
+    # resolution: 6.4 and 6.4.2 agree, and Xcode reports whichever it ships.
+    if [ -n "$CURRENT_SWIFT" ] \
+        && [ "$(echo "$CURRENT_SWIFT" | cut -d. -f1,2)" != "$(echo "$EXPECTED_SWIFT" | cut -d. -f1,2)" ]; then
         echo ""
         echo "Warning: this is Swift $CURRENT_SWIFT, and .swift-version says $EXPECTED_SWIFT."
         echo "         Package.resolved will be rewritten on every build until they match."
