@@ -115,12 +115,40 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         popover = NSPopover()
-        popover.contentSize = NSSize(width: 300, height: 400)
         popover.behavior = .transient
-        popover.contentViewController = NSHostingController(
-            rootView: MenubarView(store: store)
+        let hosting = NSHostingController(
+            rootView: MenubarView(store: store, availableHeight: availableMenubarHeight())
         )
+        // The popover's size is set before each showing, from a measurement.
+        // Left to SwiftUI, it would be published after the popover is already
+        // on screen, and a popover that changes size then keeps the edge it
+        // was anchored by and grows off the screen.
+        hosting.sizingOptions = []
+        popover.contentViewController = hosting
     }
+
+    /// The height the menu's rows need, found by laying a copy of them out.
+    /// SwiftUI settles this only once it has laid out, which is too late for a
+    /// popover that is already on screen.
+    private func menuHeight(availableHeight: CGFloat) -> CGFloat {
+        let measuring = NSHostingView(
+            rootView: MenubarContentView(store: store, availableHeight: availableHeight)
+        )
+        measuring.frame = NSRect(x: 0, y: 0, width: MenubarContentView.width, height: 0)
+        measuring.layoutSubtreeIfNeeded()
+        return measuring.fittingSize.height
+    }
+
+    /// How tall the popover's content may be below the menu bar of the screen
+    /// that shows the status item, leaving room for the popover's own frame.
+    private func availableMenubarHeight() -> CGFloat {
+        let screen = statusItem.button?.window?.screen ?? NSScreen.main ?? NSScreen.screens.first
+        let visibleHeight = screen?.visibleFrame.height ?? 600
+        return visibleHeight - Self.popoverFrameHeight
+    }
+
+    /// The popover's border and shadow inset, which sit outside its content.
+    private static let popoverFrameHeight: CGFloat = 28
 
     @objc private func statusItemClicked(_: Any?) {
         guard let event = NSApp.currentEvent else { return }
@@ -136,6 +164,16 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if popover.isShown {
             popover.performClose(nil)
         } else if let button = statusItem.button {
+            // The status item can move between screens, and the day's figures
+            // change between showings, so both the budget and the height are
+            // taken again each time the popover opens.
+            let availableHeight = availableMenubarHeight()
+            (popover.contentViewController as? NSHostingController<MenubarView>)?.rootView =
+                MenubarView(store: store, availableHeight: availableHeight)
+            popover.contentSize = NSSize(
+                width: MenubarContentView.width,
+                height: menuHeight(availableHeight: availableHeight)
+            )
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             // Activate so the popover can receive keyboard events
             NSApp.activate(ignoringOtherApps: true)
