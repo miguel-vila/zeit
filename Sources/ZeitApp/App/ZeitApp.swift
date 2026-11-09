@@ -214,8 +214,8 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 trackingState: trackingState,
                 primaryGroupPercentage: primaryGroupPercentage
             )
-        } onChange: {
-            Task { @MainActor [weak self] in
+        } onChange: { [weak self] in
+            Task { @MainActor in
                 self?.startIconObservation()
             }
         }
@@ -334,8 +334,8 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func startOnboardingObservation() {
         withObservationTracking {
             _ = store.onboarding
-        } onChange: {
-            Task { @MainActor [weak self] in
+        } onChange: { [weak self] in
+            Task { @MainActor in
                 self?.presentOnboardingIfNeeded()
                 self?.startOnboardingObservation()
             }
@@ -383,8 +383,8 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         withObservationTracking {
             _ = childStore.isCompleted
-        } onChange: {
-            Task { @MainActor [weak self] in
+        } onChange: { [weak self] in
+            Task { @MainActor in
                 guard let self else { return }
                 if childStore.isCompleted {
                     self.onboardingPanelWindowDelegate?.onClose = nil
@@ -412,8 +412,8 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func startSettingsObservation() {
         withObservationTracking {
             _ = store.settings
-        } onChange: {
-            Task { @MainActor [weak self] in
+        } onChange: { [weak self] in
+            Task { @MainActor in
                 self?.presentSettingsIfNeeded()
                 self?.startSettingsObservation()
             }
@@ -459,8 +459,8 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         withObservationTracking {
             _ = childStore.isCompleted
-        } onChange: {
-            Task { @MainActor [weak self] in
+        } onChange: { [weak self] in
+            Task { @MainActor in
                 guard let self else { return }
                 if childStore.isCompleted {
                     self.settingsPanelWindowDelegate?.onClose = nil
