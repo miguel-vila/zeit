@@ -14,6 +14,7 @@ struct MenubarFeatureTests {
         } withDependencies: {
             $0.trackingClient.stopTracking = {}
             $0.trackingClient.getTrackingState = { .pausedManual }
+            $0.trackingClient.isTrackingActive = { false }
             $0.notificationClient.show = { _, _, _ in }
         }
 
@@ -21,6 +22,7 @@ struct MenubarFeatureTests {
 
         await store.receive(\.trackingToggled) {
             $0.trackingState = .pausedManual
+            $0.isPausedByUser = true
         }
     }
 

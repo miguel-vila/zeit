@@ -25,6 +25,17 @@ struct MenubarFeature {
         var todayDate: String = ""
         var dayObjectives: DayObjectives?
 
+        /// Whether the user's stop flag is set: what the pause button acts on.
+        ///
+        /// Kept apart from `trackingState`, which says whether a tick records
+        /// now. A battery hold stops the ticks without touching the flag, so a
+        /// button driven by the state alone would offer "Resume Tracking" and
+        /// then remove a flag that was never there.
+        var isPausedByUser: Bool = false
+
+        /// How old the newest stored entry is, for any reason at all.
+        var entryAge: EntryAge?
+
         /// Share of today's non-idle tracked entries that fall in `group`.
         func percentage(of group: ActivityGroup) -> Double {
             share(of: group, in: todayStats)
@@ -69,7 +80,13 @@ struct MenubarFeature {
         case modelsCheckCompleted(allDownloaded: Bool)
 
         // Data responses
-        case dataLoaded(DayRecord?, DayObjectives?, [ActivityType], primaryGroup: ActivityGroup)
+        case dataLoaded(
+            DayRecord?,
+            DayObjectives?,
+            [ActivityType],
+            primaryGroup: ActivityGroup,
+            newestEntry: Date?
+        )
         case trackingStateUpdated(TrackingState)
 
         // User actions
@@ -79,7 +96,7 @@ struct MenubarFeature {
         case showObjectives
         case toggleLaunchAtLogin
         case launchAtLoginToggled(Bool)
-        case showSettings
+        case showSettings(SettingsFeature.State.Tab)
         case forceTrack
         case forceTrackCompleted(Result<ForceTrackInfo, Error>)
         case clearTodayData
@@ -107,6 +124,7 @@ struct MenubarFeature {
     @Dependency(\.permissionsClient) var permissions
     @Dependency(\.modelClient) var modelClient
     @Dependency(\.continuousClock) var clock
+    @Dependency(\.date) var date
 
     private enum CancelID { case timer }
 
@@ -149,6 +167,7 @@ struct MenubarFeature {
             case .refreshTick:
                 // Update tracking state and refresh data periodically
                 state.trackingState = tracking.getTrackingState()
+                state.isPausedByUser = !tracking.isTrackingActive()
                 return .send(.refreshData)
 
             case .refreshData:
@@ -160,19 +179,32 @@ struct MenubarFeature {
                     let record = try? await database.getDayRecord(today)
                     let objectives = try? await database.getDayObjectives(today)
                     let activityTypes = (try? await database.getActivityTypes()) ?? []
+                    // The database's newest entry, not today's: early on a
+                    // fresh day the gap that matters runs back into yesterday.
+                    let newestEntry = try? await database.newestEntryTimestamp()
                     await send(
                         .dataLoaded(
                             record, objectives, activityTypes,
-                            primaryGroup: classification.primaryGroup()
+                            primaryGroup: classification.primaryGroup(),
+                            newestEntry: newestEntry
                         )
                     )
                 }
 
-            case .dataLoaded(let record, let objectives, let activityTypes, let primaryGroup):
+            case .dataLoaded(
+                let record, let objectives, let activityTypes, let primaryGroup, let newestEntry
+            ):
                 state.isLoading = false
                 state.trackingState = tracking.getTrackingState()
+                state.isPausedByUser = !tracking.isTrackingActive()
                 state.dayObjectives = objectives
                 state.primaryGroup = primaryGroup
+                state.entryAge = newestEntry.map { newest in
+                    EntryAge(
+                        seconds: date.now.timeIntervalSince(newest),
+                        intervalSeconds: tracking.cadenceSeconds()
+                    )
+                }
 
                 if let record {
                     state.totalActivities = record.count
@@ -201,16 +233,18 @@ struct MenubarFeature {
                     }
                 }
 
-                let isActive = state.trackingState.isActive
+                // The flag, not the state: a tick held off on battery leaves
+                // the flag alone, and this button is the flag's only control.
+                let isPausedByUser = state.isPausedByUser
 
                 return .run { send in
                     do {
-                        if isActive {
-                            try await tracking.stopTracking()
-                            await notification.show("Zeit", "Stopped", "Tracking has been paused")
-                        } else {
+                        if isPausedByUser {
                             try await tracking.startTracking()
                             await notification.show("Zeit", "Resumed", "Tracking has been resumed")
+                        } else {
+                            try await tracking.stopTracking()
+                            await notification.show("Zeit", "Stopped", "Tracking has been paused")
                         }
                         await send(.trackingToggled(.success(())))
                     } catch {
@@ -220,6 +254,7 @@ struct MenubarFeature {
 
             case .trackingToggled(.success):
                 state.trackingState = tracking.getTrackingState()
+                state.isPausedByUser = !tracking.isTrackingActive()
                 return .none
 
             case .trackingToggled(.failure(let error)):
@@ -252,8 +287,8 @@ struct MenubarFeature {
                 state.objectives = ObjectivesFeature.State(date: state.todayDate)
                 return .none
 
-            case .showSettings:
-                state.settings = SettingsFeature.State()
+            case .showSettings(let tab):
+                state.settings = SettingsFeature.State(selectedTab: tab)
                 return .none
 
             case .forceTrack:

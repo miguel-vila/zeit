@@ -174,6 +174,32 @@ enum ZeitDatabase {
         }
     }
 
+    /// When the most recent stored entry was written, or nil when nothing is
+    /// stored.
+    ///
+    /// Only the newest day row is read: a day is written as one row of
+    /// entries, and a row for an earlier date cannot hold a later entry.
+    /// Entries that cannot be decoded read as no entry at all, so a damaged
+    /// row cannot make the tracker believe it has just written.
+    static func newestEntryTimestamp(_ db: Database) throws -> Date? {
+        guard let row = try Row.fetchOne(
+            db,
+            sql: "SELECT activities FROM daily_activities ORDER BY date DESC LIMIT 1"
+        ) else {
+            return nil
+        }
+
+        let activitiesJson: String = row["activities"]
+
+        guard let data = activitiesJson.data(using: .utf8),
+              let activities = try? JSONDecoder().decode([ActivityEntry].self, from: data)
+        else {
+            return nil
+        }
+
+        return activities.compactMap(\.date).max()
+    }
+
     /// Read all activity types in display order.
     static func fetchActivityTypes(_ db: Database) throws -> [ActivityType] {
         let rows = try Row.fetchAll(

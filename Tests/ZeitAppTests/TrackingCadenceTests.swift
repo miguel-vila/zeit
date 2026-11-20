@@ -400,3 +400,56 @@ struct NewestEntryTimestampTests {
         #expect(abs((newest ?? .distantPast).timeIntervalSince(before)) < 1)
     }
 }
+
+/// The gate without its one database-dependent check, which is what a caller
+/// that cannot read the database — the menubar — asks for.
+@Suite
+struct DecideWithoutCadenceTests {
+    private func decide(
+        now: Date = insideWindow,
+        schedule: ZeitConfig.ScheduleConfig = .always,
+        tracking: ZeitConfig.TrackingConfig = cadence(60),
+        isTrackingActive: Bool = true,
+        isOnBattery: Bool = false
+    ) -> TrackingTickDecision {
+        TrackingTick.decideWithoutCadence(
+            now: now,
+            schedule: schedule,
+            tracking: tracking,
+            isTrackingActive: isTrackingActive,
+            isOnBattery: isOnBattery,
+            calendar: calendar
+        )
+    }
+
+    @Test
+    func theGatesItKeepsAnswerAsTheyDoForAFullTick() {
+        #expect(decide(now: insideWindow, schedule: workHours) == .track)
+        #expect(decide(isTrackingActive: false) == .paused)
+        #expect(
+            decide(tracking: cadence(60, skipOnBattery: true), isOnBattery: true) == .onBattery
+        )
+    }
+
+    @Test
+    func aMomentOutsideTheScheduleIsHeldOff() {
+        let sunday = calendar.date(
+            from: DateComponents(year: 2026, month: 1, day: 4, hour: 10, minute: 0)
+        )!
+
+        #expect(decide(now: sunday, schedule: workHours) == .outsideSchedule)
+    }
+
+    @Test
+    func batteryOnlyHoldsOffWhenTheSettingIsOn() {
+        #expect(decide(isOnBattery: true) == .track)
+    }
+
+    @Test
+    func aTickInsideTheCadenceStillReadsAsTracking() {
+        // No newest entry is consulted, so the cadence cannot hold a tick off
+        // here. `.tooSoon` is a hold that clears itself, and a caller asking
+        // "is tracking happening at all?" is not asking about this second.
+        #expect(decide(tracking: cadence(3600)) == .track)
+    }
+}

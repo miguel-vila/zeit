@@ -158,11 +158,74 @@ struct MenubarContentView: View {
                     .frame(width: 7, height: 7)
                 Text(store.trackingState.statusMessage)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(statusMessageStyle)
+                Spacer(minLength: 6)
+                if let entryAge = store.entryAge {
+                    entryAgeLabel(entryAge)
+                }
+            }
+
+            if store.trackingState == .heldOnBattery {
+                batteryRemedyButton
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
+    }
+
+    /// A hold the user can lift is set at full strength; every other status
+    /// stays secondary, so the one line worth reading is the one that reads.
+    private var statusMessageStyle: Color {
+        store.trackingState == .heldOnBattery ? .primary : .secondary
+    }
+
+    /// The newest entry's age, beside the status rather than under it: a held
+    /// header already runs to three lines at this width.
+    ///
+    /// It takes the warning colour only where entries were expected, so a
+    /// deliberate pause does not cry wolf.
+    private func entryAgeLabel(_ entryAge: EntryAge) -> some View {
+        let isAlarming = entryAge.isStale && store.trackingState.expectsEntries
+
+        return HStack(spacing: 3) {
+            Image(systemName: "clock")
+                .font(.system(size: 9))
+            Text(entryAge.summary)
+                .font(.caption2)
+                .monospacedDigit()
+                .fontWeight(isAlarming ? .semibold : .regular)
+        }
+        .foregroundStyle(isAlarming ? Color.yellow : Color.secondary)
+    }
+
+    /// What lifts a battery hold, as the control that lifts it: the row opens
+    /// the setting that caused the hold.
+    private var batteryRemedyButton: some View {
+        Button {
+            store.send(.showSettings(.schedule))
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "bolt.slash.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                (Text("Plug in, or turn off ") + Text("Skip on battery").fontWeight(.semibold))
+                    .font(.caption)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 8))
+                    .foregroundStyle(.tertiary)
+            }
+            .contentShape(Rectangle())
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.primary.opacity(0.06))
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     private var statsSection: some View {
@@ -327,8 +390,8 @@ struct MenubarContentView: View {
     private var actionsSection: some View {
         VStack(alignment: .leading, spacing: 2) {
             MenubarActionButton(
-                icon: store.trackingState.isActive ? "pause.fill" : "play.fill",
-                label: store.trackingState.isActive ? "Stop Tracking" : "Resume Tracking",
+                icon: store.isPausedByUser ? "play.fill" : "pause.fill",
+                label: store.isPausedByUser ? "Resume Tracking" : "Stop Tracking",
                 action: { store.send(.toggleTracking) }
             )
             .disabled(!store.trackingState.canToggle)
@@ -435,7 +498,8 @@ struct MenubarContentView: View {
             MenubarActionButton(
                 icon: "gearshape",
                 label: "Settings",
-                action: { store.send(.showSettings) }
+                action: { store.send(.showSettings(.permissions)) },
+                badge: store.trackingState == .heldOnBattery ? .yellow : nil
             )
         }
         .padding(.horizontal, 8)
@@ -461,6 +525,8 @@ struct MenubarContentView: View {
             return .orange
         case .outsideSchedule:
             return .purple
+        case .heldOnBattery:
+            return .yellow
         }
     }
 }
@@ -501,6 +567,9 @@ private struct MenubarActionButton: View {
     let icon: String
     let label: String
     let action: () -> Void
+    /// A dot after the label, for a row that leads to something wanting
+    /// attention — the setting behind a hold, say.
+    var badge: Color?
 
     @State private var isHovered = false
 
@@ -514,6 +583,11 @@ private struct MenubarActionButton: View {
                 Text(label)
                     .font(.body)
                 Spacer()
+                if let badge {
+                    Circle()
+                        .fill(badge)
+                        .frame(width: 6, height: 6)
+                }
             }
             .contentShape(Rectangle())
             .padding(.horizontal, 6)

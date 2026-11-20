@@ -16,13 +16,29 @@ Each tracking iteration runs these steps in order:
 
 ### 1. Gate Checks
 
-Before doing any work, the tracker checks three conditions:
+`TrackingTick.decide` is the single gate. In order, cheapest first:
 
-- **Work hours** - Is the current time within the configured start/end hours on a configured work day? Checked via `ZeitConfig`. Skips silently if outside hours.
-- **Stop flag** - Does `~/.local/share/zeit/.zeit_stop` exist? If so, tracking is paused. The menubar app creates/removes this file via the pause/resume button.
-- **Idle detection** - Is the system idle for longer than the threshold? Uses IOKit's `HIDIdleTime` property (default: 300 seconds). If idle, records an `idle` activity entry and stops without capturing screenshots.
+- **Schedule** - Is now inside a configured tracking window? `always` is a
+  window that never closes.
+- **Stop flag** - Does `~/.local/share/zeit/.zeit_stop` exist? If so, tracking
+  is paused. The menubar creates and removes this file via the pause/resume
+  button.
+- **Battery** - Is the machine on battery with `tracking.skip_on_battery` set?
+- **Cadence** - Has `tracking.interval_seconds` elapsed since the newest stored
+  entry? This is the only gate that reads the database, which is why the
+  menubar asks for the other three on their own
+  (`TrackingTick.decideWithoutCadence`).
 
-All three checks are bypassed when running `zeit track --force`.
+A held tick writes its reason to the tracker log, `zeit doctor` reports the same
+decision without acting on it, and the menubar shows the schedule, stop-flag and
+battery holds as [tracking status](menubar.md#tracking-status). One decision,
+one wording, four places.
+
+The gate is bypassed when running `zeit track --force`.
+
+After the gate, **idle detection**: is the system idle for longer than the
+threshold? Uses IOKit's `HIDIdleTime` property (default: 300 seconds). If idle,
+records an `idle` activity entry and stops without capturing screenshots.
 
 ### 2. Screenshot Capture
 
@@ -138,6 +154,7 @@ Default: 300 seconds (5 minutes). Currently hardcoded and not configurable via e
 | Action | How |
 |--------|-----|
 | Pause tracking | `zeit service stop` or menubar pause button (creates `.zeit_stop` flag) |
+| Hold off while unplugged | `tracking.skip_on_battery: true`, shown in the menubar as "Paused — on battery" |
 | Resume tracking | `zeit service start` or menubar resume button (removes `.zeit_stop` flag) |
 | Force a single capture | `zeit track --force` or "Force Track" button in menubar (debug builds only) |
 | Restart the service | `zeit service restart` |

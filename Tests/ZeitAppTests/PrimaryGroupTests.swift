@@ -148,7 +148,9 @@ struct MenubarPrimaryGroupTests {
         let record = self.record
         let types = self.types
 
-        await store.send(.dataLoaded(record, nil, types, primaryGroup: primaryGroup)) {
+        await store.send(
+            .dataLoaded(record, nil, types, primaryGroup: primaryGroup, newestEntry: nil)
+        ) {
             $0.trackingState = .active
             $0.primaryGroup = primaryGroup
             $0.totalActivities = record.count
@@ -216,7 +218,9 @@ struct MenubarPrimaryGroupTests {
         )
         let types = self.types
 
-        await store.send(.dataLoaded(record, nil, types, primaryGroup: .work)) {
+        await store.send(
+            .dataLoaded(record, nil, types, primaryGroup: .work, newestEntry: nil)
+        ) {
             $0.trackingState = .active
             $0.primaryGroup = .work
             $0.totalActivities = 4
@@ -244,7 +248,9 @@ struct MenubarPrimaryGroupTests {
             $0.trackingClient.getTrackingState = { .pausedManual }
         }
 
-        await store.send(.dataLoaded(nil, nil, types, primaryGroup: .work)) {
+        await store.send(
+            .dataLoaded(nil, nil, types, primaryGroup: .work, newestEntry: nil)
+        ) {
             $0.totalActivities = 0
             $0.todayStats = []
         }

@@ -10,6 +10,9 @@ struct DatabaseClient: Sendable {
     /// Get activities for a specific date (YYYY-MM-DD format)
     var getDayRecord: @Sendable (_ date: String) async throws -> DayRecord?
 
+    /// When the newest stored entry was written, whatever day it belongs to
+    var newestEntryTimestamp: @Sendable () async throws -> Date?
+
     /// Get all days with activity counts, sorted by date descending
     var getAllDays: @Sendable () async throws -> [(date: String, count: Int)]
 
@@ -54,6 +57,9 @@ extension DatabaseClient: DependencyKey {
         return DatabaseClient(
             getDayRecord: { date in
                 try await actor.getDayRecord(date: date)
+            },
+            newestEntryTimestamp: {
+                try await actor.newestEntryTimestamp()
             },
             getAllDays: {
                 try await actor.getAllDays()
@@ -139,6 +145,14 @@ private actor DatabaseActor {
             let activitiesJson: String = row["activities"]
             let activities = try self.parseActivities(from: activitiesJson)
             return DayRecord(date: date, activities: activities)
+        }
+    }
+
+    func newestEntryTimestamp() async throws -> Date? {
+        let db = try getDatabase()
+
+        return try await db.read { db in
+            try ZeitDatabase.newestEntryTimestamp(db)
         }
     }
 

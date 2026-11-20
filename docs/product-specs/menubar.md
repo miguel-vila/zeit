@@ -2,22 +2,54 @@
 
 The menubar app is the primary GUI. It lives in the macOS menu bar as a status item and shows a popover when clicked.
 
-## Status Bar Icon
+## Tracking Status
 
-The icon is dynamically rendered and changes based on tracking state:
+The menubar reports what a tracking tick would do, not what the settings say. It
+reads the same gate the tracker acts on (`TrackingTick`), minus the cadence
+check, so the icon and the popover cannot disagree with the tracker log or
+`zeit doctor` about whether Zeit is recording.
 
-- **Active (during work hours):** Work percentage number with a green dot (e.g. "72%")
-- **Paused manually:** Work percentage with an orange dot
-- **Before work hours:** Sun icon
-- **After work hours:** Work percentage with a moon symbol
+Four states:
+
+| State | Meaning | Icon | Status line |
+|-------|---------|------|-------------|
+| Tracking | A tick records now | Primary group percentage with a green dot | "Tracking active" |
+| On battery | Tracking is on, every tick holds off because the machine is unplugged and `skip_on_battery` is set | Percentage with a `bolt.slash` symbol | "Paused — on battery" |
+| Paused by you | The `.zeit_stop` flag exists | Percentage with an orange dot | "Paused — by you" |
+| Outside the schedule | Now is outside every configured window | Percentage with a moon symbol | The schedule's own message |
+
+A hold that clears itself inside a minute — a tick inside the configured
+cadence — reads as tracking, so the indicator does not flicker every minute.
+
+Each hold gets a symbol rather than a fourth dot colour: at 5pt, hue alone is
+not a cue, and the icon is all that shows without opening the popover.
+
+### Why the battery hold is called out
+
+Holding off on battery is invisible from outside the tracker: the schedule is
+met and the stop flag is absent, so a status built from those two alone reports
+"Tracking active" through an afternoon of skipped ticks.
 
 ## Popover Layout
 
 The popover (300x400px) contains these sections from top to bottom:
 
 ### Header
-- Today's date
-- Tracking status indicator (active / paused / before hours / after hours)
+- Today's date, and the number of activities stored for it
+- Tracking status indicator (see [Tracking Status](#tracking-status))
+- **Age of the newest entry**, beside the status: "just now", "25m", "6h 20m".
+  It turns to a warning colour once the gap is wider than three cadences, but
+  only where entries were expected — a deliberate pause does not cry wolf. It
+  is measured against the whole database rather than today's row, so early on a
+  fresh day the gap still reaches back into yesterday.
+
+  This is the one cue that does not depend on knowing why the tracker is quiet.
+  A launchd throttle, a classification that fails every tick, a tracker that
+  dies on start: none of them are modelled, and all of them widen this gap.
+- **Remedy row**, only while a battery hold is on: "Plug in, or turn off Skip on
+  battery". The row is the control, not just the message — it opens Settings at
+  the Schedule tab, where the setting lives. The Settings row below carries a
+  dot for the same reason.
 
 ### Objectives
 - Shown if day objectives are set
@@ -28,7 +60,10 @@ The popover (300x400px) contains these sections from top to bottom:
 - Activity breakdown by category with counts
 
 ### Actions
-- **Stop Tracking / Resume Tracking** - toggles the `.zeit_stop` flag file
+- **Stop Tracking / Resume Tracking** - toggles the `.zeit_stop` flag file. The
+  label follows the flag, never the status: a battery hold stops the ticks
+  without touching the flag, so the button still offers to set it. It is
+  disabled only outside the tracking schedule, where the flag changes nothing.
 - **Refresh** - manually refreshes data
 - **View Details** - opens a floating panel with full activity breakdown
 - **Set Day Objectives** - opens a floating panel to set/edit day objectives
@@ -78,4 +113,4 @@ All settings tabs mirror what was configured during onboarding and can be change
 
 ## Data Refresh
 
-The menubar refreshes its data (stats, objectives, tracking state) every 60 seconds via a timer. This keeps the displayed information in sync with the background tracker.
+The menubar refreshes its data (stats, objectives, tracking state, newest entry) every 60 seconds via a timer. This keeps the displayed information in sync with the background tracker. The power source is read on that same tick, so unplugging takes up to a minute to show.

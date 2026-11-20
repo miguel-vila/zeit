@@ -23,6 +23,12 @@ struct TrackingClient: Sendable {
 
     /// Get the current tracking state
     var getTrackingState: @Sendable () -> TrackingState = { .pausedManual }
+
+    /// The configured seconds between entries, which is what the age of the
+    /// newest entry has to be read against.
+    var cadenceSeconds: @Sendable () -> Int = {
+        ZeitConfig.TrackingConfig.minimumIntervalSeconds
+    }
 }
 
 // MARK: - Dependency Registration
@@ -58,6 +64,9 @@ extension TrackingClient: DependencyKey {
             },
             getTrackingState: {
                 helper.getTrackingState()
+            },
+            cadenceSeconds: {
+                ZeitConfig.load().tracking.intervalSeconds
             }
         )
     }()
@@ -98,19 +107,24 @@ private struct TrackingHelper: Sendable {
         FileManager.default.createFile(atPath: path.path, contents: nil)
     }
 
+    /// The gate the tracker itself runs, minus the cadence.
+    ///
+    /// The menubar used to re-derive this from the schedule and the stop flag,
+    /// which left out the battery and reported an afternoon of held ticks as
+    /// "Tracking active".
     func getTrackingState() -> TrackingState {
-        let schedule = loadSchedule()
+        let config = ZeitConfig.load()
         let now = Date()
 
-        if !schedule.contains(now) {
-            return .outsideSchedule(message: schedule.statusMessage(at: now))
-        }
+        let decision = TrackingTick.decideWithoutCadence(
+            now: now,
+            schedule: config.schedule,
+            tracking: config.tracking,
+            isTrackingActive: isTrackingActive(),
+            isOnBattery: PowerSource.isOnBattery()
+        )
 
-        if !isTrackingActive() {
-            return .pausedManual
-        }
-
-        return .active
+        return .from(decision) { config.schedule.statusMessage(at: now) }
     }
 
     // MARK: - Config Loading

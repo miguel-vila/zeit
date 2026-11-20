@@ -45,6 +45,36 @@ enum TrackingTick {
     /// track at half the configured cadence.
     static let cadenceSlack: TimeInterval = 5
 
+    /// Every gate but the cadence: the schedule, the stop flag and the power
+    /// source.
+    ///
+    /// `.track` from here means nothing but the cadence can hold this tick
+    /// off, which is the whole answer for a caller with no database to read.
+    /// The menubar is that caller: it asks whether tracking is happening at
+    /// all, not whether this particular second is due.
+    static func decideWithoutCadence(
+        now: Date = Date(),
+        schedule: ZeitConfig.ScheduleConfig,
+        tracking: ZeitConfig.TrackingConfig,
+        isTrackingActive: Bool,
+        isOnBattery: Bool,
+        calendar: Calendar = .current
+    ) -> TrackingTickDecision {
+        guard schedule.contains(now, calendar: calendar) else {
+            return .outsideSchedule
+        }
+
+        guard isTrackingActive else {
+            return .paused
+        }
+
+        if tracking.skipOnBattery, isOnBattery {
+            return .onBattery
+        }
+
+        return .track
+    }
+
     /// Whether a tick at `now` should track.
     ///
     /// Checks run cheapest first, and `newestEntry` is a closure because the
@@ -59,17 +89,16 @@ enum TrackingTick {
         calendar: Calendar = .current,
         newestEntry: @Sendable () async -> Date?
     ) async -> TrackingTickDecision {
-        guard schedule.contains(now, calendar: calendar) else {
-            return .outsideSchedule
-        }
+        let beforeCadence = decideWithoutCadence(
+            now: now,
+            schedule: schedule,
+            tracking: tracking,
+            isTrackingActive: isTrackingActive,
+            isOnBattery: isOnBattery,
+            calendar: calendar
+        )
 
-        guard isTrackingActive else {
-            return .paused
-        }
-
-        if tracking.skipOnBattery, isOnBattery {
-            return .onBattery
-        }
+        guard beforeCadence.tracks else { return beforeCadence }
 
         guard let newest = await newestEntry() else {
             // Nothing stored yet, so no cadence to be under.

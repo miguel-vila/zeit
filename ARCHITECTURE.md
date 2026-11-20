@@ -66,6 +66,8 @@ Parse → ActivityEntry → Save to SQLite
 
 `TrackingTick.decide` is the single gate: it holds a tick off when the moment is outside the schedule, when the stop flag exists, when the machine is on battery and `tracking.skip_on_battery` is on, or when the configured cadence has not elapsed since the newest entry. The reason goes to the tracker log, and `zeit doctor` reports the same decision without acting on it. An idle system (IOKit HIDIdleTime > threshold) still records an idle entry.
 
+The menubar reads that same decision rather than re-deriving one. The cadence is the only gate that needs the database, so `TrackingTick.decideWithoutCadence` answers the other three on their own and `TrackingState.from` turns the answer into what the icon and the popover show. A status built from the schedule and the stop flag alone cannot see a battery hold, and reported one as "Tracking active" for a whole afternoon.
+
 ### 3. CLI
 
 An ArgumentParser-based command-line interface sharing the same binary as the GUI. Provides commands for viewing activities, managing the database, controlling services, running diagnostics, and configuring settings.

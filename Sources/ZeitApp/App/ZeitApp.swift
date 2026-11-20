@@ -239,6 +239,13 @@ final class ZeitAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 percentage: percentage,
                 symbolName: "moon.fill"
             )
+        case .heldOnBattery:
+            // A glyph rather than a fourth dot colour: at 5pt hue alone is not
+            // a cue, and the icon is all that shows without opening the menu.
+            button.image = renderPercentageWithSymbol(
+                percentage: percentage,
+                symbolName: "bolt.slash.fill"
+            )
         }
     }
 
