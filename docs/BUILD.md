@@ -42,10 +42,10 @@ Everything that produces an app bundle goes through `build.sh`. Output:
 
 ### Code signing
 
-Every build is signed with the local identity `Zeit Local Signing`, created once
-per machine. Without it the build stops and says so, because the alternative —
-an ad-hoc signature — makes macOS drop the screen recording and accessibility
-grants on every install. The script header says why.
+Every build is signed with a local identity, created once per machine. Without
+it the build stops and says so, because the alternative — an ad-hoc signature —
+makes macOS drop the screen recording and accessibility grants on every install.
+The script header says why.
 
 ```bash
 ./scripts/make-signing-cert.sh    # once per machine
@@ -58,10 +58,9 @@ certificate on any other Mac.
 
 ### Debug vs Release
 
-Swift defines the `DEBUG` flag automatically based on build configuration. Several features are gated behind `#if DEBUG` and are only available in debug builds:
-
-- **Menubar debug section** — Force Track, Clear Today's Data, and sampling buttons
-- **`--sample` CLI flag** — saves LLM pipeline artifacts (screenshots, prompts, responses) to `~/.local/share/zeit/samples/`
+Swift defines the `DEBUG` flag automatically based on build configuration.
+Features gated behind `#if DEBUG` — the menubar's debug section and the
+tracker's `--sample` flag — are compiled out of a release build entirely.
 
 | Build command | `DEBUG` flag | Debug features |
 |---------------|-------------|----------------|
